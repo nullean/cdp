@@ -1,0 +1,21 @@
+# Build output
+.artifacts/
+artifacts/
+[Bb]in/
+[Oo]bj/
+*.nupkg
+*.snupkg
+
+# IDEs and OS
+.vs/
+.idea/
+*.user
+*.suo
+.DS_Store
+
+# Test results
+[Tt]est[Rr]esult*/
+*.trx
+
+# Claude Code personal settings
+.claude/settings.local.json
