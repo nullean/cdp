@@ -1,0 +1,12 @@
+- navigation "Main"
+  - link "Home"
+  - link "About us"
+- heading "Fixture shop" [level=1]
+- textbox "Search"
+- checkbox "Only in stock" [checked=true]
+- combobox "Sort" [expanded=false]: Name
+  - option "Price"
+  - option "Name" [selected]
+- button "Go"
+- button "Disabled" [disabled]
+- heading "Section two" [level=2]

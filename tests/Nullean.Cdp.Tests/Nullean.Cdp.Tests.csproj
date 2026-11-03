@@ -4,7 +4,14 @@
     <PackageReference Include="TUnit" />
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="CsCheck" />
+    <PackageReference Include="Nullean.Snapshots.AwesomeAssertions" />
+    <PackageReference Include="Nullean.Snapshots.TUnit" />
     <ProjectReference Include="../../src/Nullean.Cdp/Nullean.Cdp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="site/**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="fixtures/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

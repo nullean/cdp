@@ -15,8 +15,8 @@ disagree, DECISIONS.md wins. Versions stay 0.x until the owner says otherwise.
 
 One PR each; done means CI green on linux, windows and macos.
 
-0. **Scaffold** with Chrome discovery.
-1. **Connection, launch, pages, accessibility tree.** One `ClientWebSocket`, flattened sessions, replies routed by id
+0. *(done, #1)* **Scaffold** with Chrome discovery.
+1. *(#2)* **Connection, launch, pages, accessibility tree.** One `ClientWebSocket`, flattened sessions, replies routed by id
    through a `ConcurrentDictionary<int, TaskCompletionSource>`, events to per-session channels. Launch headless with a
    temporary `--user-data-dir` and `--remote-debugging-port=0`, read `DevToolsActivePort`. Contexts through
    `Target.createBrowserContext`. `Accessibility.getFullAXTree` printed as `- role "name" [attrs]`, with `-c` and
