@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Nullean.Cdp</RootNamespace>
+    <Description>A small, AOT-clean Chrome DevTools Protocol client: find and launch Chrome, drive pages, read the accessibility tree.</Description>
+    <PackageTags>cdp;chrome;devtools;browser;testing;accessibility</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nullean.Cdp.Tests" />
+  </ItemGroup>
+
+</Project>
