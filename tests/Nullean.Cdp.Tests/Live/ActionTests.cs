@@ -167,12 +167,13 @@ public class ActionTests(ChromeFixture chrome)
 		(await Log(page)).Should().Be("key B shift");
 		(await notes.ValueAsync()).Should().Be("hi!B");
 
-		await notes.PressAsync("Control+a");
-		(await Log(page)).Should().Be("key a ctrl");
-		(await notes.ValueAsync()).Should().Be("hi!B", "a shortcut types nothing");
-
 		await page.PressAsync("Backspace");
 		(await notes.ValueAsync()).Should().Be("hi!");
+
+		// Last: what Control+a then does differs by OS (select all, or the start of the line on macOS).
+		await notes.PressAsync("Control+a");
+		(await Log(page)).Should().Be("key a ctrl");
+		(await notes.ValueAsync()).Should().Be("hi!", "a shortcut types nothing");
 	}
 
 	[Test]
