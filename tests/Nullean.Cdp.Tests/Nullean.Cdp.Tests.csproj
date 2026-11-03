@@ -8,6 +8,7 @@
     <PackageReference Include="Nullean.Snapshots.AwesomeAssertions" />
     <PackageReference Include="Nullean.Snapshots.TUnit" />
     <ProjectReference Include="../../src/Nullean.Cdp/Nullean.Cdp.csproj" />
+    <ProjectReference Include="../../src/Nullean.Cdp.Journeys/Nullean.Cdp.Journeys.csproj" />
   </ItemGroup>
 
   <ItemGroup>

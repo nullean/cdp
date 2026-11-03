@@ -111,11 +111,37 @@ selected]: value`, two spaces per level. Checked against agent-browser 0.41.0 on
 - **Element handles** are released after every operation, in an object group per locator, so locators acting on one
   page at the same time never release each other's handles.
 
+## Journeys
+
+- **agent-browser's commands, a subset.** A journey is one command per line, written as for the agent-browser CLI,
+  so an agent that explored with agent-browser writes the steps down as they were. The subset is what a repeatable
+  test needs: navigation, actions, `find` with click, fill, check, hover and text, waits, viewport and colour scheme,
+  and the reads `snapshot`, `get`, `is`. Everything else (screenshots, tabs, cookies, `connect`, `eval`, `find nth`,
+  `wait --url`, ...) is an error naming the line, so a shared journey cannot reach outside the page it tests.
+- **Refs are rejected.** `@eN` comes from a snapshot and changes between runs.
+- **Quoting is a shell's**, since journeys are copied from shell commands. One change: `#` starts a comment only when
+  whitespace or the line end follows it, because CSS id selectors start with `#`; a shell would need them quoted.
+- **Every parse error at once**, each with its line, so an agent fixes a journey in one pass.
+- **Checkpoints** are the reads. Each records the line, the command as one normalised line (no comment, single
+  spaces, quoted only where needed), the URL, and the output. The normalised command is what a transcript shows, so
+  re-spacing or re-commenting a journey changes nothing downstream.
+- **A failing step is a result, not an exception**: the run stops, and the result keeps the checkpoints that ran and
+  the failure (`file:line: command`, then the error). Cancelling the run is still thrown.
+- **URLs** are absolute only when they start with a scheme: on Linux and macOS `Uri` also reads `/shop` as
+  `file:///shop`. Relative ones resolve against the base URL as in a browser, so a folder needs its trailing slash.
+- **Batch export** writes agent-browser's batch JSON with relative URLs resolved, and `\"` rather than `\u0022`.
+- **Checked against agent-browser 0.41.0 by hand:** `site/journeys/everything.journey`, which uses every supported
+  command, was exported and run with `agent-browser batch --bail`: all 40 steps succeeded, and its reads are the
+  values `JourneyRunnerTests` expects from this runner.
+
 ## Tests
 
 - Every test has a 60 second timeout (assembly level): mutating reply routing showed a lost reply hangs the run.
 - Navigation tests that need `load` to come late use a local `HttpListener` with an image that answers after 800 ms:
   mutation showed `file://` pages load so fast that not waiting at all still passed.
+- Fixtures that tests read live under `site/`, which is copied to the output. A separate `journeys/` folder clashed
+  with the `Journeys/` test folder on macOS's case-insensitive file system, and would not have been copied on Linux.
+- A journey that reads a page must not race it: `everything.journey` waits for the late button before counting.
 - Tests do not bound how long an action takes; under parallel load that is not a property of the code. They assert
   instead that no navigation wait started, by lowering `NavigationTimeout` (to 10 s: 2 s was too tight on the macOS
   runner) so a wrong wait fails with its message.

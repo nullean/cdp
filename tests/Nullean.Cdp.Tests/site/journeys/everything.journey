@@ -1,0 +1,41 @@
+# Every command journeys support, against site/actions.html. Also replayed in agent-browser by hand (DECISIONS.md).
+open actions.html
+set viewport 1024 768
+set media light
+wait main
+find role button click --name "Say hello"
+get text #log
+find text "Say hello" click --exact
+hover "[title='Tooltip text']"
+get text #log
+click #hello
+fill #name "Grace Hopper"
+get value #name
+type "textarea[aria-label=Notes]" hi
+press Enter
+find label Newsletter check
+is checked #news
+uncheck #news
+check #news
+select #colour Blue
+get value #colour
+find placeholder "Ada Lovelace" fill Ada
+find alt Pixel click
+find testid later-enabled hover
+find role heading text --name Actions
+get attr #name placeholder
+wait --text "Appears late"
+get count button
+get html "form label"
+is visible #hello
+is enabled #hello
+wait 50
+snapshot -i -c
+snapshot -s form -d 1
+click "a[href='about.html']"
+get title
+back
+get url
+forward
+reload
+get title
