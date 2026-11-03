@@ -16,12 +16,12 @@ disagree, DECISIONS.md wins. Versions stay 0.x until the owner says otherwise.
 One PR each; done means CI green on linux, windows and macos.
 
 0. *(done, #1)* **Scaffold** with Chrome discovery.
-1. *(#2)* **Connection, launch, pages, accessibility tree.** One `ClientWebSocket`, flattened sessions, replies routed by id
+1. *(done, #2)* **Connection, launch, pages, accessibility tree.** One `ClientWebSocket`, flattened sessions, replies routed by id
    through a `ConcurrentDictionary<int, TaskCompletionSource>`, events to per-session channels. Launch headless with a
    temporary `--user-data-dir` and `--remote-debugging-port=0`, read `DevToolsActivePort`. Contexts through
    `Target.createBrowserContext`. `Accessibility.getFullAXTree` printed as `- role "name" [attrs]`, with `-c` and
    `-i` filtering.
-2. **Locators, actions, waiting.** CSS, `role` + name through `Accessibility.queryAXTree`, text, label, placeholder,
+2. *(#3)* **Locators, actions, waiting.** CSS, `role` + name (from the full accessibility tree; see DECISIONS.md), text, label, placeholder,
    alt, title, testid. Click and hover through `Input.dispatchMouseEvent` at the content quad's centre, fill through
    `Input.insertText`, keys through `Input.dispatchKeyEvent`. Locators poll until visible and enabled (5 s default);
    an action that starts a navigation waits for `load`.

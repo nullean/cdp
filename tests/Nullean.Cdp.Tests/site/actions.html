@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Actions</title>
+<style>#covered { position: relative } #offscreen { margin-top: 3000px }</style>
+</head>
+<body>
+<main>
+  <h1>Actions</h1>
+  <p id="log" aria-live="polite">nothing yet</p>
+
+  <button type="button" id="hello" onclick="say('clicked hello')">Say hello</button>
+  <button type="button" data-testid="later-enabled" id="later" disabled onclick="say('clicked later')">Later</button>
+  <button type="button" style="display:none" onclick="say('clicked hidden')">Hidden button</button>
+  <button type="button" disabled onclick="say('clicked never')">Never enabled</button>
+  <span title="Tooltip text" onmouseenter="say('hovered')">Hover me</span>
+  <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="Pixel" width="20" height="20" onclick="say('clicked pixel')">
+
+  <form onsubmit="event.preventDefault(); say('submitted ' + document.getElementById('name').value)">
+    <label for="name">Your name</label>
+    <input id="name" placeholder="Ada Lovelace" value="prefilled" oninput="say('typed ' + this.value)">
+    <label><input type="checkbox" id="news" onchange="say('news ' + this.checked)"> Newsletter</label>
+    <label for="colour">Colour</label>
+    <select id="colour" onchange="say('colour ' + this.value)">
+      <option value="r">Red</option><option value="g">Green</option><option value="b">Blue</option>
+    </select>
+    <textarea aria-label="Notes" onkeydown="say('key ' + event.key + (event.ctrlKey ? ' ctrl' : '') + (event.shiftKey ? ' shift' : ''))"></textarea>
+    <button>Submit</button>
+  </form>
+
+  <a href="about.html">Go to about</a>
+  <a href="#bottom">Jump to bottom</a>
+  <button type="button" id="offscreen" onclick="say('clicked offscreen')">Far below</button>
+  <div id="bottom">Bottom</div>
+</main>
+<script>
+  function say(text) { document.getElementById('log').textContent = text; }
+  setTimeout(() => {
+    const late = document.createElement('button');
+    late.type = 'button';
+    late.textContent = 'Appears late';
+    late.onclick = () => say('clicked late');
+    document.querySelector('main').append(late);
+    document.getElementById('later').disabled = false;
+  }, 400);
+</script>
+</body>
+</html>

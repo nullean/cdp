@@ -45,8 +45,19 @@ jobs:
       - name: Build
         run: dotnet build -c Release
 
+      # A hang dumps the test process after 5 minutes and names the tests still running; the step limit keeps the
+      # job (and its log) alive when that is not enough.
       - name: Test
-        run: dotnet test -c Release --no-build
+        timeout-minutes: 10
+        run: dotnet test -c Release --no-build --output Detailed --hangdump --hangdump-timeout 5m --hangdump-type Mini --results-directory .artifacts/test-results
+
+      - name: Upload hang dumps
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: .artifacts/test-results
+          if-no-files-found: ignore
 
       - name: Pack
         run: dotnet pack -c Release --no-build -o .artifacts/package-output
