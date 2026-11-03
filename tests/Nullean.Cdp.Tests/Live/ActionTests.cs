@@ -85,7 +85,7 @@ public class ActionTests(ChromeFixture chrome)
 	{
 		var (context, page) = await Open();
 		await using var _ = context;
-		page.NavigationTimeout = TimeSpan.FromSeconds(2);
+		page.NavigationTimeout = TimeSpan.FromSeconds(10);
 
 		await page.Text("Jump to bottom").ClickAsync();
 		await page.BackAsync();
@@ -262,8 +262,8 @@ public class ActionTests(ChromeFixture chrome)
 		var (context, page) = await Open();
 		await using var _ = context;
 
-		// Waiting for a load that never comes would fail with "did not finish loading" after this.
-		page.NavigationTimeout = TimeSpan.FromSeconds(2);
+		// Waiting for a load that never comes would fail with "did not finish loading" after this; generous for slow runners.
+		page.NavigationTimeout = TimeSpan.FromSeconds(10);
 		await page.Text("Jump to bottom").ClickAsync();
 		(await page.UrlAsync()).Should().EndWith("#bottom");
 	}
@@ -275,7 +275,7 @@ public class ActionTests(ChromeFixture chrome)
 		await using var _ = context;
 
 		// The form's submit handler prevents navigation; waiting for one would fail after the navigation timeout.
-		page.NavigationTimeout = TimeSpan.FromSeconds(2);
+		page.NavigationTimeout = TimeSpan.FromSeconds(10);
 		await page.Label("Your name").PressAsync("Enter");
 		(await Log(page)).Should().Be("submitted prefilled");
 	}

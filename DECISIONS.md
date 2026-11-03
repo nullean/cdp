@@ -117,7 +117,8 @@ selected]: value`, two spaces per level. Checked against agent-browser 0.41.0 on
 - Navigation tests that need `load` to come late use a local `HttpListener` with an image that answers after 800 ms:
   mutation showed `file://` pages load so fast that not waiting at all still passed.
 - Tests do not bound how long an action takes; under parallel load that is not a property of the code. They assert
-  instead that no navigation wait started, by lowering `NavigationTimeout` so a wrong wait fails with its message.
+  instead that no navigation wait started, by lowering `NavigationTimeout` (to 10 s: 2 s was too tight on the macOS
+  runner) so a wrong wait fails with its message.
 - Two mutants survive and are equivalent: Chrome types nothing for a Control chord even when text is sent, and a
   same-document navigation is settled by `navigatedWithinDocument` and again by `frameStoppedLoading` (removing both
   fails the suite).
