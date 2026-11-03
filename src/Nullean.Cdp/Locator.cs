@@ -485,7 +485,8 @@ public sealed class Locator
 		{
 			if (node.TryGetProperty("ignored", out var ignored) && ignored.ValueKind == JsonValueKind.True)
 				continue;
-			if (!node.TryGetProperty("role", out var role) || role.StringOrNull("value") != Value)
+			// As in agent-browser, the role itself always ignores case; only the name follows Exact.
+			if (!node.TryGetProperty("role", out var role) || !string.Equals(role.StringOrNull("value"), Value, StringComparison.OrdinalIgnoreCase))
 				continue;
 			if (!node.TryGetProperty("backendDOMNodeId", out var backend))
 				continue;

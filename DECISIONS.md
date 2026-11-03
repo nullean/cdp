@@ -81,7 +81,7 @@ selected]: value`, two spaces per level. Checked against agent-browser 0.41.0 on
 ## Locators and actions
 
 - **agent-browser's locators:** CSS, role (with an optional accessible name), text, label, placeholder, alt, title,
-  test id. Text compares with whitespace collapsed, as a case-insensitive substring, or whole and case-sensitive with
+  test id. The role itself always ignores case, as in agent-browser. Text compares with whitespace collapsed, as a case-insensitive substring, or whole and case-sensitive with
   `exact`; test ids always match exactly. A text locator matches the innermost elements holding the text. A label
   locator finds the control of a `<label>`, then elements named by `aria-label` or `aria-labelledby`, in document
   order.

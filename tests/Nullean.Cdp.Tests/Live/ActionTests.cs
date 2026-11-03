@@ -299,6 +299,7 @@ public class ActionTests(ChromeFixture chrome)
 		(await page.Text("say hello", exact: true).CountAsync()).Should().Be(0);
 		(await page.Text("Say hello", exact: true).TextAsync()).Should().Be("Say hello");
 		(await page.Role("button", "say").CountAsync()).Should().Be(1);
+		(await page.Role("BUTTON", "Say hello", exact: true).CountAsync()).Should().Be(1, "the role ignores case even when exact");
 		await page.Role("button", "Appears late").WaitAsync();
 		(await page.Role("button").CountAsync()).Should().Be(6, "the display:none button is not in the accessibility tree");
 	}
