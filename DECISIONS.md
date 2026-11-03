@@ -78,9 +78,49 @@ selected]: value`, two spaces per level. Checked against agent-browser 0.41.0 on
 - **Golden tests run on recorded trees** (`fixtures/*.axtree.json`, recorded by the explicit `RecordFixtures` test),
   so a new Chrome cannot change them. Tests against a live Chrome assert individual lines.
 
+## Locators and actions
+
+- **agent-browser's locators:** CSS, role (with an optional accessible name), text, label, placeholder, alt, title,
+  test id. Text compares with whitespace collapsed, as a case-insensitive substring, or whole and case-sensitive with
+  `exact`; test ids always match exactly. A text locator matches the innermost elements holding the text. A label
+  locator finds the control of a `<label>`, then elements named by `aria-label` or `aria-labelledby`, in document
+  order.
+- **Role lookups read the whole accessibility tree** (`getFullAXTree`) and filter it, instead of
+  `Accessibility.queryAXTree`. With about 20 pages open at once in one Chrome 156, `queryAXTree` on some pages never
+  answered (traced locally: the command was sent and no reply came within ten seconds); run one at a time it always
+  answered. `getFullAXTree` stayed reliable under the same load, and is already what snapshots use. The cost is one
+  full tree per poll, which is fine at test-page sizes.
+- **Every action waits** up to `Page.ActionTimeout` (5 s) by polling every 50 ms: clicks, fills and key presses for a
+  visible, enabled match, hover for a visible one, reads for an attached one. A timeout names the locator as
+  agent-browser writes it and says what it saw: no match, matches that are not visible, or visible ones that are
+  disabled. A selector that does not parse is an error at once, not a timeout.
+- **Real input.** Clicks scroll the element into view and press at the centre of its first content quad with area;
+  fill selects the content and uses `Input.insertText`; typing and keys go through `Input.dispatchKeyEvent`. With
+  Control, Alt or Meta held a key types nothing; with Shift a letter is upper case in both `key` and text. `check`
+  clicks only when the state differs and fails if the click did not change it. `select` matches option values first,
+  then labels, and fires `input` and `change`.
+- **Navigation after an action.** Clicks and key presses watch the main frame (whose id is the target id) from before
+  they act. If a navigation was requested, they wait for the committed document's `load`, return at once for a
+  navigation within the document, and stop waiting if loading stops without a new document (a cancelled navigation or
+  a download). Nothing requested, nothing waited for.
+- **Not missing a navigation.** Chrome can acknowledge the mouse release before announcing the navigation the click
+  caused: under parallel load, clicking a link sometimes returned while the next page was still `interactive` (2 of 3
+  full runs). Two things guard against it: `Page.frameScheduledNavigation` counts as a start (a link click sends it
+  first), and when no start has been seen, one `Runtime.evaluate` round trip to the page runs before deciding there
+  was none. Without either the test failed 1 run in 4; with either alone, 0 in 4; with both, 0 in 6. Both are kept.
+- **Element handles** are released after every operation, in an object group per locator, so locators acting on one
+  page at the same time never release each other's handles.
+
 ## Tests
 
 - Every test has a 60 second timeout (assembly level): mutating reply routing showed a lost reply hangs the run.
+- Navigation tests that need `load` to come late use a local `HttpListener` with an image that answers after 800 ms:
+  mutation showed `file://` pages load so fast that not waiting at all still passed.
+- Tests do not bound how long an action takes; under parallel load that is not a property of the code. They assert
+  instead that no navigation wait started, by lowering `NavigationTimeout` so a wrong wait fails with its message.
+- Two mutants survive and are equivalent: Chrome types nothing for a Control chord even when text is sent, and a
+  same-document navigation is settled by `navigatedWithinDocument` and again by `frameStoppedLoading` (removing both
+  fails the suite).
 
 ## Repository
 

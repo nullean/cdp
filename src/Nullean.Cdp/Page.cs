@@ -49,6 +49,104 @@ public sealed class Page
 	/// <summary>How long a navigation may take before it fails. Defaults to 30 seconds.</summary>
 	public TimeSpan NavigationTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
+	/// <summary>How long a locator waits for its element before an action or read fails. Defaults to 5 seconds.</summary>
+	public TimeSpan ActionTimeout { get; set; } = TimeSpan.FromSeconds(5);
+
+	/// <summary>The mouse.</summary>
+	public Mouse Mouse => field ??= new Mouse(this);
+
+	/// <summary>The keyboard; it types into whatever has focus.</summary>
+	public Keyboard Keyboard => field ??= new Keyboard(this);
+
+	/// <summary>Elements matching a CSS selector.</summary>
+	public Locator Css(string selector) => Locate(LocatorKind.Css, selector);
+
+	/// <summary>Elements with an ARIA role, and an accessible name when <paramref name="name"/> is given.</summary>
+	public Locator Role(string role, string? name = null, bool exact = false) => Locate(LocatorKind.Role, role, name, exact);
+
+	/// <summary>The innermost elements whose text contains <paramref name="text"/>.</summary>
+	public Locator Text(string text, bool exact = false) => Locate(LocatorKind.Text, text, exact: exact);
+
+	/// <summary>Controls named by a label, <c>aria-label</c> or <c>aria-labelledby</c>.</summary>
+	public Locator Label(string label, bool exact = false) => Locate(LocatorKind.Label, label, exact: exact);
+
+	/// <summary>Elements by <c>placeholder</c>.</summary>
+	public Locator Placeholder(string text, bool exact = false) => Locate(LocatorKind.Placeholder, text, exact: exact);
+
+	/// <summary>Elements by <c>alt</c> text.</summary>
+	public Locator Alt(string text, bool exact = false) => Locate(LocatorKind.Alt, text, exact: exact);
+
+	/// <summary>Elements by <c>title</c>.</summary>
+	public Locator Title(string text, bool exact = false) => Locate(LocatorKind.Title, text, exact: exact);
+
+	/// <summary>Elements by <c>data-testid</c>, matched exactly.</summary>
+	public Locator TestId(string id) => Locate(LocatorKind.TestId, id);
+
+	/// <summary>A locator of any kind.</summary>
+	public Locator Locate(LocatorKind kind, string value, string? name = null, bool exact = false)
+	{
+		ArgumentException.ThrowIfNullOrEmpty(value);
+		if (name is not null && kind != LocatorKind.Role)
+			throw new ArgumentException("Only role locators take a name.", nameof(name));
+		return new Locator(this, kind, value, name, exact);
+	}
+
+	/// <summary>Presses a key or chord on whatever has focus, then waits for any navigation it starts.</summary>
+	public Task PressAsync(string keys, CancellationToken cancellationToken = default) =>
+		WithNavigationAsync(() => Keyboard.PressAsync(keys, cancellationToken), cancellationToken);
+
+	/// <summary>Goes back one entry in the history; does nothing at the first entry.</summary>
+	public Task BackAsync(CancellationToken cancellationToken = default) => HistoryAsync(-1, cancellationToken);
+
+	/// <summary>Goes forward one entry in the history; does nothing at the last entry.</summary>
+	public Task ForwardAsync(CancellationToken cancellationToken = default) => HistoryAsync(1, cancellationToken);
+
+	/// <summary>Reloads the page and waits for it to load.</summary>
+	public Task ReloadAsync(CancellationToken cancellationToken = default) =>
+		WithNavigationAsync(() => SendAsync("Page.reload", null, cancellationToken), cancellationToken);
+
+	private async Task HistoryAsync(int step, CancellationToken cancellationToken)
+	{
+		var history = await SendAsync("Page.getNavigationHistory", null, cancellationToken).ConfigureAwait(false);
+		var index = history.GetProperty("currentIndex").GetInt32() + step;
+		var entries = history.GetProperty("entries");
+		if (index < 0 || index >= entries.GetArrayLength())
+			return;
+		var id = entries[index].GetProperty("id").GetInt32();
+		await WithNavigationAsync(() => SendAsync("Page.navigateToHistoryEntry", w => w.WriteNumber("entryId", id), cancellationToken), cancellationToken)
+			.ConfigureAwait(false);
+	}
+
+	/// <summary>Sets the viewport size in CSS pixels.</summary>
+	public async Task SetViewportAsync(int width, int height, CancellationToken cancellationToken = default)
+	{
+		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
+		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+		await SendAsync("Emulation.setDeviceMetricsOverride", w =>
+		{
+			w.WriteNumber("width", width);
+			w.WriteNumber("height", height);
+			w.WriteNumber("deviceScaleFactor", 1);
+			w.WriteBoolean("mobile", false);
+		}, cancellationToken).ConfigureAwait(false);
+	}
+
+	/// <summary>Emulates <c>prefers-color-scheme</c>: <c>dark</c>, <c>light</c> or <c>no-preference</c>.</summary>
+	public async Task SetColorSchemeAsync(string scheme, CancellationToken cancellationToken = default)
+	{
+		if (scheme is not ("dark" or "light" or "no-preference"))
+			throw new ArgumentException($"Unknown color scheme '{scheme}': use dark, light or no-preference.", nameof(scheme));
+		await SendAsync("Emulation.setEmulatedMedia", w =>
+		{
+			w.WriteStartArray("features");
+			w.WriteStartObject();
+			w.WriteString("name", "prefers-color-scheme");
+			w.WriteString("value", scheme);
+			w.WriteEndObject();
+			w.WriteEndArray();
+		}, cancellationToken).ConfigureAwait(false);
+	}
+
 	internal async Task InitializeAsync(CancellationToken cancellationToken)
 	{
 		await SendAsync("Page.enable", null, cancellationToken).ConfigureAwait(false);
@@ -73,13 +171,7 @@ public sealed class Page
 		ArgumentException.ThrowIfNullOrEmpty(url);
 		using var waiting = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 		waiting.CancelAfter(NavigationTimeout);
-		var loads = new ConcurrentDictionary<(string Frame, string Loader), TaskCompletionSource>();
-		using var listening = Connection.On(SessionId, e =>
-		{
-			if (e.Method == "Page.lifecycleEvent" && e.Params.StringOrNull("name") == "load"
-				&& e.Params.StringOrNull("frameId") is { } frame && e.Params.StringOrNull("loaderId") is { } loader)
-				loads.GetOrAdd((frame, loader), NewSignal).TrySetResult();
-		});
+		using var watch = new NavigationWatch(this);
 		try
 		{
 			var result = await SendAsync("Page.navigate", w => w.WriteString("url", url), waiting.Token).ConfigureAwait(false);
@@ -87,16 +179,109 @@ public sealed class Page
 				throw new PageNavigationException(url, error);
 			if (result.StringOrNull("loaderId") is not { } loaderId || result.StringOrNull("frameId") is not { } frameId)
 				return;
-			// The load, or a closed connection, whichever comes first.
-			var loaded = loads.GetOrAdd((frameId, loaderId), NewSignal).Task;
-			await (await Task.WhenAny(loaded, Connection.Closed).WaitAsync(waiting.Token).ConfigureAwait(false)).ConfigureAwait(false);
+			await watch.LoadedAsync(frameId, loaderId, waiting.Token).ConfigureAwait(false);
 		}
 		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
 		{
 			throw new TimeoutException($"Navigating to {url} did not finish loading within {NavigationTimeout.TotalSeconds:0} seconds.");
 		}
+	}
 
-		static TaskCompletionSource NewSignal(ValueTuple<string, string> _) => new(TaskCreationOptions.RunContinuationsAsynchronously);
+	/// <summary>
+	/// Runs <paramref name="action"/>; when it started a navigation of the page, waits for the new document to load
+	/// (or for a navigation within the document to happen).
+	/// </summary>
+	internal async Task WithNavigationAsync(Func<Task> action, CancellationToken cancellationToken)
+	{
+		using var watch = new NavigationWatch(this);
+		await action().ConfigureAwait(false);
+		if (!watch.Started)
+		{
+			// Chrome can acknowledge the input before the navigation it caused is announced. A round trip to the page
+			// runs after the renderer has handled the input, including asking to navigate; check again after it.
+			await SendAsync("Runtime.evaluate", w => w.WriteString("expression", "0"), cancellationToken).ConfigureAwait(false);
+			if (!watch.Started)
+				return;
+		}
+		using var waiting = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+		waiting.CancelAfter(NavigationTimeout);
+		try
+		{
+			await watch.SettledAsync(waiting.Token).ConfigureAwait(false);
+		}
+		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+		{
+			throw new TimeoutException($"A navigation the action started did not finish loading within {NavigationTimeout.TotalSeconds:0} seconds.");
+		}
+	}
+
+	/// <summary>
+	/// Follows the main frame's navigation events from the moment it is created, since they can arrive before the
+	/// command that caused them answers. The main frame's id is the target id.
+	/// </summary>
+	private sealed class NavigationWatch : IDisposable
+	{
+		private readonly Page _page;
+		private readonly IDisposable _listening;
+		private readonly ConcurrentDictionary<(string Frame, string Loader), TaskCompletionSource> _loads = new();
+		private readonly TaskCompletionSource<string> _committed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+		private readonly TaskCompletionSource _settled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+		private int _started;
+
+		public NavigationWatch(Page page)
+		{
+			_page = page;
+			_listening = page.Connection.On(page.SessionId, OnEvent);
+		}
+
+		public bool Started => Volatile.Read(ref _started) == 1;
+
+		private void OnEvent(Protocol.CdpEvent e)
+		{
+			var main = e.Params.StringOrNull("frameId") == _page.TargetId;
+			switch (e.Method)
+			{
+				case "Page.lifecycleEvent" when e.Params.StringOrNull("name") == "load"
+					&& e.Params.StringOrNull("frameId") is { } frame && e.Params.StringOrNull("loaderId") is { } loader:
+					Signal(frame, loader).TrySetResult();
+					break;
+				case "Page.frameRequestedNavigation" or "Page.frameScheduledNavigation" or "Page.frameStartedNavigating" or "Page.frameStartedLoading" when main:
+					Volatile.Write(ref _started, 1);
+					break;
+				case "Page.frameNavigated" when e.Params.TryGetProperty("frame", out var f) && f.StringOrNull("id") == _page.TargetId
+					&& f.StringOrNull("loaderId") is { } committed:
+					Volatile.Write(ref _started, 1);
+					_committed.TrySetResult(committed);
+					break;
+				case "Page.navigatedWithinDocument" when main:
+					Volatile.Write(ref _started, 1);
+					_settled.TrySetResult();
+					break;
+				// Loading stopped without a new document: the navigation was cancelled or became a download.
+				case "Page.frameStoppedLoading" when main && !_committed.Task.IsCompleted:
+					_settled.TrySetResult();
+					break;
+			}
+		}
+
+		private TaskCompletionSource Signal(string frame, string loader) =>
+			_loads.GetOrAdd((frame, loader), static _ => new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
+
+		/// <summary>Waits for the load of one loader, or fails when the connection closes.</summary>
+		public async Task LoadedAsync(string frameId, string loaderId, CancellationToken cancellationToken) =>
+			await (await Task.WhenAny(Signal(frameId, loaderId).Task, _page.Connection.Closed).WaitAsync(cancellationToken).ConfigureAwait(false))
+				.ConfigureAwait(false);
+
+		/// <summary>Waits until a started navigation committed and loaded, stayed within the document, or stopped.</summary>
+		public async Task SettledAsync(CancellationToken cancellationToken)
+		{
+			var first = await Task.WhenAny(_committed.Task, _settled.Task, _page.Connection.Closed).WaitAsync(cancellationToken).ConfigureAwait(false);
+			await first.ConfigureAwait(false);
+			if (first == _committed.Task)
+				await LoadedAsync(_page.TargetId, await _committed.Task.ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+		}
+
+		public void Dispose() => _listening.Dispose();
 	}
 
 	/// <summary>Evaluates <paramref name="expression"/> and returns its value as JSON; promises are awaited.</summary>

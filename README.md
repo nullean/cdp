@@ -32,6 +32,15 @@ Console.Write(await page.SnapshotAsync(new AxSnapshotOptions { Compact = true, S
 //   - checkbox "Only in stock" [checked=true]
 ```
 
+Locators wait for their element and act like a user:
+
+```csharp
+await page.Label("Search").FillAsync("lamp");
+await page.Role("checkbox", "Only in stock").CheckAsync();
+await page.Role("button", "Go").ClickAsync();         // waits for any navigation it starts
+await page.Text("3 results").WaitAsync();
+```
+
 `page.SendAsync(method, params)` and `browser.Connection` reach any CDP command the library does not wrap.
 
 ## Finding Chrome
