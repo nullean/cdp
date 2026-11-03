@@ -155,7 +155,11 @@ public sealed class Browser : IAsyncDisposable
 			if (TryReadDevToolsActivePort(file) is { } url)
 				return url;
 			if (process.HasExited)
+			{
+				// The exit can be seen before the last output lines reach the handlers; WaitForExit drains them.
+				process.WaitForExit();
 				throw new BrowserLaunchException(Failure($"Chrome exited with code {process.ExitCode} before opening its DevTools port.", output));
+			}
 			if (deadline.Elapsed > timeout)
 				throw new BrowserLaunchException(Failure($"Chrome did not open its DevTools port within {timeout.TotalSeconds:0} seconds.", output));
 			await Task.Delay(25, cancellationToken).ConfigureAwait(false);
