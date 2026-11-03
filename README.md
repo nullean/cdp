@@ -17,6 +17,23 @@ snapshot -c -s main
 
 Status: early, 0.x. See [ROADMAP.md](ROADMAP.md).
 
+## Use
+
+```csharp
+await using var browser = await Browser.LaunchAsync();      // headless, temporary profile
+await using var context = await browser.NewContextAsync();  // own cookies and storage
+var page = await context.NewPageAsync();
+await page.GotoAsync("http://localhost:5000/");
+
+Console.Write(await page.SnapshotAsync(new AxSnapshotOptions { Compact = true, Selector = "main" }));
+// - main
+//   - heading "Fixture shop" [level=1]
+//   - textbox "Search"
+//   - checkbox "Only in stock" [checked=true]
+```
+
+`page.SendAsync(method, params)` and `browser.Connection` reach any CDP command the library does not wrap.
+
 ## Finding Chrome
 
 `CDP_CHROME`, then `CHROME_PATH`, then the standard install locations for Chrome, Chrome for Testing, Chromium and

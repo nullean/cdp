@@ -1,0 +1,5 @@
+- main
+  - heading "About us" [level=1]
+  - paragraph
+    - StaticText "We sell fixtures."
+  - link "Back home"

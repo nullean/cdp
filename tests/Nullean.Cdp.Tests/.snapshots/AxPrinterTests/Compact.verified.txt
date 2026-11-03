@@ -1,0 +1,30 @@
+- navigation "Main"
+  - link "Home"
+  - link "About us"
+- main
+  - heading "Fixture shop" [level=1]
+  - paragraph
+    - StaticText "Plain text with "
+    - strong
+      - StaticText "bold"
+    - StaticText " words."
+  - list
+    - listitem [level=1]
+      - StaticText "First item"
+    - listitem [level=1]
+      - StaticText "Second item"
+  - form
+    - LabelText
+      - StaticText "Search"
+    - textbox "Search"
+    - checkbox "Only in stock" [checked=true]
+    - combobox "Sort" [expanded=false]: Name
+      - MenuListPopup
+        - option "Price"
+        - option "Name" [selected]
+    - button "Go"
+    - button "Disabled" [disabled]
+  - group
+    - DisclosureTriangle "More" [expanded=false]
+  - heading "Section two" [level=2]
+  - image "A product photo"

@@ -21,6 +21,7 @@ a real Chrome skip with a reason when none is found; CI sets `CDP_BROWSER_REQUIR
 - No `lock`: concurrent collections, `Interlocked`, `Lazy<T>`.
 - Error messages are plain text: no ANSI, readable by people and agents, and they say what was tried.
 - Journeys never use agent-browser `@ref`s; they are not stable between runs.
-- Test the tests: break the code on purpose and confirm the suite fails.
+- Test the tests: break the code on purpose and confirm the suite fails. After restoring a mutated file, `touch` it
+  before the next build: a restored copy keeps an older timestamp and MSBuild keeps the mutated binary.
 - Never publish packages or push tags without the owner's approval.
 - Record non-obvious choices in DECISIONS.md in the same change.

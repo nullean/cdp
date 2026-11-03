@@ -1,0 +1,11 @@
+- navigation "Main"
+  - link "Home"
+  - link "About us"
+- main
+  - heading "Fixture shop" [level=1]
+  - paragraph
+  - list
+  - form
+  - group
+  - heading "Section two" [level=2]
+  - image "A product photo"
