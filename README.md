@@ -81,6 +81,21 @@ if (result.Failure is { } failure)
 - **Replay in agent-browser:** `journey.ToAgentBrowserBatch(baseUrl)` gives the batch JSON, for
   `agent-browser batch --bail`. A journey using every supported command runs there unchanged.
 
+## The CLI
+
+```sh
+cdp check journeys/*.journey                             # parse only, every error with its line
+cdp run journeys/checkout.journey --base-url http://localhost:5000/
+cdp run site/journeys/*.journey --base-url ./site --json
+cdp snapshot http://localhost:5000/ --compact            # one page's accessibility tree
+cdp batch journeys/checkout.journey --base-url http://localhost:5000/ | agent-browser batch --bail
+cdp chrome                                               # which Chrome, or where it looked
+```
+
+Everything the page produced is printed between `--- PAGE_CONTENT nonce=… ---` markers with a nonce per run, so an
+agent reading the output can tell the page's words from the tool's. Exit codes: 0 ok, 1 failed, 2 usage, 3 no browser.
+The command name `cdp` is a working name.
+
 ## Finding Chrome
 
 `CDP_CHROME`, then `CHROME_PATH`, then the standard install locations for Chrome, Chrome for Testing, Chromium and

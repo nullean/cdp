@@ -51,9 +51,142 @@ jobs:
           if [ "$RUNNER_OS" = "Linux" ]; then export CDP_BROWSER_REQUIRED=1; else export CDP_SKIP_BROWSER=1; fi
           dotnet test -c Release --no-build
 
-      - name: Pack
-        run: dotnet pack -c Release --no-build -o .artifacts/package-output
-
-      - name: Report the version
+      # The CLI is a RID-specific tool and is packed by the jobs below; --no-build cannot pack it.
+      - name: Pack the libraries
         shell: bash
-        run: ls .artifacts/package-output
+        run: |
+          for project in src/*/*.csproj; do
+            case "$project" in *Nullean.Cdp.Cli*) continue ;; esac
+            dotnet pack "$project" -c Release --no-build -o .artifacts/package-output
+          done
+          ls .artifacts/package-output
+
+  # Native AOT cannot cross-compile between operating systems, so each RID packs on a matching runner.
+  aot-pack:
+    if: github.event_name != 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: linux-x64, runner: ubuntu-latest }
+          - { rid: linux-arm64, runner: ubuntu-24.04-arm }
+          - { rid: win-x64, runner: windows-latest }
+          - { rid: win-arm64, runner: windows-11-arm }
+          - { rid: osx-arm64, runner: macos-latest }
+    runs-on: ${{ matrix.runner }}
+    name: AOT pack (${{ matrix.rid }})
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - run: git fetch --prune --tags
+        shell: bash
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Pack the native tool for ${{ matrix.rid }}
+        run: dotnet pack src/Nullean.Cdp.Cli -c Release -r ${{ matrix.rid }} -o .artifacts/package-output
+
+      - name: Report the native binary size
+        shell: bash
+        run: |
+          EXT=""
+          [[ "$RUNNER_OS" == "Windows" ]] && EXT=".exe"
+          BINARY=$(find .artifacts/bin/Nullean.Cdp.Cli -path "*release_${{ matrix.rid }}/native/cdp${EXT}" -type f | head -1)
+          [[ -n "$BINARY" ]] || { echo "no native binary found"; exit 1; }
+          ls -la "$BINARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nupkg-cli-${{ matrix.rid }}
+          path: .artifacts/package-output/*.nupkg
+          if-no-files-found: error
+
+  # A plain pack emits the root package, the portable 'any' fallback and managed per-RID packages. Only the first two
+  # are kept: the real per-RID packages are the AOT ones above.
+  tool-pack:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    name: Pack the root and portable tool packages
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - run: git fetch --prune --tags
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Pack
+        run: |
+          dotnet pack src/Nullean.Cdp.Cli -c Release -o .artifacts/cli-staging
+          mkdir -p .artifacts/package-output
+          for package in .artifacts/cli-staging/*.nupkg; do
+            name="$(basename "$package")"
+            case "$name" in
+              Nullean.Cdp.Cli.linux-*|Nullean.Cdp.Cli.win-*|Nullean.Cdp.Cli.osx-*) echo "dropping $name" ;;
+              *) echo "keeping $name"; cp "$package" .artifacts/package-output/ ;;
+            esac
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nupkg-cli-root
+          path: .artifacts/package-output/*.nupkg
+          if-no-files-found: error
+
+  # Installs the packed tool from a local feed and runs the smoke test with it, installed and through dnx.
+  tool-smoke:
+    needs: [aot-pack, tool-pack]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    name: Tool smoke test (${{ matrix.os }})
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - run: git fetch --prune --tags
+        shell: bash
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nupkg-cli-*
+          path: ${{ runner.temp }}/feed
+          merge-multiple: true
+
+      # Outside the checkout: a nuget.config with package source mapping refuses --add-source.
+      - name: Install and run
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          temp="$RUNNER_TEMP"
+          cdp="cdp"
+          # On Windows a RID-specific tool installs as a cdp.cmd shim, and Git Bash wants a POSIX path.
+          if [[ "$RUNNER_OS" == "Windows" ]]; then temp="$(cygpath -u "$RUNNER_TEMP")"; cdp="cdp.cmd"; fi
+          feed="$temp/feed"
+          ls "$feed"
+          root="$(ls "$feed" | sed -n 's/^Nullean\.Cdp\.Cli\.\([0-9][^/]*\)\.nupkg$/\1/p')"
+          [ -n "$root" ] || { echo "no root package in the feed"; exit 1; }
+          echo "version $root"
+          dotnet tool install Nullean.Cdp.Cli --tool-path "$temp/tool" --add-source "$feed" --version "$root"
+          "$GITHUB_WORKSPACE/build/smoke-cli.sh" "$temp/tool/$cdp"
+          "$GITHUB_WORKSPACE/build/smoke-cli.sh" dotnet dnx "Nullean.Cdp.Cli@$root" --add-source "$feed" --yes

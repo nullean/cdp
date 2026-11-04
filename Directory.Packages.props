@@ -8,6 +8,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The CLI's argument parsing: source generated, AOT-safe, help from XML docs. -->
+    <PackageVersion Include="Nullean.Argh" Version="0.21.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Test dependencies. TUnit and AwesomeAssertions track the latest stable release only. -->
     <PackageVersion Include="TUnit" Version="1.78.0" />
     <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />

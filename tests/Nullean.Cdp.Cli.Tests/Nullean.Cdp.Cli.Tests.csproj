@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="Nullean.Snapshots.AwesomeAssertions" />
+    <PackageReference Include="Nullean.Snapshots.TUnit" />
+    <ProjectReference Include="../../src/Nullean.Cdp.Cli/Nullean.Cdp.Cli.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The fixture site and journeys are shared with the library tests. -->
+    <None Include="../Nullean.Cdp.Tests/site/**" LinkBase="site" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

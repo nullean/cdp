@@ -2,8 +2,10 @@
   <Folder Name="/src/">
     <Project Path="src/Nullean.Cdp/Nullean.Cdp.csproj" />
     <Project Path="src/Nullean.Cdp.Journeys/Nullean.Cdp.Journeys.csproj" />
+    <Project Path="src/Nullean.Cdp.Cli/Nullean.Cdp.Cli.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Nullean.Cdp.Tests/Nullean.Cdp.Tests.csproj" />
+    <Project Path="tests/Nullean.Cdp.Cli.Tests/Nullean.Cdp.Cli.Tests.csproj" />
   </Folder>
 </Solution>

@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Nullean.Cdp.Cli</RootNamespace>
+    <!-- The command name is provisional (DECISIONS.md); Argh's help reads the assembly name, so it is set here once. -->
+    <AssemblyName>cdp</AssemblyName>
+
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>cdp</ToolCommandName>
+    <PackageId>Nullean.Cdp.Cli</PackageId>
+    <Title>cdp: run synthetic browser journeys</Title>
+    <Description>Run synthetic journeys (agent-browser commands, one per line) against Chrome over the DevTools Protocol, check them, export them to agent-browser, and snapshot pages. Native AOT.</Description>
+    <PackageTags>cdp;chrome;browser;testing;journey;dotnet-tool;cli</PackageTags>
+
+    <!-- Native AOT tool packaging, as nullean/snapshots and nullean/curb do it: one package per RID, each built on a
+         matching runner, plus a framework-dependent 'any' fallback, and the root package that maps RIDs to them. -->
+    <RuntimeIdentifiers>linux-x64;linux-arm64;win-x64;win-arm64;osx-arm64;any</RuntimeIdentifiers>
+    <ToolPackageRuntimeIdentifiers>linux-x64;linux-arm64;win-x64;win-arm64;osx-arm64;any</ToolPackageRuntimeIdentifiers>
+    <RollForward>Major</RollForward>
+    <!-- Argh generates public members without docs; this tool has no public API. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != '' and '$(RuntimeIdentifier)' != 'any'">
+    <PublishAot>true</PublishAot>
+    <PublishSelfContained>true</PublishSelfContained>
+    <StripSymbols>true</StripSymbols>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <EventSourceSupport>false</EventSourceSupport>
+    <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Nullean.Argh" />
+    <ProjectReference Include="../Nullean.Cdp/Nullean.Cdp.csproj" />
+    <ProjectReference Include="../Nullean.Cdp.Journeys/Nullean.Cdp.Journeys.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nullean.Cdp.Cli.Tests" />
+  </ItemGroup>
+
+</Project>
