@@ -263,6 +263,8 @@ rejection a little after the task that caused it, so an `errors` read straight a
 - **`screenshot [selector] <path.png> [--full]`**, agent-browser's syntax: the viewport, the whole page past the
   viewport (`Page.getLayoutMetrics` then a clip with `captureBeyondViewport`), or one element (scrolled into view,
   its box clipped in document coordinates). PNG only.
+- **Headless Chrome starts with `--hide-scrollbars`**, as Puppeteer's does: Linux otherwise draws 15px scrollbars that
+  narrow the page (a full-page screenshot came out 1265px wide instead of 1280) where macOS overlays them.
 - **Files, not checkpoints.** Pixels change with fonts, anti-aliasing and GPU, so comparing them exactly would fail
   across machines; a screenshot goes into the artifacts folder under the same rules as HAR files, and the transcript
   doesn't mention it. Visual comparison with a tolerance would be a separate snapshot format.

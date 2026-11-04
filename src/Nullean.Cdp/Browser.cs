@@ -223,7 +223,12 @@ public sealed class Browser : IAsyncDisposable
 	internal static IEnumerable<string> Arguments(BrowserLaunchOptions options, string userDataDirectory)
 	{
 		if (options.Headless)
+		{
 			yield return "--headless=new";
+			// Linux draws classic 15px scrollbars where macOS overlays them: hidden, pages lay out and screenshot alike.
+			yield return "--hide-scrollbars";
+		}
+
 		yield return "--remote-debugging-port=0";
 		yield return "--user-data-dir=" + userDataDirectory;
 		yield return "--no-first-run";
