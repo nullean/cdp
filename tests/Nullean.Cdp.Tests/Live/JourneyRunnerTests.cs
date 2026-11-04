@@ -14,9 +14,11 @@ public class JourneyRunnerTests(ChromeFixture chrome)
 	{
 		var journey = Journey.Load(Path.Combine(AppContext.BaseDirectory, "site", "journeys", "everything.journey"));
 
-		var result = await JourneyRunner.RunAsync(journey, chrome.Browser, new JourneyOptions { BaseUrl = Site });
+		var steps = new List<int>();
+		var result = await JourneyRunner.RunAsync(journey, chrome.Browser, new JourneyOptions { BaseUrl = Site, OnStep = s => steps.Add(s.Line) });
 
 		result.Failure.Should().BeNull();
+		steps.Should().Equal(journey.Steps.Select(s => s.Line), "OnStep sees every step, in order");
 		var reads = result.Checkpoints.Where(c => !c.Command.StartsWith("snapshot", StringComparison.Ordinal)).Select(c => (c.Line, c.Output));
 		// The same values agent-browser 0.41.0 printed for the exported batch (DECISIONS.md, "Journeys").
 		reads.Should().Equal(

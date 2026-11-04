@@ -14,6 +14,36 @@ public sealed class JourneyOptions
 
 	/// <summary>Overrides <see cref="Page.NavigationTimeout"/> for the run.</summary>
 	public TimeSpan? NavigationTimeout { get; init; }
+
+	/// <summary>Host patterns the host allows on top of the journey's <c>allow</c> lines and the base URL's host.</summary>
+	public IReadOnlyList<string> AllowedHosts { get; init; } = [];
+
+	/// <summary>
+	/// The one folder <c>file://</c> URLs may point into. Defaults to the base URL's folder when that is a file URL;
+	/// otherwise file URLs are refused. A journey cannot widen it.
+	/// </summary>
+	public string? FileRoot { get; init; }
+
+	/// <summary>Called before each step runs, e.g. to show progress.</summary>
+	public Action<JourneyStep>? OnStep { get; init; }
+
+	/// <summary>Resolves <c>$env:NAME</c> references; defaults to the process environment.</summary>
+	public Func<string, string?> Secrets { get; init; } = Environment.GetEnvironmentVariable;
+
+	/// <summary>
+	/// Refuse requests outside the allow list (on by default). Turning it off also lets <c>open</c> go anywhere.
+	/// </summary>
+	public bool GuardNetwork { get; init; } = true;
+
+	internal JourneyAllowList AllowList(Journey journey)
+	{
+		var hosts = journey.AllowedHosts.Concat(AllowedHosts);
+		if (BaseUrl is { Scheme: "http" or "https" } web)
+			hosts = hosts.Append(web.IdnHost);
+		// "file:///x/site/" and "file:///x/site/index.html" both give /x/site.
+		var root = FileRoot ?? (BaseUrl is { IsFile: true } file ? Path.GetDirectoryName(file.LocalPath) : null);
+		return new JourneyAllowList(GuardNetwork ? hosts : ["*"], root);
+	}
 }
 
 /// <summary>The output of one checkpoint.</summary>
@@ -33,8 +63,11 @@ public sealed record JourneyFailure(int Line, string Command, string Message)
 	public string Describe(string source) => $"{source}:{Line}: {Command}\n{Message}";
 }
 
-/// <summary>What a run produced: every checkpoint that ran, and the failure if a step failed.</summary>
-public sealed record JourneyResult(string Source, IReadOnlyList<Checkpoint> Checkpoints, JourneyFailure? Failure)
+/// <summary>
+/// What a run produced: every checkpoint that ran, the failure if a step failed, and the sub-resource requests the
+/// allow list refused (a refused navigation is a failure instead).
+/// </summary>
+public sealed record JourneyResult(string Source, IReadOnlyList<Checkpoint> Checkpoints, JourneyFailure? Failure, IReadOnlyList<BlockedRequest> Blocked)
 {
 	/// <summary>Whether every step ran.</summary>
 	public bool Passed => Failure is null;
@@ -66,21 +99,57 @@ public static class JourneyRunner
 		if (options.NavigationTimeout is { } navigation)
 			page.NavigationTimeout = navigation;
 
+		var run = new Run(journey, page, options, options.AllowList(journey), new JourneySecrets(options.Secrets));
 		var checkpoints = new List<Checkpoint>();
+		var blocked = new List<BlockedRequest>();
+		await using var guard = options.GuardNetwork ? await page.GuardNetworkAsync(run.AllowList.Allows, cancellationToken).ConfigureAwait(false) : null;
 		foreach (var step in journey.Steps)
 		{
+			string? failure;
+			options.OnStep?.Invoke(step);
 			try
 			{
-				if (await RunStepAsync(journey, step, page, options, cancellationToken).ConfigureAwait(false) is { } output)
-					checkpoints.Add(new Checkpoint(step.Line, step.Text, await page.UrlAsync(cancellationToken).ConfigureAwait(false), output));
+				var output = await RunStepAsync(run, step, cancellationToken).ConfigureAwait(false);
+				failure = Blocked(guard, run.AllowList, blocked);
+				if (failure is null && output is not null)
+				{
+					var url = await page.UrlAsync(cancellationToken).ConfigureAwait(false);
+					checkpoints.Add(new Checkpoint(step.Line, step.Text, run.Secrets.Redact(url), run.Secrets.Redact(output)));
+				}
 			}
 			catch (Exception e) when (IsStepFailure(e, cancellationToken))
 			{
-				return new JourneyResult(journey.Source, checkpoints, new JourneyFailure(step.Line, step.Text, e.Message));
+				failure = Blocked(guard, run.AllowList, blocked) ?? e.Message;
 			}
+
+			if (failure is not null)
+				return new JourneyResult(journey.Source, checkpoints, new JourneyFailure(step.Line, step.Text, run.Secrets.Redact(failure)), blocked);
 		}
 
-		return new JourneyResult(journey.Source, checkpoints, null);
+		return new JourneyResult(journey.Source, checkpoints, null, blocked);
+	}
+
+	private sealed record Run(Journey Journey, Page Page, JourneyOptions Options, JourneyAllowList AllowList, JourneySecrets Secrets);
+
+	// A refused navigation fails the step; refused sub-resources are reported with the result.
+	private static string? Blocked(NetworkGuard? guard, JourneyAllowList allowList, List<BlockedRequest> blocked)
+	{
+		if (guard is null)
+			return null;
+		string? failure = null;
+		foreach (var request in guard.TakeBlocked())
+		{
+			if (!request.IsNavigation)
+			{
+				blocked.Add(request);
+				continue;
+			}
+
+			var reason = Uri.TryCreate(request.Url, UriKind.Absolute, out var uri) ? allowList.Refusal(uri) : null;
+			failure ??= $"The page navigated to {request.Url}, which is refused: {reason ?? "not an allowed URL"}.";
+		}
+
+		return failure;
 	}
 
 	// Anything a step can fail with, but not the caller cancelling.
@@ -93,12 +162,16 @@ public static class JourneyRunner
 		_ => false,
 	};
 
-	private static async Task<string?> RunStepAsync(Journey journey, JourneyStep step, Page page, JourneyOptions options, CancellationToken ct)
+	private static async Task<string?> RunStepAsync(Run run, JourneyStep step, CancellationToken ct)
 	{
+		var page = run.Page;
 		switch (step.Command)
 		{
 			case OpenCommand open:
-				await page.GotoAsync(journey.ResolveUrl(step, open.Url, options.BaseUrl), ct).ConfigureAwait(false);
+				var url = run.Journey.ResolveUrl(step, open.Url, run.Options.BaseUrl);
+				if (Uri.TryCreate(url, UriKind.Absolute, out var opening) && run.AllowList.Refusal(opening) is { } refusal)
+					throw new ArgumentException($"Opening {url} is refused: {refusal}.");
+				await page.GotoAsync(url, ct).ConfigureAwait(false);
 				return null;
 			case HistoryCommand { Direction: "back" }:
 				await page.BackAsync(ct).ConfigureAwait(false);
@@ -110,7 +183,7 @@ public static class JourneyRunner
 				await page.ReloadAsync(ct).ConfigureAwait(false);
 				return null;
 			case ActCommand act:
-				await ActAsync(act, act.Target.On(page), ct).ConfigureAwait(false);
+				await ActAsync(act, act.Target.On(page), run.Secrets, ct).ConfigureAwait(false);
 				return null;
 			case PressCommand press:
 				await page.PressAsync(press.Keys, ct).ConfigureAwait(false);
@@ -136,8 +209,12 @@ public static class JourneyRunner
 		}
 	}
 
-	private static async Task ActAsync(ActCommand act, Locator locator, CancellationToken ct)
+	private static async Task ActAsync(ActCommand act, Locator locator, JourneySecrets secrets, CancellationToken ct)
 	{
+		if (act.Action is "fill" or "type" && !JourneySecrets.IsReference(act.Values[0])
+			&& string.Equals(await locator.AttributeAsync("type", ct).ConfigureAwait(false), "password", StringComparison.OrdinalIgnoreCase))
+			throw new ArgumentException($"{locator} is a password field: fill it with a secret reference ($env:NAME), not a literal.");
+		var values = act.Values.Select(secrets.Resolve).ToArray();
 		switch (act.Action)
 		{
 			case "click":
@@ -153,13 +230,13 @@ public static class JourneyRunner
 				await locator.UncheckAsync(ct).ConfigureAwait(false);
 				break;
 			case "fill":
-				await locator.FillAsync(act.Values[0], ct).ConfigureAwait(false);
+				await locator.FillAsync(values[0], ct).ConfigureAwait(false);
 				break;
 			case "type":
-				await locator.TypeAsync(act.Values[0], ct).ConfigureAwait(false);
+				await locator.TypeAsync(values[0], ct).ConfigureAwait(false);
 				break;
 			case "select":
-				await locator.SelectAsync(act.Values, ct).ConfigureAwait(false);
+				await locator.SelectAsync(values, ct).ConfigureAwait(false);
 				break;
 			default:
 				throw new InvalidOperationException($"No runner for action {act.Action}.");

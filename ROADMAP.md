@@ -29,6 +29,8 @@ One PR each; done means CI green on linux, windows and macos.
    fill type press check uncheck select hover`, `find role|text|label|placeholder|alt|title|testid … [--name]
    [--exact]`, `wait`, `set viewport|media`, and the checkpoints `snapshot`, `get`, `is`. `@eN` refs and anything else
    are parse errors with line numbers. The runner returns checkpoints and keeps them when a step fails.
+3b. **Safety for agents.** Allow list enforced through `Fetch` (popups and out-of-process frames included), `file://`
+   confined to the base folder, `$env:` secrets with redaction, downloads denied, and `PageContent.Fence` for the CLI.
 4. **CLI**, packed per RID with native AOT like snap and curb.
 
 ## Tests

@@ -68,7 +68,7 @@ public class JourneyParseTests
 	[Test]
 	public void EveryErrorIsReportedWithItsLine() =>
 		Error("open /\nscreenshot a.png\nfill #q\nfind nth 2 li click\nclick \"open").Should().Be(
-			"x.journey:2: 'screenshot' is not supported in journeys. Supported: open, back, forward, reload, click, hover, fill, type, check, uncheck, select, press, find, wait, set, snapshot, get, is.\n" +
+			"x.journey:2: 'screenshot' is not supported in journeys. Supported: allow, open, back, forward, reload, click, hover, fill, type, check, uncheck, select, press, find, wait, set, snapshot, get, is.\n" +
 			"x.journey:3: usage: fill <selector> <text>\n" +
 			"x.journey:4: find nth is not supported in journeys; use a CSS selector that matches one element.\n" +
 			"x.journey:5: the double quote is not closed");

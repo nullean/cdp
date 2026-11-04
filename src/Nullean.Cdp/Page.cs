@@ -30,12 +30,15 @@ public sealed class PageSelectorException(string selector)
 /// <summary>One page (tab), attached through its own session on the browser's connection.</summary>
 public sealed class Page
 {
-	internal Page(CdpConnection connection, string targetId, string sessionId)
+	internal Page(Browser browser, CdpConnection connection, string targetId, string sessionId)
 	{
+		Browser = browser;
 		Connection = connection;
 		TargetId = targetId;
 		SessionId = sessionId;
 	}
+
+	internal Browser Browser { get; }
 
 	/// <summary>The connection, for commands this library does not wrap; pass <see cref="SessionId"/> with them.</summary>
 	public CdpConnection Connection { get; }
@@ -89,6 +92,15 @@ public sealed class Page
 		if (name is not null && kind != LocatorKind.Role)
 			throw new ArgumentException("Only role locators take a name.", nameof(name));
 		return new Locator(this, kind, value, name, exact);
+	}
+
+	/// <summary>
+	/// Refuses every request of this page that <paramref name="allow"/> rejects, from now until the guard is disposed.
+	/// </summary>
+	public Task<NetworkGuard> GuardNetworkAsync(Func<Uri, bool> allow, CancellationToken cancellationToken = default)
+	{
+		ArgumentNullException.ThrowIfNull(allow);
+		return NetworkGuard.StartAsync(this, allow, cancellationToken);
 	}
 
 	/// <summary>Presses a key or chord on whatever has focus, then waits for any navigation it starts.</summary>

@@ -75,6 +75,9 @@ if (result.Failure is { } failure)
 - **Quoting** is a shell's: double or single quotes, backslash escapes. `# ` starts a comment, but `#id` is a selector.
 - **URLs:** `open /shop` resolves against the base URL like a link in a page would, so a base URL for a folder needs
   its trailing slash.
+- **Safe to share:** a run reaches only the base URL's host and the hosts in the journey's `allow` lines, on every
+  request including clicks, redirects and popups; `file://` stays in the base folder; downloads are denied. Passwords
+  are `$env:NAME` references, typed when the step runs and redacted from everything the run reports.
 - **Replay in agent-browser:** `journey.ToAgentBrowserBatch(baseUrl)` gives the batch JSON, for
   `agent-browser batch --bail`. A journey using every supported command runs there unchanged.
 
