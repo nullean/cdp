@@ -107,6 +107,9 @@ public static class JourneyRunner
 			? await page.GuardNetworkAsync(options.GuardNetwork ? run.AllowList.Allows : _ => true, cancellationToken).ConfigureAwait(false)
 			: null;
 		run.Guard = guard;
+		// Interactions are recorded only for journeys that read vitals.
+		if (journey.Steps.Any(s => s.Command is PerformanceCommand { Kind: "vitals" }))
+			await page.RecordInteractionsAsync(cancellationToken).ConfigureAwait(false);
 		foreach (var step in journey.Steps)
 		{
 			string? failure;
@@ -262,6 +265,8 @@ public static class JourneyRunner
 			case ClearLogCommand:
 				page.ClearErrors();
 				return null;
+			case PerformanceCommand performance:
+				return await PerformanceAsync(performance, page, ct).ConfigureAwait(false);
 			case SnapshotCommand snapshot:
 				return (await page.SnapshotAsync(snapshot.Options, ct).ConfigureAwait(false)).TrimEnd('\n');
 			case ReadCommand read:
@@ -269,6 +274,41 @@ public static class JourneyRunner
 			default:
 				throw new InvalidOperationException($"No runner for {step.Command.GetType().Name}.");
 		}
+	}
+
+	// Raw readings, one per line; with budgets only whether each budgeted reading is within its limit, so the output
+	// stays the same from run to run. A reading over its budget, or with no value, fails the step.
+	private static async Task<string> PerformanceAsync(PerformanceCommand command, Page page, CancellationToken ct)
+	{
+		IReadOnlyList<(string Name, double? Value)> readings = command.Kind switch
+		{
+			"timings" => (await page.TimingsAsync(ct).ConfigureAwait(false)).Named,
+			"vitals" => (await page.VitalsAsync(ct).ConfigureAwait(false)).Named,
+			_ => [.. (await page.MetricsAsync(ct).ConfigureAwait(false)).Select(m => (m.Key, (double?)m.Value))],
+		};
+		var unit = command.Kind == "metrics" ? (Func<string, string>)(_ => "") : name => name == "cls" ? "" : "ms";
+		if (command.Budgets.Count == 0)
+			return string.Join('\n', readings.Select(r => $"{r.Name}: {PagePerformance.Format(r.Name, r.Value)}{(r.Value is null ? "" : unit(r.Name))}"));
+
+		var lines = new List<string>();
+		var over = new List<string>();
+		foreach (var budget in command.Budgets)
+		{
+			var (name, reading) = readings.FirstOrDefault(r => string.Equals(r.Name, budget.Name, StringComparison.OrdinalIgnoreCase));
+			var limit = $"{PagePerformance.Format(budget.Name, budget.Limit)}{unit(budget.Name)}";
+			if (name is null)
+				throw new ArgumentException($"{command.Kind} has no reading called '{budget.Name}'.");
+			if (reading is not { } value)
+				over.Add($"{budget.Name} has no value yet (budget {limit})");
+			else if (value > budget.Limit)
+				over.Add($"{budget.Name} {PagePerformance.Format(budget.Name, value)}{unit(budget.Name)} > {limit}");
+			else
+				lines.Add($"{budget.Name} ok (<= {limit})");
+		}
+
+		return over.Count > 0
+			? throw new ArgumentException($"Over budget: {string.Join("; ", over)}.")
+			: string.Join('\n', lines);
 	}
 
 	private static Dictionary<string, string> Headers(string json)

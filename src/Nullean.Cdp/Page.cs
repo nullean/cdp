@@ -43,6 +43,9 @@ public sealed class Page
 
 	internal string? ContextId { get; }
 
+	// Set once interaction recording is on (PagePerformance.RecordInteractionsAsync).
+	internal int RecordingInteractions;
+
 	private readonly PageLog _log = new();
 
 	/// <summary>The page's console calls since it was created or last cleared, oldest first.</summary>

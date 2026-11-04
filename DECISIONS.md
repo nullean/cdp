@@ -191,6 +191,33 @@ each: the first line of the error, then `(url:line:column)`, 1-based, from the t
 handler Chrome gives the column within the compiled handler, not the HTML line. Chrome reports an unhandled promise
 rejection a little after the task that caused it, so an `errors` read straight after `open` can miss one; wait first.
 
+## Performance
+
+- **Readings, raw in the library and the CLI.** `page.TimingsAsync()` gives paint and load timing from the
+  navigation and paint entries: `ttfb`, `first-paint`, `fcp`, `dom-interactive`, `dom-content-loaded`, `load`, in ms
+  from the start of the navigation. `page.VitalsAsync()` gives agent-browser's `vitals` names: `ttfb`, `fcp`, `lcp`
+  (with its element), `cls` (session windows: gaps under 1 s, windows at most 5 s), `inp` (the slowest interaction, or
+  the 98th percentile from 50 on). `page.MetricsAsync()` is Chrome's `Performance.getMetrics` as Chrome names and
+  scales them. People set their own thresholds.
+- **In journeys, budgets keep transcripts stable.** `timings`, `vitals` and `metrics` print raw readings, which change
+  from run to run; `--budget name=limit` prints only `name ok (<= limit)`, and a reading over its limit, or with no
+  value yet, fails the step with the actual value. Snapshot users budget; people and agents reading the CLI see raw
+  numbers.
+- **INP needs recording from the start, and only when asked.** Chrome keeps only interactions of about 104 ms or
+  more. `page.RecordInteractionsAsync()` adds a small script before any page script
+  (`Page.addScriptToEvaluateOnNewDocument`) that records interactions from 16 ms, as Google's web-vitals library
+  does. It is opt-in: the journey runner turns it on only for journeys with `vitals`; other pages run nothing extra.
+- **No waiting unless a reading is asked for, and then only when needed.** The frame waits live in `TimingsAsync`
+  and `VitalsAsync` alone; timings skip them when the page has already reported its paints.
+- **Reported, not instant.** Paint entries, layout shifts and interactions are reported once their frame is rendered
+  (on the GPU-less Linux runner first paint came after `load`). Timings wait (two frames, then up to 500 ms) only for a
+  loaded page that has reported no paint yet.
+  Vitals wait two frames (and up to 200 ms after an interaction), but a change made just before may still be missing;
+  a journey waits a moment before reading. A change before the page's first frame is no layout shift at all (nothing
+  painted moved): the test page shifts only after two frames, or under load its CLS read 0.
+- **Export:** `vitals` is an agent-browser command and exports without our budgets; `timings` and `metrics` are not
+  and are left out.
+
 ## Safety for agents
 
 Journeys are written and shared by agents, and their output is read by agents, so a page is untrusted input in both
