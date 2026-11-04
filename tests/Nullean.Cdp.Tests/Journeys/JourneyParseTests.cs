@@ -72,6 +72,8 @@ public class JourneyParseTests
 		One("network requests --clear").Should().Be(new RequestsCommand(true, null, [], null, null));
 		One("network requests --filter api --type xhr,fetch --method post --status 4xx")
 			.Should().Be(new RequestsCommand(false, "api", ["xhr", "fetch"], "POST", "4xx"));
+		One("a11y").Should().Be(new AuditCommand(null, false));
+		One("a11y -s main --strict").Should().Be(new AuditCommand("main", true));
 		One("console").Should().Be(new ReadCommand("console", null));
 		One("errors").Should().Be(new ReadCommand("errors", null));
 		One("console --clear").Should().Be(new ClearLogCommand("console"));
@@ -119,7 +121,7 @@ public class JourneyParseTests
 	[Test]
 	public void EveryErrorIsReportedWithItsLine() =>
 		Error("open /\nscreenshot a.png\nfill #q\nfind nth li\nclick \"open").Should().Be(
-			"x.journey:2: 'screenshot' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, timings, vitals, metrics, is.\n" +
+			"x.journey:2: 'screenshot' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, a11y, timings, vitals, metrics, is.\n" +
 			"x.journey:3: usage: fill <selector> <text>\n" +
 			"x.journey:4: usage: find nth <n> <selector> [action] [text]\n" +
 			"x.journey:5: the double quote is not closed");
@@ -156,6 +158,8 @@ public class JourneyParseTests
 	[Arguments("is hidden #a", "usage: is visible|enabled|checked <selector>")]
 	[Arguments("back now", "usage: back")]
 	[Arguments("console all", "usage: console [--clear]")]
+	[Arguments("a11y --tags wcag2a", "a11y --tags is not supported in journeys: these are our own rules, not axe-core's.")]
+	[Arguments("a11y main", "usage: a11y [-s <selector>] [--strict]")]
 	[Arguments("network har stop ../x.har", "'../x.har' must be a path inside the artifacts folder, relative to it.")]
 	[Arguments("network har stop", "network har stop needs a path for the HAR file, relative to the artifacts folder")]
 	[Arguments("network route **/api --abort", "network route is not supported in journeys: it changes or reads what the page receives outside the page.")]
@@ -186,6 +190,11 @@ public class JourneyParseTests
 	public void ExportKeepsVitalsWithoutBudgetsAndSkipsOurOwnReadings() =>
 		Journey.Parse("open https://x.test/\ntimings\nvitals --budget lcp=1\nmetrics\nget title").ToAgentBrowserBatch()
 			.Should().Be("[[\"open\",\"https://x.test/\"],[\"vitals\"],[\"get\",\"title\"]]\n");
+
+	[Test]
+	public void ExportKeepsA11yWithoutStrict() =>
+		Journey.Parse("open https://x.test/\na11y -s main --strict").ToAgentBrowserBatch()
+			.Should().Be("[[\"open\",\"https://x.test/\"],[\"a11y\",\"--selector\",\"main\"]]\n");
 
 	[Test]
 	public void RelativeUrlsNeedABaseUrl()

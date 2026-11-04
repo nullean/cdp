@@ -1,3 +1,4 @@
+using Nullean.Cdp.Accessibility;
 using System.Globalization;
 using Nullean.Cdp.Protocol;
 
@@ -274,6 +275,11 @@ public static class JourneyRunner
 			case SetCommand media:
 				await page.SetColorSchemeAsync(media.Scheme!, ct).ConfigureAwait(false);
 				return null;
+			case AuditCommand audit:
+				var violations = await page.AuditAsync(audit.Selector, ct).ConfigureAwait(false);
+				if (audit.Strict && violations.Count > 0)
+					throw new ArgumentException($"Accessibility violations: {string.Join(", ", violations.Select(v => $"{v.Rule} ({v.Nodes.Count})"))}.");
+				return Nullean.Cdp.Accessibility.AccessibilityAudit.Format(violations);
 			case HarCommand { Action: "start" }:
 				run.HarStart = run.Network!.Requests.Count;
 				return null;
