@@ -260,6 +260,15 @@ and where data can go is what holds.
   same-document navigation is settled by `navigatedWithinDocument` and again by `frameStoppedLoading` (removing both
   fails the suite).
 
+## Releasing
+
+As nullean/snapshots does it: push a tag (`0.1.0`; MinVer takes the version from it), then start CI by hand on that tag
+(`gh workflow run ci.yml --ref 0.1.0`). The `release` job runs only for such a manual run, needs every other job
+including the tool smoke tests, checks that every package carries the tag's version, and publishes through nuget.org
+trusted publishing (`NuGet/login` with the organisation's `NUGET_USER`; no API key is stored). The `release`
+environment only lets tags deploy. The root tool package is pushed last, after the per-RID and `any` packages it
+points at. A tag push alone never publishes. Versions stay 0.x until the owner says otherwise.
+
 ## Repository
 
 - Laid out like nullean/snapshots: central package management, MinVer from tags (`0.1` minimum, `alpha.0`
