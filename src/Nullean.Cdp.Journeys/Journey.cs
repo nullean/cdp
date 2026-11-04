@@ -95,6 +95,26 @@ public sealed record SetCommand(string Setting, int Width = 0, int Height = 0, s
 	public string? Password { get; init; }
 }
 
+/// <summary>
+/// <c>timings</c>, <c>vitals</c> or <c>metrics</c>, a checkpoint: raw readings, or with <c>--budget name=limit</c> only
+/// whether each budgeted reading is within its limit (a reading over its limit fails the step).
+/// </summary>
+public sealed record PerformanceCommand(string Kind, IReadOnlyList<PerformanceBudget> Budgets) : JourneyCommand
+{
+	/// <inheritdoc />
+	public override bool IsCheckpoint => true;
+
+	/// <inheritdoc />
+	public bool Equals(PerformanceCommand? other) =>
+		other is not null && Kind == other.Kind && Budgets.SequenceEqual(other.Budgets);
+
+	/// <inheritdoc />
+	public override int GetHashCode() => HashCode.Combine(Kind, Budgets.Count);
+}
+
+/// <summary>A limit for one reading: <c>lcp=2500</c> means at most 2500 ms.</summary>
+public sealed record PerformanceBudget(string Name, double Limit);
+
 /// <summary><c>console --clear</c> or <c>errors --clear</c>: forgets what the page logged so far.</summary>
 public sealed record ClearLogCommand(string Log) : JourneyCommand;
 
@@ -221,6 +241,7 @@ public sealed partial class Journey
 		"snapshot [-i] [-c] [-u] [-d <n>] [-s <selector>]",
 		"get text|html|value|count|box|styles <selector>", "get attr <selector> <name>", "get title", "get url",
 		"console [--clear]", "errors [--clear]",
+		"timings [--budget <name>=<ms>...]", "vitals [--budget <name>=<limit>...]", "metrics [--budget <name>=<limit>...]",
 		"is visible|enabled|checked <selector>",
 	];
 
@@ -258,6 +279,7 @@ public sealed partial class Journey
 			"set" => ParseSet(rest),
 			"snapshot" => ParseSnapshot(rest),
 			"get" => ParseGet(rest),
+			"timings" or "vitals" or "metrics" => ParsePerformance(command, rest),
 			"console" or "errors" => rest switch
 			{
 				[] => new ReadCommand(command, null),
@@ -453,6 +475,35 @@ public sealed partial class Journey
 		}
 	}
 
+	internal static readonly IReadOnlyList<string> TimingNames = ["ttfb", "first-paint", "fcp", "dom-interactive", "dom-content-loaded", "load"];
+	internal static readonly IReadOnlyList<string> VitalNames = ["ttfb", "fcp", "lcp", "cls", "inp"];
+
+	private static PerformanceCommand ParsePerformance(string kind, string[] rest)
+	{
+		var usage = $"{kind} [--budget <name>=<limit>...]";
+		var budgets = new List<PerformanceBudget>();
+		var inBudget = false;
+		foreach (var argument in rest)
+		{
+			if (argument == "--budget")
+			{
+				inBudget = true;
+				continue;
+			}
+
+			var parts = argument.Split('=', 2);
+			if (!inBudget || parts.Length != 2
+				|| !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var limit) || limit < 0)
+				throw Usage(usage);
+			var known = kind switch { "timings" => TimingNames, "vitals" => VitalNames, _ => null };
+			if (known is not null && !known.Contains(parts[0]))
+				throw new JourneySyntaxException($"{kind} has no '{parts[0]}'; budget one of: {string.Join(", ", known)}");
+			budgets.Add(new PerformanceBudget(parts[0], limit));
+		}
+
+		return inBudget && budgets.Count == 0 ? throw Usage(usage) : new PerformanceCommand(kind, budgets);
+	}
+
 	private static bool ValidHeaders(string json)
 	{
 		try
@@ -543,8 +594,13 @@ public sealed partial class Journey
 			json.WriteStartArray();
 			foreach (var step in Steps)
 			{
+				// timings and metrics are not agent-browser commands; vitals is, without our budgets.
+				if (step.Command is PerformanceCommand { Kind: not "vitals" })
+					continue;
 				json.WriteStartArray();
-				if (step.Command is OpenCommand open)
+				if (step.Command is PerformanceCommand)
+					json.WriteStringValue("vitals");
+				else if (step.Command is OpenCommand open)
 				{
 					json.WriteStringValue("open");
 					json.WriteStringValue(ResolveUrl(step, open.Url, baseUrl));

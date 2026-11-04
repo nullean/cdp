@@ -63,6 +63,9 @@ public class JourneyParseTests
 		One("snapshot -u -c").Should().Be(new SnapshotCommand(new AxSnapshotOptions { Urls = true, Compact = true }));
 		One("get box #a").Should().Be(new ReadCommand("box", css("#a")));
 		One("get styles #a").Should().Be(new ReadCommand("styles", css("#a")));
+		One("timings").Should().Be(new PerformanceCommand("timings", []));
+		One("vitals --budget lcp=2500 cls=0.1").Should().Be(new PerformanceCommand("vitals", [new PerformanceBudget("lcp", 2500), new PerformanceBudget("cls", 0.1)]));
+		One("metrics --budget Nodes=1500").Should().Be(new PerformanceCommand("metrics", [new PerformanceBudget("Nodes", 1500)]));
 		One("console").Should().Be(new ReadCommand("console", null));
 		One("errors").Should().Be(new ReadCommand("errors", null));
 		One("console --clear").Should().Be(new ClearLogCommand("console"));
@@ -110,7 +113,7 @@ public class JourneyParseTests
 	[Test]
 	public void EveryErrorIsReportedWithItsLine() =>
 		Error("open /\nscreenshot a.png\nfill #q\nfind nth li\nclick \"open").Should().Be(
-			"x.journey:2: 'screenshot' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, is.\n" +
+			"x.journey:2: 'screenshot' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, timings, vitals, metrics, is.\n" +
 			"x.journey:3: usage: fill <selector> <text>\n" +
 			"x.journey:4: usage: find nth <n> <selector> [action] [text]\n" +
 			"x.journey:5: the double quote is not closed");
@@ -147,6 +150,11 @@ public class JourneyParseTests
 	[Arguments("is hidden #a", "usage: is visible|enabled|checked <selector>")]
 	[Arguments("back now", "usage: back")]
 	[Arguments("console all", "usage: console [--clear]")]
+	[Arguments("vitals --budget lcp", "usage: vitals [--budget <name>=<limit>...]")]
+	[Arguments("vitals --budget", "usage: vitals [--budget <name>=<limit>...]")]
+	[Arguments("vitals lcp=1", "usage: vitals [--budget <name>=<limit>...]")]
+	[Arguments("vitals --budget speed=1", "vitals has no 'speed'; budget one of: ttfb, fcp, lcp, cls, inp")]
+	[Arguments("timings --budget lcp=1", "timings has no 'lcp'; budget one of: ttfb, first-paint, fcp, dom-interactive, dom-content-loaded, load")]
 	public void RejectsWithAReason(string line, string message) => Error(line).Should().Be("x.journey:1: " + message);
 
 	[Test]
@@ -163,6 +171,11 @@ public class JourneyParseTests
 
 		journey.ToAgentBrowserBatch(new Uri("http://localhost:5000/app/")).Should().MatchSnapshot();
 	}
+
+	[Test]
+	public void ExportKeepsVitalsWithoutBudgetsAndSkipsOurOwnReadings() =>
+		Journey.Parse("open https://x.test/\ntimings\nvitals --budget lcp=1\nmetrics\nget title").ToAgentBrowserBatch()
+			.Should().Be("[[\"open\",\"https://x.test/\"],[\"vitals\"],[\"get\",\"title\"]]\n");
 
 	[Test]
 	public void RelativeUrlsNeedABaseUrl()
