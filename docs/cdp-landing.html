@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Nullean.Cdp — Drive Chrome from .NET</title>
+<meta name="description" content="A small Chrome DevTools Protocol client for .NET, and synthetic journeys written in agent-browser's command language that replay in agent-browser, in dotnet test and from a native AOT CLI."/>
+<base href="/"/>
+
+<!-- This page is copied verbatim over the generated index.html by scripts/docs-finish.sh, so it never goes through
+     docs-builder's own head generation and carries its metadata by hand. -->
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://cdp.nullean.net/"/>
+<meta property="og:title" content="Nullean.Cdp — Drive Chrome from .NET"/>
+<meta property="og:description" content="Drive Chrome from .NET over the DevTools Protocol, and share synthetic journeys written in agent-browser's language."/>
+<meta property="og:image" content="https://cdp.nullean.net/images/brand/png/social-card.png"/>
+<meta property="og:image:width" content="1280"/>
+<meta property="og:image:height" content="640"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="Nullean.Cdp — Drive Chrome from .NET"/>
+<meta name="twitter:image" content="https://cdp.nullean.net/images/brand/png/social-card.png"/>
+<link rel="icon" type="image/svg+xml" href="images/brand/mark-small.svg"/>
+<link rel="icon" type="image/png" sizes="32x32" href="images/brand/png/mark-32.png"/>
+<link rel="apple-touch-icon" sizes="180x180" href="images/brand/png/mark-180.png"/>
+<meta name="theme-color" content="#08090B"/>
+
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #08090B;
+    --bg2:       #0D1013;
+    --bg3:       #1B2126;
+    --accent:     #7ED6C8;
+    --accent-hi:  #B5EAE1;
+    --accent-dim: #1C2B2A;
+    --accent-2:   #FF9F7A;
+    --accent-2-hi:#FFC3AC;
+    --accent-2-dim:#2D201B;
+    --text:      #E9ECF1;
+    --muted:     #98A1AE;
+    --dim:       #5A6472;
+    --line:      rgba(126,214,200,0.12);
+    --line-soft: rgba(126,214,200,0.065);
+    --mono:      'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --display:   'Space Grotesk', system-ui, sans-serif;
+    --maxw:      1180px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* Two quiet glows, teal and coral, fixed behind the page. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(at 10% 12%, rgba(126,214,200,0.13) 0, transparent 52%),
+      radial-gradient(at 90% 8%, rgba(255,159,122,0.10) 0, transparent 48%),
+      radial-gradient(at 70% 85%, rgba(126,214,200,0.06) 0, transparent 55%);
+  }
+
+  a { color: inherit; text-decoration: none; }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  nav {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(8,9,11,0.72);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  nav .links { display: flex; gap: 28px; font-size: 13px; color: var(--muted); }
+  nav .links { align-items: center; }
+  nav .links a:hover { color: var(--accent-hi); }
+  .nav-lockup { display: block; width: 98px; height: 48px; }
+  .icon-link { display: inline-flex; align-items: center; gap: 6px; }
+  .icon-link svg { width: 16px; height: 16px; }
+  .footer-links { display: inline-flex; gap: 16px; align-items: center; }
+
+  .hero { padding: 96px 0 72px; }
+  .hero .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 56px; align-items: center; }
+  .kicker { color: var(--accent); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+  h1 {
+    font-family: var(--display);
+    font-size: clamp(38px, 5vw, 58px);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin: 18px 0 22px;
+  }
+  h1 em { font-style: normal; color: var(--accent); }
+  .lead { color: var(--muted); font-size: 16px; max-width: 34em; }
+  .actions { display: flex; gap: 14px; margin-top: 32px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 20px; border-radius: 6px; font-size: 14px; font-weight: 500;
+    border: 1px solid var(--line);
+  }
+  .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .btn.primary:hover { background: var(--accent-hi); }
+  .btn:not(.primary):hover { border-color: var(--accent); color: var(--accent-hi); }
+
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 24px 60px -20px rgba(0,0,0,0.7);
+    overflow: hidden;
+  }
+  .panel-bar { display: flex; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--line-soft); font-size: 12px; color: var(--dim); }
+  .panel-bar span { margin-left: auto; }
+  pre { padding: 18px 20px; font-size: 12.5px; line-height: 1.65; overflow-x: auto; white-space: pre; tab-size: 2; }
+  .t-dim { color: var(--dim); }
+  .t-mut { color: var(--muted); }
+  .t-del { color: var(--accent); }
+  .t-add { color: var(--accent-2); }
+  .t-hi  { color: var(--text); font-weight: 500; }
+
+  section.band { padding: 72px 0; border-top: 1px solid var(--line-soft); }
+  h2 { font-family: var(--display); font-size: 30px; letter-spacing: -0.02em; margin-bottom: 10px; }
+  .sub { color: var(--muted); max-width: 44em; margin-bottom: 36px; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+  .card {
+    background: rgba(13,16,19,0.7);
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    padding: 22px;
+    transition: border-color .15s, transform .15s;
+  }
+  a.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .card-kicker { font-size: 11px; color: var(--accent-2); letter-spacing: 0.08em; text-transform: uppercase; }
+  .card-title { font-family: var(--display); font-size: 19px; margin: 8px 0 10px; line-height: 1.25; }
+  .card p { color: var(--muted); font-size: 13.5px; }
+
+  .table-scroll { overflow-x: auto; }
+  table.formats { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .formats th, .formats td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  .formats th { color: var(--dim); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .formats td:first-child { color: var(--accent); white-space: nowrap; }
+  .formats td { color: var(--muted); }
+  .formats code { color: var(--text); }
+
+  .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+
+  footer { padding: 40px 0 56px; border-top: 1px solid var(--line-soft); color: var(--dim); font-size: 13px; }
+  footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  footer a:hover { color: var(--accent-hi); }
+
+  @media (max-width: 900px) {
+    .hero .wrap, .two { grid-template-columns: minmax(0, 1fr); }
+    .cards { grid-template-columns: minmax(0, 1fr); }
+    nav .links { gap: 16px; }
+    .hero { padding: 56px 0 48px; }
+  }
+  @media (max-width: 560px) {
+    nav .links a.hide-sm { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    a.card { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a href="./" aria-label="Nullean.Cdp home"><svg class="nav-lockup" width="98" height="48" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 196 96" role="img" aria-label="cdp"><style>.c6sh{animation:c6sw 4.6s ease-in-out infinite}@keyframes c6sw{0%,64%{transform:translateX(0)}92%,100%{transform:translateX(316px)}}.c6pt{animation:c6p 4.6s cubic-bezier(.45,0,.25,1) infinite}@keyframes c6p{0%,8%{transform:translate(9px,9px)}34%{transform:translate(0,0)}40%{transform:translate(.8px,.8px)}46%,70%{transform:translate(0,0)}100%{transform:translate(9px,9px)}}.c6rp{transform-box:fill-box;transform-origin:center;animation:c6r 4.6s ease-out infinite}@keyframes c6r{0%,40%{transform:scale(.3);opacity:0}42%{opacity:.9}74%,100%{transform:scale(2.6);opacity:0}}.c6dt{animation:c6d 4.6s ease-in-out infinite}@keyframes c6d{0%,38%{opacity:.55}44%,60%{opacity:1}80%,100%{opacity:.55}}@media (prefers-reduced-motion:reduce){.c6sh,.c6pt,.c6rp,.c6dt{animation:none}.c6rp{opacity:0}}</style><defs><linearGradient id="c6f" x1="0" y1=".2" x2="1" y2=".8"><stop offset=".44" stop-color="#7ed6c8"/><stop offset=".56" stop-color="#ff9f7a"/></linearGradient><radialGradient id="c6g" cx=".18" cy=".12" r="1.2"><stop offset="0" stop-color="#1b2126"/><stop offset=".55" stop-color="#0d1013"/><stop offset="1" stop-color="#08090b"/></radialGradient><linearGradient id="c6s" x1="0" y1="0" x2="1" y2="0"><stop offset=".35" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".8"/><stop offset=".65" stop-color="#fff" stop-opacity="0"/></linearGradient><mask id="c6m"><rect width="196" height="96" fill="#fff"/><rect x="5" y="5" width="186" height="86" fill="#000"/></mask></defs><rect width="196" height="96" rx="10" fill="url(#c6f)"/><g mask="url(#c6m)"><rect class="c6sh" x="-120" y="-20" width="120" height="136" fill="url(#c6s)" transform="skewX(-18)"/></g><rect x="5" y="5" width="186" height="86" rx="5" fill="url(#c6g)"/><g transform="translate(14 16)"><rect x="4" y="8" width="56" height="46" rx="6" fill="#0b0e11" stroke="#7ed6c8" stroke-width="3"/><path d="M5.5 18.5H58.5" stroke="#7ed6c8" stroke-opacity=".55" stroke-width="1.5"/><circle cx="10.5" cy="13.3" r="1.7" fill="#7ed6c8"/><circle cx="16" cy="13.3" r="1.7" fill="#7ed6c8"/><circle cx="21.5" cy="13.3" r="1.7" fill="#7ed6c8"/><rect x="10" y="24" width="27" height="3.2" rx="1.6" fill="#7ed6c8" fill-opacity=".35"/><rect x="10" y="31" width="17" height="3.2" rx="1.6" fill="#7ed6c8" fill-opacity=".22"/><circle class="c6rp" cx="38" cy="38" r="8" fill="none" stroke="#ff9f7a" stroke-width="2" opacity="0"/><circle class="c6dt" cx="38" cy="38" r="3.4" fill="#ff9f7a"/><g class="c6pt"><path d="M38 38V59.5L43.2 54.4L47.2 62.2L51.4 60.1L47.4 52.4H54.7Z" fill="#f4f6f9" stroke="#0b0e11" stroke-width="2" stroke-linejoin="round"/></g></g><g font-family="JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace" font-weight="700"><text x="90" y="60" font-size="34" letter-spacing="-1" fill="#ffffff">cdp<tspan dx="-5" fill="#ff9f7a">.</tspan></text></g></svg></a>
+    <div class="links">
+      <a href="getting-started/">Get started</a>
+      <a href="journeys/" class="hide-sm">Journeys</a>
+      <a href="cli/" class="hide-sm">CLI</a>
+      <a class="icon-link" href="getting-started/" aria-label="Documentation" title="Documentation"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.743 3.743 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.75l-.004 7.322a3.752 3.752 0 0 1 1.992-.572H14.5v-9h-3.495a2.25 2.25 0 0 0-2.25 2.25Z"/></svg></a>
+      <a class="icon-link" href="https://github.com/nullean/cdp" aria-label="GitHub" title="GitHub"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg></a>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <div class="kicker">Chrome DevTools Protocol · .NET · native AOT</div>
+      <h1>Drive Chrome from .NET. <em>Share the journeys.</em></h1>
+      <p class="lead">
+        A small DevTools Protocol client with no dependencies beyond the BCL, and <em>synthetic journeys</em>: plain
+        text files in agent-browser's command language that replay in agent-browser, in <code>dotnet test</code> and
+        from the <code>cdp</code> command line.
+      </p>
+      <div class="actions">
+        <a class="btn primary" href="getting-started/">Get started →</a>
+        <a class="btn" href="journeys/">The journey language</a>
+      </div>
+    </div>
+    <div class="panel" aria-label="A journey and its run">
+      <div class="panel-bar">● ● ●<span>journeys/about.journey</span></div>
+<pre><span class="t-dim"># From the shop to the about page</span>
+open /
+find label Search fill lamp
+find role link click --name <span class="t-add">"About us"</span>
+<span class="t-hi">snapshot -c -s main</span>
+<span class="t-hi">links</span>
+<span class="t-hi">a11y</span></pre>
+      <div class="panel-bar">● ● ●<span>cdp run journeys/about.journey --base-url http://localhost:5000/</span></div>
+<pre><span class="t-mut">-- journeys/about.journey:5: snapshot -c -s main</span>
+<span class="t-dim">--- PAGE_CONTENT nonce=1c7f…824d origin=http://localhost:5000 ---</span>
+url: http://localhost:5000/about.html
+- main
+  - heading <span class="t-add">"About us"</span> [level=1]
+  - paragraph
+    - StaticText <span class="t-add">"We sell fixtures."</span>
+  - link <span class="t-add">"Back home"</span>
+<span class="t-dim">--- END_PAGE_CONTENT nonce=1c7f…824d ---</span>
+<span class="t-mut">-- journeys/about.journey:6: links</span>
+links: 1 checked, 0 broken
+<span class="t-mut">-- journeys/about.journey:7: a11y</span>
+violations: 0
+<span class="t-del">ok</span> journeys/about.journey: 6 steps, 3 checkpoints</pre>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="why">
+  <div class="wrap">
+    <h2>Small, direct, safe to share</h2>
+    <p class="sub">Talking the DevTools Protocol directly means no Node, no daemon and no third party's output format in the way: one web socket to Chrome, from your process.</p>
+    <div class="cards">
+      <a class="card" href="library/">
+        <div class="card-kicker">no dependencies</div>
+        <div class="card-title">The BCL and a web socket</div>
+        <p>Launch or connect to Chrome, isolated contexts per caller, flattened sessions on one socket, lock-free reply routing. AOT and trim clean.</p>
+      </a>
+      <a class="card" href="journeys/">
+        <div class="card-kicker">agent-browser's language</div>
+        <div class="card-title">Explore with an agent, keep the journey</div>
+        <p>One command per line, written as agent-browser writes it. Export any journey to agent-browser batch JSON and it runs there unchanged.</p>
+      </a>
+      <a class="card" href="journeys/safety/">
+        <div class="card-kicker">safe by default</div>
+        <div class="card-title">A shared journey stays in its lane</div>
+        <p>An allow list on every request, popups included. Secrets by <code>$env:</code> reference and redacted. Page output fenced for agents.</p>
+      </a>
+      <a class="card" href="library/locators/">
+        <div class="card-kicker">waits like a user</div>
+        <div class="card-title">Locators that wait, input that is real</div>
+        <p>Role, text, label, placeholder, alt, title, test id and CSS. Every action waits for a visible, enabled element and for the navigation it starts.</p>
+      </a>
+      <a class="card" href="library/checks/">
+        <div class="card-kicker">checks built in</div>
+        <div class="card-title">Accessibility, links, failed requests</div>
+        <p>Our own accessibility rules, broken-link checks, failed requests, console errors, Web Vitals and HAR files, each one journey command away.</p>
+      </a>
+      <a class="card" href="https://snapshots.nullean.net/formats/browser/">
+        <div class="card-kicker">snapshots</div>
+        <div class="card-title">Journeys as snapshot tests</div>
+        <p>Nullean.Snapshots runs a journey in <code>dotnet test</code> and compares every checkpoint as a tree, so a failure names what moved.</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="commands">
+  <div class="wrap">
+    <h2>The journey language</h2>
+    <p class="sub">A subset of agent-browser's commands: everything a repeatable test needs, nothing that reaches outside the page it tests.</p>
+    <div class="table-scroll">
+    <table class="formats">
+      <thead><tr><th>Group</th><th>Commands</th><th>What they do</th></tr></thead>
+      <tbody>
+        <tr><td><a href="journeys/commands/#navigate">Navigate</a></td><td><code>open</code>, <code>back</code>, <code>forward</code>, <code>reload</code></td><td>relative URLs resolve against the base URL; each waits for <code>load</code></td></tr>
+        <tr><td><a href="journeys/commands/#act">Act</a></td><td><code>click</code>, <code>fill</code>, <code>type</code>, <code>press</code>, <code>check</code>, <code>select</code>, <code>drag</code>, <code>upload</code>, …</td><td>real mouse and keyboard input, after waiting for the element</td></tr>
+        <tr><td><a href="journeys/commands/#find">Find</a></td><td><code>find role|text|label|… [action] --name</code></td><td>agent-browser's semantic locators, no run-specific refs</td></tr>
+        <tr><td><a href="journeys/commands/#wait-and-set">Wait and set</a></td><td><code>wait</code>, <code>set viewport|media|device|offline|headers|credentials</code></td><td>for an element, text, URL or load state; emulation and headers</td></tr>
+        <tr><td><a href="journeys/commands/#read">Read</a></td><td><code>snapshot</code>, <code>get</code>, <code>is</code>, <code>console</code>, <code>errors</code></td><td>checkpoints: their output is the journey's transcript</td></tr>
+        <tr><td><a href="journeys/commands/#check">Check</a></td><td><code>a11y</code>, <code>links</code>, <code>network requests --failed</code>, <code>timings</code>, <code>vitals</code></td><td>lists by default, <code>--strict</code> or <code>--budget</code> to fail the step</td></tr>
+        <tr><td><a href="journeys/commands/#record">Record</a></td><td><code>screenshot</code>, <code>network har start|stop</code></td><td>files into the artifacts folder the host chose, nowhere else</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="library">
+  <div class="wrap two">
+    <div>
+      <h2>A library first</h2>
+      <p class="sub">
+        Everything a journey does is a method: launch, contexts, locators, reads and checks. <code>page.SendAsync</code>
+        reaches any DevTools command the library does not wrap.
+      </p>
+      <div class="panel">
+        <div class="panel-bar">● ● ●<span>install</span></div>
+<pre><span class="t-dim">dotnet add package</span> Nullean.Cdp
+<span class="t-dim">dotnet add package</span> Nullean.Cdp.Journeys
+<span class="t-dim">dotnet tool install --global</span> Nullean.Cdp.Cli
+<span class="t-dim"># or, without installing:</span>
+dnx Nullean.Cdp.Cli chrome</pre>
+      </div>
+    </div>
+    <div class="panel" aria-label="C# example">
+      <div class="panel-bar">● ● ●<span>Program.cs</span></div>
+<pre><span class="t-dim">await using var</span> browser = <span class="t-dim">await</span> Browser.LaunchAsync();
+<span class="t-dim">await using var</span> context = <span class="t-dim">await</span> browser.NewContextAsync();
+<span class="t-dim">var</span> page = <span class="t-dim">await</span> context.NewPageAsync();
+<span class="t-dim">await</span> page.GotoAsync(<span class="t-add">"http://localhost:5000/"</span>);
+
+<span class="t-dim">await</span> page.Label(<span class="t-add">"Search"</span>).FillAsync(<span class="t-add">"lamp"</span>);
+<span class="t-dim">await</span> page.Role(<span class="t-add">"button"</span>, <span class="t-add">"Go"</span>).ClickAsync();
+Console.Write(<span class="t-dim">await</span> page.SnapshotAsync(<span class="t-dim">new</span>() { Compact = <span class="t-del">true</span> }));
+
+<span class="t-dim">var</span> problems = <span class="t-dim">await</span> page.AuditAsync();
+<span class="t-dim">var</span> vitals = <span class="t-dim">await</span> page.VitalsAsync();</pre>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>Nullean.Cdp · MIT · 0.x while the API settles</span>
+    <span class="footer-links">
+      <a class="icon-link" href="getting-started/"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.743 3.743 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.75l-.004 7.322a3.752 3.752 0 0 1 1.992-.572H14.5v-9h-3.495a2.25 2.25 0 0 0-2.25 2.25Z"/></svg> Docs</a>
+      <a class="icon-link" href="https://github.com/nullean/cdp"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg> GitHub</a>
+      <a href="https://www.nuget.org/packages?q=Nullean.Cdp">NuGet</a>
+    </span>
+  </div>
+</footer>
+
+</body>
+</html>

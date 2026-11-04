@@ -1,0 +1,54 @@
+name: docs
+
+# Pull requests build the site to prove it builds; pushes to main publish it to cdp.nullean.net.
+on:
+  pull_request:
+    paths: ['docs/**', 'scripts/docs*', '.github/workflows/docs.yml']
+  push:
+    branches: [main]
+    paths: ['docs/**', 'scripts/docs*', '.github/workflows/docs.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      # The design-system layout is behind a feature flag, read from the environment only.
+      - name: Build documentation
+        uses: elastic/docs-builder@main
+        env:
+          FEATURE_NAVIGATION_PREVIEW: true
+
+      - name: Theme and landing page
+        run: scripts/docs-finish.sh .artifacts/docs/html
+
+      # Pull requests can download this to look at the site; main deploys it.
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5.0.0
+        with:
+          path: .artifacts/docs/html
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

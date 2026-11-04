@@ -380,6 +380,25 @@ trusted publishing (`NuGet/login` with the organisation's `NUGET_USER`; no API k
 environment only lets tags deploy. The root tool package is pushed last, after the per-RID and `any` packages it
 points at. A tag push alone never publishes. Versions stay 0.x until the owner says otherwise.
 
+## Documentation
+
+- **Built like nullean/snapshots':** a `docs/` docset built by the `elastic/docs-builder` action with the
+  design-system layout (`FEATURE_NAVIGATION_PREVIEW`), then `scripts/docs-finish.sh` appends the theme
+  (`docs/cdp-docs.css`) to the emitted `ds.css`, inlines the header lockup (`scripts/docs-pages.py`), copies the fonts
+  and replaces `index.html` with the hand-written landing page (`docs/cdp-landing.html`). Published to GitHub Pages
+  at `cdp.nullean.net` (Pages from Actions, custom domain on the repository, DNS and TLS at Cloudflare). Pull requests
+  build the site and upload it as an artifact; only pushes to main deploy. `scripts/docs.sh` builds and serves it
+  locally with a docs-builder from `DOCS_BUILDER` or the `PATH`.
+- **The brand, "Signal"** (`docs/images/brand`): the Nullean frame and tile shared with snapshots' Aperture, around a
+  browser window with a pointer clicking in it. Teal `#7ED6C8` is the wire, coral `#FF9F7A` the click and the
+  wordmark's period. In the light theme they are 1.6:1 and 1.9:1 on paper, so text uses `#0F6E61` (5.8:1) and
+  `#B5482A` (5.1:1). The animated mark has the pointer press and the click ripple out, still under
+  `prefers-reduced-motion`.
+- **PNGs are rendered by Chrome through this library** (favicons, touch icon, lockups, social card): each SVG on a
+  transparent canvas with the brand fonts loaded, captured with a clip at the target scale.
+- **The pages are checked against the code:** API names, option names and sample output (trees, `cdp run` output,
+  the audit report) come from running it or from the tests' recorded output.
+
 ## Repository
 
 - Laid out like nullean/snapshots: central package management, MinVer from tags (`0.1` minimum, `alpha.0`
