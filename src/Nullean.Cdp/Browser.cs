@@ -134,6 +134,15 @@ public sealed class Browser : IAsyncDisposable
 		yield return "--mute-audio";
 		yield return "--password-store=basic";
 		yield return "--use-mock-keychain";
+		// Each context opens its own window, so most pages are in the background or covered. Throttled, they render no
+		// frames and input waits for one; keep every page running at full speed.
+		yield return "--disable-background-timer-throttling";
+		yield return "--disable-backgrounding-occluded-windows";
+		yield return "--disable-renderer-backgrounding";
+		yield return "--disable-features=CalculateNativeWinOcclusion";
+		yield return "--disable-hang-monitor";
+		yield return "--disable-ipc-flooding-protection";
+		yield return "--disable-component-extensions-with-background-pages";
 		foreach (var argument in options.Arguments)
 			yield return argument;
 		yield return "about:blank";

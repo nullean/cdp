@@ -43,6 +43,14 @@ joined with the target OS's separator, not the host's.
 - `--remote-debugging-port=0` and a temporary `--user-data-dir`; the port and browser path are read from the
   `DevToolsActivePort` file Chrome writes there, so no port is guessed or raced for. A half-written file reads as not
   ready.
+- **Background pages run at full speed.** Every context opens its own window, so most pages are behind another or
+  in the background. Chrome throttles those: they render no frames, and mouse input waits for one. With the safety
+  work's popups in the suite, clicks took about five seconds each and a journey test hung past its minute. The
+  launch switches `--disable-background-timer-throttling`, `--disable-backgrounding-occluded-windows`,
+  `--disable-renderer-backgrounding`, `--disable-features=CalculateNativeWinOcclusion`, `--disable-hang-monitor`,
+  `--disable-ipc-flooding-protection` and `--disable-component-extensions-with-background-pages` (a subset of
+  Playwright's defaults, from memory) brought the journey test back to 7.4 s in five of five runs. They may also be
+  why the macOS runner hung in the test step, where window occlusion is real; not verified.
 - Chrome's output is drained (it blocks on a full pipe) and the last 20 lines are kept for the error when it exits or
   never opens its port.
 - Disposing sends `Browser.close`, waits five seconds, then kills the process tree, and deletes the profile with
