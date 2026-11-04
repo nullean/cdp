@@ -55,6 +55,15 @@ joined with the target OS's separator, not the host's.
   never opens its port.
 - Disposing sends `Browser.close`, waits five seconds, then kills the process tree, and deletes the profile with
   retries, since Chrome's helpers hold files for a moment on Windows.
+- **Chrome never outlives its owner for long.** A process that exits normally (or on Ctrl+C) kills every Chrome it
+  launched and deletes its profile (`AppDomain.ProcessExit`). A process that is killed cannot clean up, so every
+  profile holds a `nullean-cdp-owner` file with the owner's process id and start time, and each launch first closes
+  the Chromes of profiles whose owner is gone and deletes them. They are closed with `Browser.close` through their own
+  DevTools port, never by process id, so a reused id cannot hit an unrelated process; an id is the owner only with
+  its start time. Profiles are deleted only after Chrome drops its profile lock (`SingletonLock`, or `lockfile` on
+  Windows): deleting earlier left a folder Chrome recreated while shutting down. Profiles without an owner file are
+  never touched. Measured: a test run killed with `kill -9` left 126 Chrome processes and 6 profiles; the next launch
+  left none. The exit handler has no automated test (it would kill the suite's own browser); it was checked by hand.
 - **One browser, a context per caller.** `Target.createBrowserContext` keeps cookies and storage apart, so tests share
   one Chrome per test session (the `ChromeFixture`) and still run in parallel.
 
