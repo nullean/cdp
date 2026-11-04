@@ -61,6 +61,14 @@ jobs:
           done
           ls .artifacts/package-output
 
+      - name: Upload the library packages
+        if: github.event_name != 'pull_request' && matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg-libraries
+          path: .artifacts/package-output/*.nupkg
+          if-no-files-found: error
+
   # Native AOT cannot cross-compile between operating systems, so each RID packs on a matching runner.
   aot-pack:
     if: github.event_name != 'pull_request'
@@ -190,3 +198,63 @@ jobs:
           dotnet tool install Nullean.Cdp.Cli --tool-path "$temp/tool" --add-source "$feed" --version "$root"
           "$GITHUB_WORKSPACE/build/smoke-cli.sh" "$temp/tool/$cdp"
           "$GITHUB_WORKSPACE/build/smoke-cli.sh" dotnet dnx "Nullean.Cdp.Cli@$root" --add-source "$feed" --yes
+
+  # Publishing to nuget.org: only from a manual run on a tag (gh workflow run ci.yml --ref <tag>), and only once every
+  # gate above has passed. Starting that run is the release decision; pushing a tag alone runs CI but never publishes.
+  # The 'release' environment only lets tags deploy, and nuget.org's trusted publishing policy names it, so no API key
+  # is stored.
+  release:
+    if: github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/')
+    needs: [build, aot-pack, tool-pack, tool-smoke]
+    runs-on: ubuntu-latest
+    name: Publish to nuget.org
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: read
+      id-token: write   # trusted publishing: exchange the workflow's OIDC token for a short-lived key
+
+    steps:
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nupkg-*
+          path: packages
+          merge-multiple: true
+
+      - name: Check every package has the tag's version
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME}"
+          ls packages
+          for package in packages/*.nupkg; do
+            case "$(basename "$package")" in
+              *".$version.nupkg") ;;
+              *) echo "::error::$(basename "$package") does not have version $version"; exit 1 ;;
+            esac
+          done
+
+      - name: Log in to nuget.org (trusted publishing)
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      # The root tool package points at the per-RID ones, so it goes last: nobody can install a root package whose
+      # RID packages are not there yet.
+      - name: Publish
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+        run: |
+          push() {
+            dotnet nuget push "$1" -k "$NUGET_API_KEY" -s https://api.nuget.org/v3/index.json --skip-duplicate --no-symbols
+          }
+          root="packages/Nullean.Cdp.Cli.${GITHUB_REF_NAME}.nupkg"
+          for package in packages/*.nupkg; do
+            [ "$package" = "$root" ] || push "$package"
+          done
+          push "$root"
