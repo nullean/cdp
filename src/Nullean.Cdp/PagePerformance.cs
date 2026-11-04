@@ -41,12 +41,14 @@ public sealed record WebVitals(double? TimeToFirstByte, double? FirstContentfulP
 /// <summary>Performance readings of a page: timings, Core Web Vitals and Chrome's runtime counters.</summary>
 public static class PagePerformance
 {
-	// Paint entries are recorded once the frame is presented, which on a GPU-less Linux runner can be after load: let
-	// two frames pass, and give the first paint up to 500 ms more.
+	// Paint entries are recorded once the frame is presented, which on a GPU-less Linux runner can be after load. Only
+	// when the page has loaded but not yet reported a paint: let two frames pass, and give it up to 500 ms more.
 	private const string TimingsScript = """
 		(async () => {
-			await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 0))));
-			for (let i = 0; i < 20 && document.readyState === 'complete' && !performance.getEntriesByType('paint').length; i++)
+			const unpainted = () => document.readyState === 'complete' && !performance.getEntriesByType('paint').length;
+			if (unpainted())
+				await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 0))));
+			for (let i = 0; i < 20 && unpainted(); i++)
 				await new Promise(r => setTimeout(r, 25));
 			const nav = performance.getEntriesByType('navigation')[0];
 			const paint = name => performance.getEntriesByType('paint').find(e => e.name === name)?.startTime ?? null;
@@ -112,6 +114,20 @@ public static class PagePerformance
 		})();
 		""";
 
+	/// <summary>
+	/// Records interactions from the start of every document the page loads from now on, so <see cref="VitalsAsync"/>
+	/// can report INP for interactions shorter than the ~104 ms Chrome keeps by itself. Opt-in: nothing runs on pages
+	/// that never ask for vitals. Call it before navigating.
+	/// </summary>
+	public static async Task RecordInteractionsAsync(this Page page, CancellationToken cancellationToken = default)
+	{
+		ArgumentNullException.ThrowIfNull(page);
+		if (Interlocked.Exchange(ref page.RecordingInteractions, 1) == 1)
+			return;
+		await page.SendAsync("Page.addScriptToEvaluateOnNewDocument", w => w.WriteString("source", InteractionRecorder), cancellationToken)
+			.ConfigureAwait(false);
+	}
+
 	/// <summary>The current document's paint and load timings.</summary>
 	public static async Task<PageTimings> TimingsAsync(this Page page, CancellationToken cancellationToken = default)
 	{
@@ -120,7 +136,10 @@ public static class PagePerformance
 		return new PageTimings(Number(t[0]), Number(t[1]), Number(t[2]), Number(t[3]), Number(t[4]), Number(t[5]));
 	}
 
-	/// <summary>The current document's Core Web Vitals, from the entries the page has buffered so far.</summary>
+	/// <summary>
+	/// The current document's Core Web Vitals, from the entries the page has reported so far. INP counts interactions
+	/// of 16 ms or more only after <see cref="RecordInteractionsAsync"/>; without it, only those Chrome keeps itself.
+	/// </summary>
 	public static async Task<WebVitals> VitalsAsync(this Page page, CancellationToken cancellationToken = default)
 	{
 		ArgumentNullException.ThrowIfNull(page);

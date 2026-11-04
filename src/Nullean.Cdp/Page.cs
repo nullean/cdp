@@ -43,6 +43,9 @@ public sealed class Page
 
 	internal string? ContextId { get; }
 
+	// Set once interaction recording is on (PagePerformance.RecordInteractionsAsync).
+	internal int RecordingInteractions;
+
 	private readonly PageLog _log = new();
 
 	/// <summary>The page's console calls since it was created or last cleared, oldest first.</summary>
@@ -329,9 +332,6 @@ public sealed class Page
 		await SendAsync("Page.enable", null, cancellationToken).ConfigureAwait(false);
 		// Console calls and uncaught errors arrive as Runtime events.
 		await SendAsync("Runtime.enable", null, cancellationToken).ConfigureAwait(false);
-		// Interactions are recorded from the start of every document, for INP (PagePerformance).
-		await SendAsync("Page.addScriptToEvaluateOnNewDocument", w => w.WriteString("source", PagePerformance.InteractionRecorder), cancellationToken)
-			.ConfigureAwait(false);
 		await SendAsync("Page.setLifecycleEventsEnabled", w => w.WriteBoolean("enabled", true), cancellationToken).ConfigureAwait(false);
 	}
 

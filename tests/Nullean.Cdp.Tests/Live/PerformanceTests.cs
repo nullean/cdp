@@ -35,8 +35,10 @@ public class PerformanceTests(ChromeFixture chrome)
 	[Test]
 	public async Task VitalsMeasureLcpShiftsAndInteractions()
 	{
-		var (context, page) = await Open(ChromeFixture.Site("perf.html"));
-		await using var _ = context;
+		await using var context = await chrome.Browser.NewContextAsync();
+		var page = await context.NewPageAsync();
+		await page.RecordInteractionsAsync();
+		await page.GotoAsync(ChromeFixture.Site("perf.html"));
 		await page.Text("Late banner").WaitAsync();
 		await Task.Delay(300); // the shift is reported once its frame is rendered
 		await page.Role("button", "Slow button").ClickAsync();
@@ -49,6 +51,17 @@ public class PerformanceTests(ChromeFixture chrome)
 		v.LargestContentfulPaintElement.Should().NotBeNullOrEmpty();
 		v.CumulativeLayoutShift.Should().BeGreaterThan(0, "the late banner shifts the page");
 		v.InteractionToNextPaint.Should().BeGreaterThanOrEqualTo(80, "the click handler blocks for 80 ms");
+	}
+
+	[Test]
+	public async Task NothingIsInjectedUnlessAsked()
+	{
+		var (context, page) = await Open(ChromeFixture.Site("perf.html"));
+		await using var _ = context;
+
+		// Whether Chrome keeps an 80 ms interaction by itself depends on load (it keeps those over ~104 ms), so only
+		// the injection is asserted.
+		(await page.EvaluateAsync("typeof window.__nulleanCdpInteractions")).GetString().Should().Be("undefined");
 	}
 
 	[Test]
@@ -94,6 +107,17 @@ public class PerformanceTests(ChromeFixture chrome)
 		result.Checkpoints[0].Output.Should().MatchRegex(@"^ttfb: [\d.]+ms\n");
 		result.Checkpoints[1].Output.Should().Be("lcp ok (<= 60000ms)\ncls ok (<= 1)");
 		result.Checkpoints[2].Output.Should().Be("Nodes ok (<= 100000)");
+	}
+
+	[Test]
+	public async Task AJourneyWithVitalsRecordsShortInteractions()
+	{
+		var journey = Journey.Parse("open perf.html\nfind role button click --name \"Slow button\"\nwait --text Clicked\nvitals --budget inp=1000");
+
+		var result = await JourneyRunner.RunAsync(journey, chrome.Browser, new JourneyOptions { BaseUrl = Site });
+
+		result.Failure.Should().BeNull("the 80 ms click is recorded because the journey reads vitals");
+		result.Checkpoints.Single().Output.Should().Be("inp ok (<= 1000ms)");
 	}
 
 	[Test]

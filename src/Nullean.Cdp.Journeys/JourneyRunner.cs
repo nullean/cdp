@@ -107,6 +107,9 @@ public static class JourneyRunner
 			? await page.GuardNetworkAsync(options.GuardNetwork ? run.AllowList.Allows : _ => true, cancellationToken).ConfigureAwait(false)
 			: null;
 		run.Guard = guard;
+		// Interactions are recorded only for journeys that read vitals.
+		if (journey.Steps.Any(s => s.Command is PerformanceCommand { Kind: "vitals" }))
+			await page.RecordInteractionsAsync(cancellationToken).ConfigureAwait(false);
 		foreach (var step in journey.Steps)
 		{
 			string? failure;

@@ -203,12 +203,15 @@ rejection a little after the task that caused it, so an `errors` read straight a
   from run to run; `--budget name=limit` prints only `name ok (<= limit)`, and a reading over its limit, or with no
   value yet, fails the step with the actual value. Snapshot users budget; people and agents reading the CLI see raw
   numbers.
-- **INP needs recording from the start.** Chrome buffers only interactions of about 104 ms or more, so every document
-  gets a small script before any page script (`Page.addScriptToEvaluateOnNewDocument`) that records interactions
-  from 16 ms, as Google's web-vitals library does.
+- **INP needs recording from the start, and only when asked.** Chrome keeps only interactions of about 104 ms or
+  more. `page.RecordInteractionsAsync()` adds a small script before any page script
+  (`Page.addScriptToEvaluateOnNewDocument`) that records interactions from 16 ms, as Google's web-vitals library
+  does. It is opt-in: the journey runner turns it on only for journeys with `vitals`; other pages run nothing extra.
+- **No waiting unless a reading is asked for, and then only when needed.** The frame waits live in `TimingsAsync`
+  and `VitalsAsync` alone; timings skip them when the page has already reported its paints.
 - **Reported, not instant.** Paint entries, layout shifts and interactions are reported once their frame is rendered
-  (on the GPU-less Linux runner first paint came after `load`). Timings wait two frames and up to 500 ms for a first
-  paint.
+  (on the GPU-less Linux runner first paint came after `load`). Timings wait (two frames, then up to 500 ms) only for a
+  loaded page that has reported no paint yet.
   Vitals wait two frames (and up to 200 ms after an interaction), but a change made just before may still be missing;
   a journey waits a moment before reading. A change before the page's first frame is no layout shift at all (nothing
   painted moved): the test page shifts only after two frames, or under load its CLS read 0.
