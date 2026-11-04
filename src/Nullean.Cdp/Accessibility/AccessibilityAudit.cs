@@ -112,7 +112,11 @@ public static class AccessibilityAudit
 		// The accessibility tree, in document order, limited to the selected element's subtree.
 		var tree = await page.SendAsync("Accessibility.getFullAXTree", null, cancellationToken).ConfigureAwait(false);
 		var nodes = tree.GetProperty("nodes").EnumerateArray().ToList();
-		var byId = nodes.ToDictionary(n => n.GetProperty("nodeId").GetString()!, StringComparer.Ordinal);
+		// Chrome lists the text of CSS generated content (counters, ::before) under one synthetic id more than once;
+		// the last one wins, as in AxTree.Build.
+		var byId = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+		foreach (var node in nodes)
+			byId[node.GetProperty("nodeId").GetString()!] = node;
 		long? scopeBackend = selector is null ? null : await BackendNodeIdAsync(page, selector, cancellationToken).ConfigureAwait(false);
 		var start = scopeBackend is { } b
 			? nodes.FirstOrDefault(n => n.TryGetProperty("backendDOMNodeId", out var id) && id.GetInt64() == b)

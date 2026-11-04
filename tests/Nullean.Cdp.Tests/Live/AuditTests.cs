@@ -31,6 +31,10 @@ public class AuditTests(ChromeFixture chrome)
 		(await Audit("index.html")).Should().NotContain(v => v.Rule == "color-contrast", "the low-contrast button is disabled");
 
 	[Test]
+	public async Task GeneratedContentDoesNotBreakTheAudit() =>
+		AccessibilityAudit.Format(await Audit("generated.html")).Should().Be("violations: 0", "Chrome repeats the ids of generated text");
+
+	[Test]
 	public async Task ASelectorLimitsTheAuditToItsElement() =>
 		(await Audit("a11y.html", "a[href='/x']")).Select(v => v.Rule).Should().Equal("link-name");
 
