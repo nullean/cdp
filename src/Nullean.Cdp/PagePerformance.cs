@@ -42,13 +42,14 @@ public sealed record WebVitals(double? TimeToFirstByte, double? FirstContentfulP
 public static class PagePerformance
 {
 	// Paint entries are recorded once the frame is presented, which on a GPU-less Linux runner can be after load. Only
-	// when the page has loaded but not yet reported a paint: let two frames pass, and give it up to 500 ms more.
+	// when the page has loaded but not yet reported a paint: let two frames pass, and give it up to 2 s more.
 	private const string TimingsScript = """
 		(async () => {
 			const unpainted = () => document.readyState === 'complete' && !performance.getEntriesByType('paint').length;
 			if (unpainted())
 				await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 0))));
-			for (let i = 0; i < 20 && unpainted(); i++)
+			// A busy machine can be slow to paint; this costs nothing once the page has painted.
+			for (let i = 0; i < 80 && unpainted(); i++)
 				await new Promise(r => setTimeout(r, 25));
 			const nav = performance.getEntriesByType('navigation')[0];
 			const paint = name => performance.getEntriesByType('paint').find(e => e.name === name)?.startTime ?? null;

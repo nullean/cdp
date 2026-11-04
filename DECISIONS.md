@@ -210,7 +210,7 @@ rejection a little after the task that caused it, so an `errors` read straight a
 - **No waiting unless a reading is asked for, and then only when needed.** The frame waits live in `TimingsAsync`
   and `VitalsAsync` alone; timings skip them when the page has already reported its paints.
 - **Reported, not instant.** Paint entries, layout shifts and interactions are reported once their frame is rendered
-  (on the GPU-less Linux runner first paint came after `load`). Timings wait (two frames, then up to 500 ms) only for a
+  (on the GPU-less Linux runner first paint came after `load`). Timings wait (two frames, then up to 2 s) only for a
   loaded page that has reported no paint yet.
   Vitals wait two frames (and up to 200 ms after an interaction), but a change made just before may still be missing;
   a journey waits a moment before reading. A change before the page's first frame is no layout shift at all (nothing
