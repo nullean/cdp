@@ -95,6 +95,9 @@ public sealed record SetCommand(string Setting, int Width = 0, int Height = 0, s
 	public string? Password { get; init; }
 }
 
+/// <summary><c>console --clear</c> or <c>errors --clear</c>: forgets what the page logged so far.</summary>
+public sealed record ClearLogCommand(string Log) : JourneyCommand;
+
 /// <summary><c>drag &lt;source&gt; &lt;target&gt;</c>.</summary>
 public sealed record DragCommand(JourneyTarget Source, JourneyTarget Target) : JourneyCommand;
 
@@ -217,6 +220,7 @@ public sealed partial class Journey
 		"set offline [on|off]", "set headers <json>", "set credentials <user> <password>",
 		"snapshot [-i] [-c] [-u] [-d <n>] [-s <selector>]",
 		"get text|html|value|count|box|styles <selector>", "get attr <selector> <name>", "get title", "get url",
+		"console [--clear]", "errors [--clear]",
 		"is visible|enabled|checked <selector>",
 	];
 
@@ -254,6 +258,12 @@ public sealed partial class Journey
 			"set" => ParseSet(rest),
 			"snapshot" => ParseSnapshot(rest),
 			"get" => ParseGet(rest),
+			"console" or "errors" => rest switch
+			{
+				[] => new ReadCommand(command, null),
+				["--clear"] => new ClearLogCommand(command),
+				_ => throw Usage($"{command} [--clear]"),
+			},
 			"is" => rest.Length == 2 && rest[0] is "visible" or "enabled" or "checked"
 				? new ReadCommand("is " + rest[0], Css(rest[1]))
 				: throw Usage("is visible|enabled|checked <selector>"),

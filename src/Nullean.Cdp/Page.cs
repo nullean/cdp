@@ -43,6 +43,20 @@ public sealed class Page
 
 	internal string? ContextId { get; }
 
+	private readonly PageLog _log = new();
+
+	/// <summary>The page's console calls since it was created or last cleared, oldest first.</summary>
+	public IReadOnlyList<ConsoleMessage> ConsoleMessages => _log.Console;
+
+	/// <summary>The page's uncaught exceptions and unhandled rejections since it was created or last cleared.</summary>
+	public IReadOnlyList<PageError> Errors => _log.Errors;
+
+	/// <summary>Forgets the console messages collected so far.</summary>
+	public void ClearConsole() => _log.ClearConsole();
+
+	/// <summary>Forgets the errors collected so far.</summary>
+	public void ClearErrors() => _log.ClearErrors();
+
 	// The main frame's lifecycle events for its current document (load, DOMContentLoaded, networkIdle, ...).
 	private volatile ConcurrentDictionary<string, byte> _lifecycle = new(StringComparer.Ordinal);
 
@@ -311,7 +325,10 @@ public sealed class Page
 				_lifecycle = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
 			_lifecycle.TryAdd(name, 0);
 		});
+		_ = Connection.On(SessionId, _log.OnEvent);
 		await SendAsync("Page.enable", null, cancellationToken).ConfigureAwait(false);
+		// Console calls and uncaught errors arrive as Runtime events.
+		await SendAsync("Runtime.enable", null, cancellationToken).ConfigureAwait(false);
 		await SendAsync("Page.setLifecycleEventsEnabled", w => w.WriteBoolean("enabled", true), cancellationToken).ConfigureAwait(false);
 	}
 
