@@ -238,6 +238,37 @@ rejection a little after the task that caused it, so an `errors` read straight a
 - With the network guard on, each request waits for the guard's verdict, which adds a little to `blocked`; record
   with the guard off when the timings themselves are the point.
 
+## Broken links and failed requests
+
+- **`network requests --failed`** lists requests answered with 400 or more and requests that got no answer at all
+  (`net::ERR_NAME_NOT_RESOLVED`, a refused connection, …). It leaves out what the allow list refused, which the run
+  already reports, and requests a navigation cancelled (`net::ERR_ABORTED`), which are not broken. `--strict` fails
+  the step when anything is listed. The export to agent-browser turns `--failed` into `--status 400-599` and drops
+  `--strict`.
+- **`links`** checks the links on the page, not only what it loaded: every `a[href]` and `area[href]` with an http,
+  https or file URL, once each, fragments dropped, in document order. The checkpoint is a summary line and the
+  broken links (`--all` for every one), with same-site links printed without their origin, so transcripts don't
+  depend on the port.
+- **Same-site only by default.** A link to another origin is counted and left alone unless the journey says
+  `--external`, and even then only hosts in the allow list are fetched: a page could otherwise make a run send
+  requests anywhere.
+- **How:** `Network.loadNetworkResource`, the browser fetching on behalf of DevTools. It is a GET outside the page,
+  so the page's CORS rules don't apply, page script never sees it, and the response stream is closed unread. Cookies
+  go only to the page's own origin. Four at a time. `file://` links are checked on disk. The page's `set
+  credentials` are not applied (they live in the request guard), so a link behind Basic auth reports 401.
+- **Not yet:** images that load but fail to decode leave no network trace; they would need a DOM check.
+
+## Screenshots
+
+- **`screenshot [selector] <path.png> [--full]`**, agent-browser's syntax: the viewport, the whole page past the
+  viewport (`Page.getLayoutMetrics` then a clip with `captureBeyondViewport`), or one element (scrolled into view,
+  its box clipped in document coordinates). PNG only.
+- **Files, not checkpoints.** Pixels change with fonts, anti-aliasing and GPU, so comparing them exactly would fail
+  across machines; a screenshot goes into the artifacts folder under the same rules as HAR files, and the transcript
+  doesn't mention it. Visual comparison with a tolerance would be a separate snapshot format.
+- **CLI:** `cdp screenshot <url> -o file.png [-s selector] [--full] [--width 1280 --height 720]`. Headless Chrome's
+  own default viewport is 756×469, so the CLI sets one; journeys keep the browser's unless they `set viewport`.
+
 ## Accessibility audit
 
 Our own rules, no third-party engine: axe-core (MPL-2.0) is not an option, nuget.org's web checkers all bundle it,
@@ -300,7 +331,7 @@ and where data can go is what holds.
 
 - **The command is `cdp` for now**, a working name to be settled with the owner. It is set once, as the assembly name
   and `ToolCommandName` in `src/Nullean.Cdp.Cli/Nullean.Cdp.Cli.csproj`; the smoke script and CI name it too.
-- **One-shot commands, no daemon:** `run`, `check`, `batch`, `snapshot`, `chrome`. A run launches Chrome, runs every
+- **One-shot commands, no daemon:** `run`, `check`, `batch`, `snapshot`, `screenshot`, `chrome`. A run launches Chrome, runs every
   journey given in its own context, and closes it. Built on Nullean.Argh, packed as a native AOT tool per RID like
   snap and curb, with a framework-dependent `any` fallback. There is no release job yet: publishing waits for the
   owner.

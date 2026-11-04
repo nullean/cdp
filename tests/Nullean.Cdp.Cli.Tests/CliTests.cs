@@ -44,11 +44,11 @@ public class CliTests
 	public async Task CheckReportsParseErrorsAndExitsTwo()
 	{
 		var file = Path.Combine(Path.GetTempPath(), $"bad-{Guid.NewGuid():N}.journey");
-		await File.WriteAllTextAsync(file, "open /\nscreenshot x.png\nclick @e1\n");
+		await File.WriteAllTextAsync(file, "open /\npdf x.pdf\nclick @e1\n");
 		try
 		{
 			Cli().Check([file]).Should().Be(ExitCode.Usage);
-			_err.ToString().Should().Contain($"{file}:2: 'screenshot' is not supported").And.Contain($"{file}:3: '@e1' is an agent-browser ref");
+			_err.ToString().Should().Contain($"{file}:2: 'pdf' is not supported").And.Contain($"{file}:3: '@e1' is an agent-browser ref");
 		}
 		finally
 		{
@@ -152,6 +152,28 @@ public class CliTests
 
 		Out.Should().Contain("[truncated: showing 60 of").And.EndWith($"--- END_PAGE_CONTENT nonce={Nonce} ---\n");
 	}
+
+	[Test]
+	public async Task ScreenshotWritesAPng()
+	{
+		var file = Path.Combine(Path.GetTempPath(), $"shot-{Guid.NewGuid():N}", "box.png");
+		try
+		{
+			(await Cli().ScreenshotAsync(Site("index.html"), file, "h1", false, 800, 600, [], false, default)).Should().Be(ExitCode.Ok);
+			var png = await File.ReadAllBytesAsync(file);
+			png.AsSpan(1, 3).ToArray().Should().Equal("PNG"u8.ToArray());
+			Out.Should().Be($"wrote {file}\n");
+		}
+		finally
+		{
+			if (Directory.Exists(Path.GetDirectoryName(file)))
+				Directory.Delete(Path.GetDirectoryName(file)!, true);
+		}
+	}
+
+	[Test]
+	public async Task ScreenshotRejectsASelectorWithFull() =>
+		(await Cli().ScreenshotAsync(Site("index.html"), "x.png", "h1", true, 800, 600, [], false, default)).Should().Be(ExitCode.Usage);
 
 	[Test]
 	public async Task SnapshotPrintsAFencedTree()

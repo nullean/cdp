@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Smoke-tests an installed cdp against the fixture site in the repository: check, batch, chrome, snapshot and run.
+# Smoke-tests an installed cdp against the fixture site in the repository: check, batch, chrome, snapshot, screenshot
+# and run.
 # Usage: build/smoke-cli.sh <command that runs cdp>...
 #   build/smoke-cli.sh ./tool/cdp
 #   build/smoke-cli.sh dotnet dnx Nullean.Cdp.Cli@1.2.3 --add-source ./feed --yes
@@ -20,7 +21,7 @@ bad="$(mktemp -d)"
 badjourney="$bad/bad.journey"
 if command -v cygpath > /dev/null; then badjourney="$(cygpath -w "$badjourney")"; fi
 trap 'rm -rf "$bad"' EXIT
-printf 'open /\nscreenshot x.png\n' > "$bad/bad.journey"
+printf 'open /\npdf x.pdf\n' > "$bad/bad.journey"
 
 fail() { echo "SMOKE FAILED: $*" >&2; exit 1; }
 
@@ -39,7 +40,7 @@ case "$out" in *"40 steps, 16 checkpoints"*) ;; *) fail "check should count the 
 
 run "$@" check "$badjourney"
 [ "$code" -eq 2 ] || fail "check should exit 2 on a journey that does not parse"
-case "$out" in *"bad.journey:2: 'screenshot' is not supported"*) ;; *) fail "check should name the line" ;; esac
+case "$out" in *"bad.journey:2: 'pdf' is not supported"*) ;; *) fail "check should name the line" ;; esac
 
 run "$@" batch "$journey" --base-url http://localhost:5000/
 [ "$code" -eq 0 ] || fail "batch should exit 0"
@@ -52,6 +53,11 @@ run "$@" snapshot "$about" --compact
 [ "$code" -eq 0 ] || fail "snapshot should exit 0"
 case "$out" in *'heading "About us" [level=1]'*) ;; *) fail "snapshot should print the tree" ;; esac
 case "$out" in *"--- END_PAGE_CONTENT nonce="*) ;; *) fail "snapshot should fence the page content" ;; esac
+
+shot="$bad/about.png"
+run "$@" screenshot "$about" --output "$shot" --full
+[ "$code" -eq 0 ] || fail "screenshot should exit 0"
+[ -s "$shot" ] || fail "screenshot should write the PNG"
 
 run "$@" run "$journey" --base-url "$site"
 [ "$code" -eq 0 ] || fail "run should pass the everything journey"

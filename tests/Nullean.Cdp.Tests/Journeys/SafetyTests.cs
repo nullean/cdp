@@ -142,4 +142,21 @@ public class RequestFilterTests
 	[Arguments(null, "200", false)]
 	public void StatusPatterns(int? status, string pattern, bool matches) =>
 		Nullean.Cdp.Journeys.JourneyRunner.StatusMatches(status, pattern).Should().Be(matches);
+
+	[Test]
+	[Arguments(200, null, false)]
+	[Arguments(302, null, false)]
+	[Arguments(404, null, true)]
+	[Arguments(503, null, true)]
+	[Arguments(null, "net::ERR_NAME_NOT_RESOLVED", true)]
+	[Arguments(null, "net::ERR_CONNECTION_REFUSED", true)]
+	[Arguments(null, "net::ERR_BLOCKED_BY_CLIENT", false)]
+	[Arguments(null, "net::ERR_ABORTED", false)]
+	public void FailedRequests(int? status, string? error, bool failed)
+	{
+		using var headers = System.Text.Json.JsonDocument.Parse("{}");
+		var request = new Nullean.Cdp.NetworkRequest("1", "https://x.test/", "GET", "Image", 0, 0, headers.RootElement) { Status = status, Error = error };
+
+		Nullean.Cdp.Journeys.JourneyRunner.Failed(request).Should().Be(failed);
+	}
 }

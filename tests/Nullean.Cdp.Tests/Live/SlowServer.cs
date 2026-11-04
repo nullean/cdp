@@ -67,6 +67,19 @@ internal sealed class SlowServer : IAsyncDisposable
 							await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("<!doctype html><title>Private</title><p>Welcome</p>"));
 						}
 					}
+					else if (context.Request.Url.AbsolutePath.StartsWith("/missing", StringComparison.Ordinal))
+						response.StatusCode = 404;
+					else if (context.Request.Url.AbsolutePath == "/links")
+					{
+						// Same-site links that work and one that doesn't, a broken image, and links to other sites: the one in
+						// ?other=, and a host that never resolves.
+						var other = context.Request.QueryString["other"] is { } o ? $"<a href=\"{WebUtility.HtmlEncode(o)}\">Other site</a> " : "";
+						response.ContentType = "text/html; charset=utf-8";
+						await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(
+							"<!doctype html><title>Links</title><link rel=\"icon\" href=\"data:,\"><main><h1>Links</h1><img src=\"/missing.png\" alt=\"gone\">"
+							+ "<nav><a href=\"/next\">Next</a> <a href=\"/next#top\">Next again</a> <a href=\"/missing-page\">Gone</a> <a href=\"mailto:x@example.com\">Mail</a></nav>"
+							+ $"<footer>{other}<a href=\"https://no-such-host.invalid/\">Nowhere</a></footer></main>"));
+					}
 					else if (context.Request.Url.AbsolutePath == "/slow.png")
 					{
 						await Task.Delay(imageDelay);

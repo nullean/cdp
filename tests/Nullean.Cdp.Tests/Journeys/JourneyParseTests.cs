@@ -72,6 +72,12 @@ public class JourneyParseTests
 		One("network requests --clear").Should().Be(new RequestsCommand(true, null, [], null, null));
 		One("network requests --filter api --type xhr,fetch --method post --status 4xx")
 			.Should().Be(new RequestsCommand(false, "api", ["xhr", "fetch"], "POST", "4xx"));
+		One("links").Should().Be(new LinksCommand(null, false, false, false));
+		One("links -s main --external --all --strict").Should().Be(new LinksCommand("main", true, true, true));
+		One("screenshot shot.png").Should().Be(new ScreenshotCommand(null, "shot.png", false));
+		One("screenshot shots/page.png --full").Should().Be(new ScreenshotCommand(null, "shots/page.png", true));
+		One("screenshot #box box.png").Should().Be(new ScreenshotCommand("#box", "box.png", false));
+		One("network requests --failed --strict").Should().Be(new RequestsCommand(false, null, [], null, null, true, true));
 		One("a11y").Should().Be(new AuditCommand(null, false));
 		One("a11y -s main --strict").Should().Be(new AuditCommand("main", true));
 		One("console").Should().Be(new ReadCommand("console", null));
@@ -120,8 +126,8 @@ public class JourneyParseTests
 
 	[Test]
 	public void EveryErrorIsReportedWithItsLine() =>
-		Error("open /\nscreenshot a.png\nfill #q\nfind nth li\nclick \"open").Should().Be(
-			"x.journey:2: 'screenshot' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, a11y, timings, vitals, metrics, is.\n" +
+		Error("open /\npdf a.pdf\nfill #q\nfind nth li\nclick \"open").Should().Be(
+			"x.journey:2: 'pdf' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, links, screenshot, a11y, timings, vitals, metrics, is.\n" +
 			"x.journey:3: usage: fill <selector> <text>\n" +
 			"x.journey:4: usage: find nth <n> <selector> [action] [text]\n" +
 			"x.journey:5: the double quote is not closed");
@@ -160,10 +166,18 @@ public class JourneyParseTests
 	[Arguments("console all", "usage: console [--clear]")]
 	[Arguments("a11y --tags wcag2a", "a11y --tags is not supported in journeys: these are our own rules, not axe-core's.")]
 	[Arguments("a11y main", "usage: a11y [-s <selector>] [--strict]")]
+	[Arguments("links main", "usage: links [-s <selector>] [--external] [--all] [--strict]")]
+	[Arguments("screenshot", "screenshot needs a path for the PNG, relative to the artifacts folder")]
+	[Arguments("screenshot shot.jpg", "'shot.jpg': screenshots are PNG files, so the path ends in .png.")]
+	[Arguments("screenshot ../shot.png", "'../shot.png' must be a path inside the artifacts folder, relative to it.")]
+	[Arguments("screenshot #box box.png --full", "screenshot takes a selector or --full, not both.")]
+	[Arguments("screenshot --annotate shot.png", "screenshot --annotate is not supported in journeys.")]
+	[Arguments("screenshot @e1 shot.png", "'@e1' is an agent-browser ref, which changes from run to run; use find role <role> --name <name>, find text, or a CSS selector.")]
+	[Arguments("network requests --clear --failed", "usage: network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>] [--failed] [--strict] | network har start | network har stop <path>")]
 	[Arguments("network har stop ../x.har", "'../x.har' must be a path inside the artifacts folder, relative to it.")]
 	[Arguments("network har stop", "network har stop needs a path for the HAR file, relative to the artifacts folder")]
 	[Arguments("network route **/api --abort", "network route is not supported in journeys: it changes or reads what the page receives outside the page.")]
-	[Arguments("network requests --status 2x", "usage: network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>] | network har start | network har stop <path>")]
+	[Arguments("network requests --status 2x", "usage: network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>] [--failed] [--strict] | network har start | network har stop <path>")]
 	[Arguments("vitals --budget lcp", "usage: vitals [--budget <name>=<limit>...]")]
 	[Arguments("vitals --budget", "usage: vitals [--budget <name>=<limit>...]")]
 	[Arguments("vitals lcp=1", "usage: vitals [--budget <name>=<limit>...]")]
@@ -190,6 +204,11 @@ public class JourneyParseTests
 	public void ExportKeepsVitalsWithoutBudgetsAndSkipsOurOwnReadings() =>
 		Journey.Parse("open https://x.test/\ntimings\nvitals --budget lcp=1\nmetrics\nget title").ToAgentBrowserBatch()
 			.Should().Be("[[\"open\",\"https://x.test/\"],[\"vitals\"],[\"get\",\"title\"]]\n");
+
+	[Test]
+	public void ExportTranslatesOurChecks() =>
+		Journey.Parse("open https://x.test/\nlinks --strict\nnetwork requests --failed --strict\nnetwork requests --status 5xx --failed\nscreenshot #box box.png").ToAgentBrowserBatch()
+			.Should().Be("[[\"open\",\"https://x.test/\"],[\"network\",\"requests\",\"--status\",\"400-599\"],[\"network\",\"requests\",\"--status\",\"5xx\"],[\"screenshot\",\"#box\",\"box.png\"]]\n");
 
 	[Test]
 	public void ExportKeepsA11yWithoutStrict() =>
