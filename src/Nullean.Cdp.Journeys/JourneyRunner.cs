@@ -26,8 +26,8 @@ public sealed class JourneyOptions
 	public string? FileRoot { get; init; }
 
 	/// <summary>
-	/// The folder <c>network har stop</c> writes into; a journey cannot write outside it. Without it, writing a HAR file
-	/// fails the step.
+	/// The folder <c>screenshot</c> and <c>network har stop</c> write into; a journey cannot write outside it. Without
+	/// it, those steps fail.
 	/// </summary>
 	public string? ArtifactsDirectory { get; init; }
 

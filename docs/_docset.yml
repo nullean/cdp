@@ -1,0 +1,38 @@
+project: 'Nullean.Cdp'
+max_toc_depth: 2
+dev_docs: true
+
+branding:
+  icon: images/brand/mark.svg
+  favicon: images/brand/png/mark-32.png
+  og-image: images/brand/png/social-card.png
+  apple-touch-icon: images/brand/png/mark-180.png
+
+toc:
+  - file: index.md
+  - folder: getting-started
+    children:
+      - file: index.md
+      - file: first-journey.md
+  - folder: journeys
+    children:
+      - file: index.md
+      - file: commands.md
+      - file: safety.md
+      - file: agent-browser.md
+  - folder: library
+    children:
+      - file: index.md
+      - file: locators.md
+      - file: reading.md
+      - file: checks.md
+      - file: performance.md
+      - file: network.md
+  - folder: cli
+    children:
+      - file: index.md
+  - folder: reference
+    children:
+      - file: index.md
+      - file: chrome.md
+      - file: snapshots.md
