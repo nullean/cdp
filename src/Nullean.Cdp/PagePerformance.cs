@@ -41,8 +41,13 @@ public sealed record WebVitals(double? TimeToFirstByte, double? FirstContentfulP
 /// <summary>Performance readings of a page: timings, Core Web Vitals and Chrome's runtime counters.</summary>
 public static class PagePerformance
 {
+	// Paint entries are recorded once the frame is presented, which on a GPU-less Linux runner can be after load: let
+	// two frames pass, and give the first paint up to 500 ms more.
 	private const string TimingsScript = """
-		(() => {
+		(async () => {
+			await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 0))));
+			for (let i = 0; i < 20 && document.readyState === 'complete' && !performance.getEntriesByType('paint').length; i++)
+				await new Promise(r => setTimeout(r, 25));
 			const nav = performance.getEntriesByType('navigation')[0];
 			const paint = name => performance.getEntriesByType('paint').find(e => e.name === name)?.startTime ?? null;
 			const at = v => (nav && v > 0) ? v : null;

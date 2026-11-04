@@ -206,7 +206,9 @@ rejection a little after the task that caused it, so an `errors` read straight a
 - **INP needs recording from the start.** Chrome buffers only interactions of about 104 ms or more, so every document
   gets a small script before any page script (`Page.addScriptToEvaluateOnNewDocument`) that records interactions
   from 16 ms, as Google's web-vitals library does.
-- **Reported, not instant.** Layout shifts and interactions are reported once the frame they caused is rendered.
+- **Reported, not instant.** Paint entries, layout shifts and interactions are reported once their frame is rendered
+  (on the GPU-less Linux runner first paint came after `load`). Timings wait two frames and up to 500 ms for a first
+  paint.
   Vitals wait two frames (and up to 200 ms after an interaction), but a change made just before may still be missing;
   a journey waits a moment before reading. A change before the page's first frame is no layout shift at all (nothing
   painted moved): the test page shifts only after two frames, or under load its CLS read 0.
