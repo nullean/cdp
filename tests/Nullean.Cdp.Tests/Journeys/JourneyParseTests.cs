@@ -66,6 +66,12 @@ public class JourneyParseTests
 		One("timings").Should().Be(new PerformanceCommand("timings", []));
 		One("vitals --budget lcp=2500 cls=0.1").Should().Be(new PerformanceCommand("vitals", [new PerformanceBudget("lcp", 2500), new PerformanceBudget("cls", 0.1)]));
 		One("metrics --budget Nodes=1500").Should().Be(new PerformanceCommand("metrics", [new PerformanceBudget("Nodes", 1500)]));
+		One("network har start").Should().Be(new HarCommand("start"));
+		One("network har stop out/run.har").Should().Be(new HarCommand("stop", "out/run.har"));
+		One("network requests").Should().Be(new RequestsCommand(false, null, [], null, null));
+		One("network requests --clear").Should().Be(new RequestsCommand(true, null, [], null, null));
+		One("network requests --filter api --type xhr,fetch --method post --status 4xx")
+			.Should().Be(new RequestsCommand(false, "api", ["xhr", "fetch"], "POST", "4xx"));
 		One("console").Should().Be(new ReadCommand("console", null));
 		One("errors").Should().Be(new ReadCommand("errors", null));
 		One("console --clear").Should().Be(new ClearLogCommand("console"));
@@ -113,7 +119,7 @@ public class JourneyParseTests
 	[Test]
 	public void EveryErrorIsReportedWithItsLine() =>
 		Error("open /\nscreenshot a.png\nfill #q\nfind nth li\nclick \"open").Should().Be(
-			"x.journey:2: 'screenshot' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, timings, vitals, metrics, is.\n" +
+			"x.journey:2: 'screenshot' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, timings, vitals, metrics, is.\n" +
 			"x.journey:3: usage: fill <selector> <text>\n" +
 			"x.journey:4: usage: find nth <n> <selector> [action] [text]\n" +
 			"x.journey:5: the double quote is not closed");
@@ -150,6 +156,10 @@ public class JourneyParseTests
 	[Arguments("is hidden #a", "usage: is visible|enabled|checked <selector>")]
 	[Arguments("back now", "usage: back")]
 	[Arguments("console all", "usage: console [--clear]")]
+	[Arguments("network har stop ../x.har", "'../x.har' must be a path inside the artifacts folder, relative to it.")]
+	[Arguments("network har stop", "network har stop needs a path for the HAR file, relative to the artifacts folder")]
+	[Arguments("network route **/api --abort", "network route is not supported in journeys: it changes or reads what the page receives outside the page.")]
+	[Arguments("network requests --status 2x", "usage: network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>] | network har start | network har stop <path>")]
 	[Arguments("vitals --budget lcp", "usage: vitals [--budget <name>=<limit>...]")]
 	[Arguments("vitals --budget", "usage: vitals [--budget <name>=<limit>...]")]
 	[Arguments("vitals lcp=1", "usage: vitals [--budget <name>=<limit>...]")]

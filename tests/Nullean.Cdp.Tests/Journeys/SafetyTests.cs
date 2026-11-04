@@ -127,3 +127,19 @@ public class SafetyTests
 		PageContent.Fence("abcdefghij", "n", maxCharacters: 4).Should().Be(
 			"--- PAGE_CONTENT nonce=n ---\nabcd\n[truncated: showing 4 of 10 characters]\n--- END_PAGE_CONTENT nonce=n ---\n");
 }
+
+public class RequestFilterTests
+{
+	[Test]
+	[Arguments(200, "2xx", true)]
+	[Arguments(404, "2xx", false)]
+	[Arguments(404, "4xx", true)]
+	[Arguments(500, "4xx", false)]
+	[Arguments(404, "400-499", true)]
+	[Arguments(500, "400-499", false)]
+	[Arguments(200, "200", true)]
+	[Arguments(201, "200", false)]
+	[Arguments(null, "200", false)]
+	public void StatusPatterns(int? status, string pattern, bool matches) =>
+		Nullean.Cdp.Journeys.JourneyRunner.StatusMatches(status, pattern).Should().Be(matches);
+}

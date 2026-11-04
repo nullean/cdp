@@ -78,7 +78,7 @@ internal sealed class SlowServer : IAsyncDisposable
 						response.ContentType = "text/html; charset=utf-8";
 						var title = context.Request.Url.AbsolutePath == "/next" ? "Next" : "Slow";
 						await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(
-							$"<!doctype html><title>{title}</title><h1>{title}</h1><img src=\"/slow.png\" alt=\"late\"><a href=\"/next\">Next page</a>"));
+							$"<!doctype html><title>{title}</title><link rel=\"icon\" href=\"data:,\"><h1>{title}</h1><img src=\"/slow.png\" alt=\"late\"><a href=\"/next\">Next page</a>"));
 					}
 
 					response.Close();

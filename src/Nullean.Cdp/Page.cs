@@ -54,6 +54,13 @@ public sealed class Page
 	/// <summary>The page's uncaught exceptions and unhandled rejections since it was created or last cleared.</summary>
 	public IReadOnlyList<PageError> Errors => _log.Errors;
 
+	/// <summary>
+	/// Records the page's requests from now on, for a request list or a HAR file (<see cref="NetworkRecording"/>).
+	/// Opt-in: nothing is collected until asked.
+	/// </summary>
+	public Task<NetworkRecording> RecordNetworkAsync(CancellationToken cancellationToken = default) =>
+		NetworkRecording.StartAsync(this, cancellationToken);
+
 	/// <summary>Forgets the console messages collected so far.</summary>
 	public void ClearConsole() => _log.ClearConsole();
 
@@ -268,7 +275,8 @@ public sealed class Page
 			.ConfigureAwait(false);
 	}
 
-	internal static System.Text.RegularExpressions.Regex UrlGlob(string pattern)
+	/// <summary>A URL glob as agent-browser takes it: <c>**</c> matches anything, <c>*</c> anything but <c>/</c>, <c>?</c> one character.</summary>
+	public static System.Text.RegularExpressions.Regex UrlGlob(string pattern)
 	{
 		var regex = new System.Text.StringBuilder("^");
 		for (var i = 0; i < pattern.Length; i++)

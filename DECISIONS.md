@@ -218,6 +218,26 @@ rejection a little after the task that caused it, so an `errors` read straight a
 - **Export:** `vitals` is an agent-browser command and exports without our budgets; `timings` and `metrics` are not
   and are left out.
 
+## Network and HAR
+
+- **Opt-in recording.** `page.RecordNetworkAsync()` collects the page's requests from that moment (the `Network`
+  domain's request, response, finished and failed events); the journey runner starts it only for journeys with
+  `network requests` or `network har`.
+- **`network requests`** is a checkpoint in agent-browser's line format without its run-specific id:
+  `GET url (Type) 200`, filtered by `--filter` (a substring, or a glob with `*`), `--type`, `--method`, `--status`
+  (`200`, `2xx`, `400-499`); `--clear` forgets what was recorded. Request lists are deterministic for fixed pages, so
+  they suit snapshots (Chrome's late `favicon.ico` request is not: the test pages declare an empty icon).
+- **HAR 1.2**, enough for a waterfall in DevTools or any HAR viewer: per-phase timings from Chrome's resource timing
+  (blocked, dns, connect, ssl, send, wait, receive, with `-1` for phases a reused connection skipped and `time` the
+  sum), status, headers, query strings, MIME types and transfer sizes. Response bodies are not kept.
+- **Safe to write.** `network har stop <path>` writes only inside the artifacts folder the host chose
+  (`JourneyOptions.ArtifactsDirectory`, the CLI's `--artifacts`; nothing is written without one), and the path may not
+  leave it. `authorization`, `proxy-authorization`, `cookie` and `set-cookie` values are `[redacted]`, and secrets
+  typed during the run are replaced by their `$env:` reference. `network route`, `unroute` and `request` (mocking and
+  bodies) are not journey commands.
+- With the network guard on, each request waits for the guard's verdict, which adds a little to `blocked`; record
+  with the guard off when the timings themselves are the point.
+
 ## Safety for agents
 
 Journeys are written and shared by agents, and their output is read by agents, so a page is untrusted input in both
