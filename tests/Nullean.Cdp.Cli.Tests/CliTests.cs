@@ -24,6 +24,9 @@ public class CliTests
 	// The tests share one browser; the command disposes what it is given, so give it a connection of its own.
 	private static async Task<Browser> Borrowed()
 	{
+		// As in the library tests: CI runs the browser tests on Linux only.
+		if (Environment.GetEnvironmentVariable("CDP_SKIP_BROWSER") == "1")
+			Skip.Test("CDP_SKIP_BROWSER=1: browser tests run on Linux in CI.");
 		var shared = await Shared.Value;
 		return await Browser.ConnectAsync(new Uri(shared.WebSocketUrl));
 	}
