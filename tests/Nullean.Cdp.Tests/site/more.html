@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>More</title>
+<style>
+  #box { position: absolute; left: 10px; top: 400px; width: 120px; height: 30px; color: rgb(255, 0, 0); }
+  #list-area { height: 60px; overflow: auto; } #list-area div { height: 40px; }
+  #drop { width: 120px; height: 60px; border: 1px solid; }
+  #tall { height: 3000px; }
+</style></head>
+<body>
+<main>
+  <h1>More</h1>
+  <p id="log">nothing yet</p>
+  <button type="button" ondblclick="say('double clicked')">Double me</button>
+  <input id="focus-me" aria-label="Focus me" onfocus="say('focused')">
+  <textarea id="editor" aria-label="Editor" oninput="say('input ' + this.value)"></textarea>
+  <ul><li>One</li><li>Two</li><li>Three</li></ul>
+  <div id="list-area" onscroll="say('area ' + this.scrollTop)"><div>a</div><div>b</div><div>c</div><div>d</div></div>
+  <div id="drag-me" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', 'parcel')">Drag me</div>
+  <div id="drop" ondragover="event.preventDefault()" ondrop="event.preventDefault(); say('dropped ' + event.dataTransfer.getData('text/plain'))">Drop here</div>
+  <input id="file" type="file" aria-label="File" onchange="say('files ' + Array.from(this.files).map(f => f.name).join(','))">
+  <button type="button" onclick="navigator.geolocation.getCurrentPosition(p => say('at ' + p.coords.latitude + ',' + p.coords.longitude), e => say('geo error ' + e.code))">Where am I</button>
+  <a href="about.html?from=more">To about</a>
+  <div id="box">Boxed</div>
+  <div id="tall"></div>
+  <p id="bottom">The bottom</p>
+</main>
+<script>function say(text) { document.getElementById('log').textContent = text; }</script>
+</body>
+</html>

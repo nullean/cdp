@@ -30,15 +30,21 @@ public sealed class PageSelectorException(string selector)
 /// <summary>One page (tab), attached through its own session on the browser's connection.</summary>
 public sealed class Page
 {
-	internal Page(Browser browser, CdpConnection connection, string targetId, string sessionId)
+	internal Page(Browser browser, CdpConnection connection, string targetId, string sessionId, string? contextId = null)
 	{
 		Browser = browser;
 		Connection = connection;
 		TargetId = targetId;
 		SessionId = sessionId;
+		ContextId = contextId;
 	}
 
 	internal Browser Browser { get; }
+
+	internal string? ContextId { get; }
+
+	// The main frame's lifecycle events for its current document (load, DOMContentLoaded, networkIdle, ...).
+	private volatile ConcurrentDictionary<string, byte> _lifecycle = new(StringComparer.Ordinal);
 
 	/// <summary>The connection, for commands this library does not wrap; pass <see cref="SessionId"/> with them.</summary>
 	public CdpConnection Connection { get; }
@@ -129,18 +135,152 @@ public sealed class Page
 			.ConfigureAwait(false);
 	}
 
-	/// <summary>Sets the viewport size in CSS pixels.</summary>
-	public async Task SetViewportAsync(int width, int height, CancellationToken cancellationToken = default)
+	/// <summary>Sets the viewport size in CSS pixels, and the device pixel ratio.</summary>
+	public async Task SetViewportAsync(int width, int height, double scale = 1, CancellationToken cancellationToken = default)
 	{
 		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
 		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
+		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(scale);
 		await SendAsync("Emulation.setDeviceMetricsOverride", w =>
 		{
 			w.WriteNumber("width", width);
 			w.WriteNumber("height", height);
-			w.WriteNumber("deviceScaleFactor", 1);
+			w.WriteNumber("deviceScaleFactor", scale);
 			w.WriteBoolean("mobile", false);
 		}, cancellationToken).ConfigureAwait(false);
+	}
+
+	/// <summary>Emulates a device from <see cref="Devices"/>: viewport, pixel ratio, touch and user agent.</summary>
+	public async Task SetDeviceAsync(string name, CancellationToken cancellationToken = default)
+	{
+		if (!Devices.All.TryGetValue(name, out var device))
+			throw new ArgumentException($"Unknown device '{name}'. Known: {string.Join(", ", Devices.All.Keys.Order(StringComparer.Ordinal))}.", nameof(name));
+		await SendAsync("Emulation.setDeviceMetricsOverride", w =>
+		{
+			w.WriteNumber("width", device.Width);
+			w.WriteNumber("height", device.Height);
+			w.WriteNumber("deviceScaleFactor", device.Scale);
+			w.WriteBoolean("mobile", device.Mobile);
+		}, cancellationToken).ConfigureAwait(false);
+		await SendAsync("Emulation.setTouchEmulationEnabled", w => w.WriteBoolean("enabled", device.Mobile), cancellationToken).ConfigureAwait(false);
+		if (device.UserAgent.Length > 0)
+			await SendAsync("Emulation.setUserAgentOverride", w => w.WriteString("userAgent", device.UserAgent), cancellationToken).ConfigureAwait(false);
+	}
+
+	/// <summary>Reports this position to <c>navigator.geolocation</c>, and grants the page permission to read it.</summary>
+	public async Task SetGeolocationAsync(double latitude, double longitude, CancellationToken cancellationToken = default)
+	{
+		ArgumentOutOfRangeException.ThrowIfLessThan(latitude, -90);
+		ArgumentOutOfRangeException.ThrowIfGreaterThan(latitude, 90);
+		ArgumentOutOfRangeException.ThrowIfLessThan(longitude, -180);
+		ArgumentOutOfRangeException.ThrowIfGreaterThan(longitude, 180);
+		await Connection.SendAsync("Browser.grantPermissions", w =>
+		{
+			w.WriteStartArray("permissions");
+			w.WriteStringValue("geolocation");
+			w.WriteEndArray();
+			if (ContextId is not null)
+				w.WriteString("browserContextId", ContextId);
+		}, cancellationToken: cancellationToken).ConfigureAwait(false);
+		await SendAsync("Emulation.setGeolocationOverride", w =>
+		{
+			w.WriteNumber("latitude", latitude);
+			w.WriteNumber("longitude", longitude);
+			w.WriteNumber("accuracy", 1);
+		}, cancellationToken).ConfigureAwait(false);
+	}
+
+	/// <summary>Takes the page off the network, or puts it back.</summary>
+	public async Task SetOfflineAsync(bool offline, CancellationToken cancellationToken = default)
+	{
+		await SendAsync("Network.enable", null, cancellationToken).ConfigureAwait(false);
+		await SendAsync("Network.emulateNetworkConditions", w =>
+		{
+			w.WriteBoolean("offline", offline);
+			w.WriteNumber("latency", 0);
+			w.WriteNumber("downloadThroughput", -1);
+			w.WriteNumber("uploadThroughput", -1);
+		}, cancellationToken).ConfigureAwait(false);
+	}
+
+	/// <summary>Sends these headers with every request of the page; an empty set clears them.</summary>
+	public async Task SetExtraHeadersAsync(IReadOnlyDictionary<string, string> headers, CancellationToken cancellationToken = default)
+	{
+		ArgumentNullException.ThrowIfNull(headers);
+		await SendAsync("Network.enable", null, cancellationToken).ConfigureAwait(false);
+		await SendAsync("Network.setExtraHTTPHeaders", w =>
+		{
+			w.WriteStartObject("headers");
+			foreach (var (name, value) in headers)
+				w.WriteString(name, value);
+			w.WriteEndObject();
+		}, cancellationToken).ConfigureAwait(false);
+	}
+
+	/// <summary>Scrolls the page with the mouse wheel at the centre of the viewport.</summary>
+	public async Task ScrollAsync(double deltaX, double deltaY, CancellationToken cancellationToken = default)
+	{
+		var size = await EvaluateAsync("[innerWidth, innerHeight]", cancellationToken).ConfigureAwait(false);
+		await Mouse.WheelAsync(size[0].GetDouble() / 2, size[1].GetDouble() / 2, deltaX, deltaY, cancellationToken).ConfigureAwait(false);
+	}
+
+	/// <summary>
+	/// Waits until the current document reached <paramref name="state"/>: <c>load</c>, <c>domcontentloaded</c> or
+	/// <c>networkidle</c> (no network activity for half a second), up to <see cref="NavigationTimeout"/>.
+	/// </summary>
+	public async Task WaitForLoadStateAsync(string state, CancellationToken cancellationToken = default)
+	{
+		var name = state switch
+		{
+			"load" => "load",
+			"domcontentloaded" => "DOMContentLoaded",
+			"networkidle" => "networkIdle",
+			_ => throw new ArgumentException($"Unknown load state '{state}': use load, domcontentloaded or networkidle.", nameof(state)),
+		};
+		await PollAsync(() => Task.FromResult(_lifecycle.ContainsKey(name)), $"the page to reach '{state}'", cancellationToken).ConfigureAwait(false);
+	}
+
+	/// <summary>
+	/// Waits until the URL matches <paramref name="pattern"/>, a glob where <c>**</c> matches anything and <c>*</c>
+	/// anything but <c>/</c>, up to <see cref="NavigationTimeout"/>.
+	/// </summary>
+	public async Task WaitForUrlAsync(string pattern, CancellationToken cancellationToken = default)
+	{
+		var glob = UrlGlob(pattern);
+		await PollAsync(async () => glob.IsMatch(await UrlAsync(cancellationToken).ConfigureAwait(false)), $"the URL to match '{pattern}'", cancellationToken)
+			.ConfigureAwait(false);
+	}
+
+	internal static System.Text.RegularExpressions.Regex UrlGlob(string pattern)
+	{
+		var regex = new System.Text.StringBuilder("^");
+		for (var i = 0; i < pattern.Length; i++)
+		{
+			if (pattern[i] == '*' && i + 1 < pattern.Length && pattern[i + 1] == '*')
+			{
+				regex.Append(".*");
+				i++;
+			}
+			else if (pattern[i] == '*')
+				regex.Append("[^/]*");
+			else if (pattern[i] == '?')
+				regex.Append("[^/]");
+			else
+				regex.Append(System.Text.RegularExpressions.Regex.Escape(pattern[i].ToString()));
+		}
+
+		return new System.Text.RegularExpressions.Regex(regex.Append('$').ToString(), System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+	}
+
+	private async Task PollAsync(Func<Task<bool>> done, string what, CancellationToken cancellationToken)
+	{
+		var started = System.Diagnostics.Stopwatch.StartNew();
+		while (!await done().ConfigureAwait(false))
+		{
+			if (started.Elapsed >= NavigationTimeout)
+				throw new TimeoutException($"Timed out after {NavigationTimeout.TotalSeconds:0}s waiting for {what}.");
+			await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+		}
 	}
 
 	/// <summary>Emulates <c>prefers-color-scheme</c>: <c>dark</c>, <c>light</c> or <c>no-preference</c>.</summary>
@@ -161,6 +301,16 @@ public sealed class Page
 
 	internal async Task InitializeAsync(CancellationToken cancellationToken)
 	{
+		// Lives as long as the page: events stop when its session ends.
+		_ = Connection.On(SessionId, e =>
+		{
+			if (e.Method != "Page.lifecycleEvent" || e.Params.StringOrNull("frameId") != TargetId || e.Params.StringOrNull("name") is not { } name)
+				return;
+			// "init" starts a new document: its events replace the old one's.
+			if (name == "init")
+				_lifecycle = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
+			_lifecycle.TryAdd(name, 0);
+		});
 		await SendAsync("Page.enable", null, cancellationToken).ConfigureAwait(false);
 		await SendAsync("Page.setLifecycleEventsEnabled", w => w.WriteBoolean("enabled", true), cancellationToken).ConfigureAwait(false);
 	}

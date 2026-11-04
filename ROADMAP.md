@@ -31,8 +31,9 @@ One PR each; done means CI green on linux, windows and macos.
    are parse errors with line numbers. The runner returns checkpoints and keeps them when a step fails.
 3b. **Safety for agents.** Allow list enforced through `Fetch` (popups and out-of-process frames included), `file://`
    confined to the base folder, `$env:` secrets with redaction, downloads denied, and `PageContent.Fence` for the CLI.
-4. *(#7)* **CLI** (`cdp`, a working name): `run`, `check`, `batch`, `snapshot`, `chrome`, packed per RID with native AOT
+4. *(#8)* **CLI** (`cdp`, a working name): `run`, `check`, `batch`, `snapshot`, `chrome`, packed per RID with native AOT
    like snap and curb. A release job follows once publishing is agreed.
+5. *(#9)* **agent-browser parity:** the rest of agent-browser's page commands (DECISIONS.md, "agent-browser parity").
 
 ## Tests
 

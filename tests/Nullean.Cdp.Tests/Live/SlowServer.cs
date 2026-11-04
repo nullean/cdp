@@ -47,7 +47,27 @@ internal sealed class SlowServer : IAsyncDisposable
 				var response = context.Response;
 				try
 				{
-					if (context.Request.Url!.AbsolutePath == "/slow.png")
+					if (context.Request.Url!.AbsolutePath == "/headers")
+					{
+						response.ContentType = "text/html; charset=utf-8";
+						await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(
+							$"<!doctype html><title>Headers</title><p id=\"x\">{WebUtility.HtmlEncode(context.Request.Headers["x-test"] ?? "none")}</p>"));
+					}
+					else if (context.Request.Url.AbsolutePath == "/private")
+					{
+						// Basic auth for user "admin" with password "hunter22".
+						if (context.Request.Headers["Authorization"] != "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("admin:hunter22")))
+						{
+							response.StatusCode = 401;
+							response.AddHeader("WWW-Authenticate", "Basic realm=\"test\"");
+						}
+						else
+						{
+							response.ContentType = "text/html; charset=utf-8";
+							await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes("<!doctype html><title>Private</title><p>Welcome</p>"));
+						}
+					}
+					else if (context.Request.Url.AbsolutePath == "/slow.png")
 					{
 						await Task.Delay(imageDelay);
 						response.ContentType = "image/png";

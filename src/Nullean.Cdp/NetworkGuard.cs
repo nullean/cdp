@@ -28,6 +28,18 @@ public sealed class NetworkGuard : IAsyncDisposable
 	// Every guarded session and the target (top frame) it belongs to; its listener, to stop on dispose.
 	private readonly ConcurrentDictionary<string, (string TargetId, IDisposable Listening)> _sessions = new(StringComparer.Ordinal);
 	private int _disposed;
+	private (string User, string Password)? _credentials;
+
+	/// <summary>
+	/// Answers HTTP authentication challenges from allowed URLs with these credentials; without them, challenges are
+	/// cancelled.
+	/// </summary>
+	public void UseCredentials(string user, string password)
+	{
+		ArgumentNullException.ThrowIfNull(user);
+		ArgumentNullException.ThrowIfNull(password);
+		_credentials = (user, password);
+	}
 
 	private NetworkGuard(Page page, Func<Uri, bool> allow)
 	{
@@ -77,6 +89,7 @@ public sealed class NetworkGuard : IAsyncDisposable
 			w.WriteString("requestStage", "Request");
 			w.WriteEndObject();
 			w.WriteEndArray();
+			w.WriteBoolean("handleAuthRequests", true);
 		}, sessionId, cancellationToken).ConfigureAwait(false);
 		await connection.SendAsync("Target.setAutoAttach", w =>
 		{
@@ -92,6 +105,9 @@ public sealed class NetworkGuard : IAsyncDisposable
 		{
 			case "Fetch.requestPaused" when e.Params.StringOrNull("requestId") is { } id:
 				Decide(sessionId, targetId, id, e);
+				break;
+			case "Fetch.authRequired" when e.Params.StringOrNull("requestId") is { } authId:
+				Authenticate(sessionId, authId, e);
 				break;
 			case "Target.attachedToTarget" when e.Params.StringOrNull("sessionId") is { } child
 				&& e.Params.TryGetProperty("targetInfo", out var info) && info.StringOrNull("targetId") is { } childTarget:
@@ -124,6 +140,26 @@ public sealed class NetworkGuard : IAsyncDisposable
 				w.WriteString("requestId", requestId);
 				w.WriteString("errorReason", "BlockedByClient");
 			}, sessionId));
+	}
+
+	private void Authenticate(string sessionId, string requestId, CdpEvent e)
+	{
+		var url = e.Params.TryGetProperty("request", out var request) ? request.StringOrNull("url") ?? string.Empty : string.Empty;
+		var credentials = _credentials;
+		var answer = credentials is { } c && Uri.TryCreate(url, UriKind.Absolute, out var uri) && _allow(uri) ? c : ((string, string)?)null;
+		Observe(_page.Connection.SendAsync("Fetch.continueWithAuth", w =>
+		{
+			w.WriteString("requestId", requestId);
+			w.WriteStartObject("authChallengeResponse");
+			w.WriteString("response", answer is null ? "CancelAuth" : "ProvideCredentials");
+			if (answer is { } a)
+			{
+				w.WriteString("username", a.Item1);
+				w.WriteString("password", a.Item2);
+			}
+
+			w.WriteEndObject();
+		}, sessionId));
 	}
 
 	private static void Observe(Task task) =>

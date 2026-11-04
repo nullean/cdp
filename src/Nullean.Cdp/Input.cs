@@ -21,7 +21,79 @@ public sealed class Mouse
 		await DispatchAsync("mouseReleased", x, y, "left", 1, cancellationToken).ConfigureAwait(false);
 	}
 
-	private async Task DispatchAsync(string type, double x, double y, string button, int clickCount, CancellationToken cancellationToken) =>
+	/// <summary>Two clicks, the second reporting a click count of two, so <c>dblclick</c> fires.</summary>
+	public async Task DoubleClickAsync(double x, double y, CancellationToken cancellationToken = default)
+	{
+		await MoveAsync(x, y, cancellationToken).ConfigureAwait(false);
+		for (var count = 1; count <= 2; count++)
+		{
+			await DispatchAsync("mousePressed", x, y, "left", count, cancellationToken).ConfigureAwait(false);
+			await DispatchAsync("mouseReleased", x, y, "left", count, cancellationToken).ConfigureAwait(false);
+		}
+	}
+
+	/// <summary>Turns the wheel at a point: positive <paramref name="deltaY"/> scrolls down, positive <paramref name="deltaX"/> right.</summary>
+	public async Task WheelAsync(double x, double y, double deltaX, double deltaY, CancellationToken cancellationToken = default) =>
+		await _page.SendAsync("Input.dispatchMouseEvent", w =>
+		{
+			w.WriteString("type", "mouseWheel");
+			w.WriteNumber("x", x);
+			w.WriteNumber("y", y);
+			w.WriteNumber("deltaX", deltaX);
+			w.WriteNumber("deltaY", deltaY);
+		}, cancellationToken).ConfigureAwait(false);
+
+	/// <summary>
+	/// Presses at <paramref name="from"/>, moves to <paramref name="to"/> in steps and releases. When the page starts an
+	/// HTML drag, Chrome hands it over and it is dropped at <paramref name="to"/>.
+	/// </summary>
+	public async Task DragAsync((double X, double Y) from, (double X, double Y) to, CancellationToken cancellationToken = default)
+	{
+		var intercepted = new TaskCompletionSource<System.Text.Json.JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+		using var listening = _page.Connection.On(_page.SessionId, e =>
+		{
+			if (e.Method == "Input.dragIntercepted" && e.Params.TryGetProperty("data", out var data))
+				intercepted.TrySetResult(data.Clone());
+		});
+		await _page.SendAsync("Input.setInterceptDrags", w => w.WriteBoolean("enabled", true), cancellationToken).ConfigureAwait(false);
+		try
+		{
+			await MoveAsync(from.X, from.Y, cancellationToken).ConfigureAwait(false);
+			await DispatchAsync("mousePressed", from.X, from.Y, "left", 1, cancellationToken).ConfigureAwait(false);
+			// Moves with the left button held, so Chrome starts a drag.
+			const int steps = 5;
+			for (var i = 1; i <= steps; i++)
+			{
+				var (x, y) = (from.X + ((to.X - from.X) * i / steps), from.Y + ((to.Y - from.Y) * i / steps));
+				await DispatchAsync("mouseMoved", x, y, "left", 0, cancellationToken, buttons: 1).ConfigureAwait(false);
+			}
+
+			// An HTML drag is handed over shortly after the moves; a plain mouse drag never is.
+			if (await Task.WhenAny(intercepted.Task, Task.Delay(250, cancellationToken)).ConfigureAwait(false) == intercepted.Task)
+			{
+				var data = await intercepted.Task.ConfigureAwait(false);
+				foreach (var type in new[] { "dragEnter", "dragOver", "drop" })
+				{
+					await _page.SendAsync("Input.dispatchDragEvent", w =>
+					{
+						w.WriteString("type", type);
+						w.WriteNumber("x", to.X);
+						w.WriteNumber("y", to.Y);
+						w.WritePropertyName("data");
+						data.WriteTo(w);
+					}, cancellationToken).ConfigureAwait(false);
+				}
+			}
+
+			await DispatchAsync("mouseReleased", to.X, to.Y, "left", 1, cancellationToken).ConfigureAwait(false);
+		}
+		finally
+		{
+			await _page.SendAsync("Input.setInterceptDrags", w => w.WriteBoolean("enabled", false), CancellationToken.None).ConfigureAwait(false);
+		}
+	}
+
+	private async Task DispatchAsync(string type, double x, double y, string button, int clickCount, CancellationToken cancellationToken, int buttons = -1) =>
 		await _page.SendAsync("Input.dispatchMouseEvent", w =>
 		{
 			w.WriteString("type", type);
@@ -29,6 +101,8 @@ public sealed class Mouse
 			w.WriteNumber("y", y);
 			w.WriteString("button", button);
 			w.WriteNumber("clickCount", clickCount);
+			if (buttons >= 0)
+				w.WriteNumber("buttons", buttons);
 		}, cancellationToken).ConfigureAwait(false);
 }
 
@@ -97,6 +171,13 @@ public sealed class Keyboard
 			modifiers &= ~Flag(parts[i].Name);
 			await DispatchAsync("keyUp", parts[i], modifiers, withText: false, cancellationToken).ConfigureAwait(false);
 		}
+	}
+
+	/// <summary>Inserts <paramref name="text"/> at the focus at once, without key events, as a paste would.</summary>
+	public async Task InsertTextAsync(string text, CancellationToken cancellationToken = default)
+	{
+		ArgumentNullException.ThrowIfNull(text);
+		await _page.SendAsync("Input.insertText", w => w.WriteString("text", text), cancellationToken).ConfigureAwait(false);
 	}
 
 	/// <summary>Types each character of <paramref name="text"/> as a key press.</summary>

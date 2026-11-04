@@ -28,10 +28,15 @@ public sealed class JourneyParseException(string source, IReadOnlyList<JourneyEr
 /// <param name="Value">The selector or locator value.</param>
 /// <param name="Name">The accessible name, for <c>find role … --name</c>.</param>
 /// <param name="Exact">Whether <c>--exact</c> was given.</param>
-public sealed record JourneyTarget(LocatorKind Kind, string Value, string? Name = null, bool Exact = false)
+/// <param name="Index">For <c>find first|last|nth</c>: which match, from zero; <c>-1</c> is the last.</param>
+public sealed record JourneyTarget(LocatorKind Kind, string Value, string? Name = null, bool Exact = false, int? Index = null)
 {
 	/// <summary>The locator on <paramref name="page"/>.</summary>
-	public Locator On(Page page) => page.Locate(Kind, Value, Name, Exact);
+	public Locator On(Page page)
+	{
+		var locator = page.Locate(Kind, Value, Name, Exact);
+		return Index is { } index ? locator.Nth(index) : locator;
+	}
 }
 
 /// <summary>One parsed command. Checkpoints (<see cref="IsCheckpoint"/>) produce output; the rest act.</summary>
@@ -47,17 +52,57 @@ public sealed record OpenCommand(string Url) : JourneyCommand;
 /// <summary><c>back</c>, <c>forward</c> or <c>reload</c>.</summary>
 public sealed record HistoryCommand(string Direction) : JourneyCommand;
 
-/// <summary>An action on an element: click, hover, fill, type, check, uncheck or select.</summary>
+/// <summary>
+/// An action on an element: click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select or upload.
+/// </summary>
 public sealed record ActCommand(string Action, JourneyTarget Target, IReadOnlyList<string> Values) : JourneyCommand;
 
 /// <summary><c>press &lt;key&gt;</c>, on whatever has focus.</summary>
 public sealed record PressCommand(string Keys) : JourneyCommand;
 
-/// <summary><c>wait &lt;selector&gt;</c>, <c>wait &lt;ms&gt;</c> or <c>wait --text &lt;text&gt;</c>.</summary>
-public sealed record WaitCommand(JourneyTarget? Target, int? Milliseconds) : JourneyCommand;
+/// <summary>
+/// <c>wait &lt;selector&gt;</c>, <c>wait &lt;ms&gt;</c>, <c>wait --text &lt;text&gt;</c>, <c>wait --url &lt;glob&gt;</c> or
+/// <c>wait --load load|domcontentloaded|networkidle</c>.
+/// </summary>
+public sealed record WaitCommand(JourneyTarget? Target, int? Milliseconds, string? Url = null, string? LoadState = null) : JourneyCommand;
 
-/// <summary><c>set viewport &lt;w&gt; &lt;h&gt;</c> or <c>set media dark|light</c>.</summary>
-public sealed record SetCommand(string Setting, int Width = 0, int Height = 0, string? Scheme = null) : JourneyCommand;
+/// <summary>
+/// <c>set viewport &lt;w&gt; &lt;h&gt; [scale]</c>, <c>set media dark|light</c>, <c>set device &lt;name&gt;</c>,
+/// <c>set geo &lt;lat&gt; &lt;lng&gt;</c>, <c>set offline [on|off]</c>, <c>set headers &lt;json&gt;</c> or
+/// <c>set credentials &lt;user&gt; &lt;password&gt;</c>.
+/// </summary>
+public sealed record SetCommand(string Setting, int Width = 0, int Height = 0, string? Scheme = null) : JourneyCommand
+{
+	/// <summary>The device pixel ratio for <c>set viewport</c>.</summary>
+	public double Scale { get; init; } = 1;
+
+	/// <summary>The device for <c>set device</c>.</summary>
+	public string? Device { get; init; }
+
+	/// <summary>The position for <c>set geo</c>.</summary>
+	public (double Latitude, double Longitude) Position { get; init; }
+
+	/// <summary>For <c>set offline</c>: on, off, or <c>null</c> to toggle.</summary>
+	public bool? Offline { get; init; }
+
+	/// <summary>The headers for <c>set headers</c>, as JSON text.</summary>
+	public string? Headers { get; init; }
+
+	/// <summary>The user for <c>set credentials</c>.</summary>
+	public string? User { get; init; }
+
+	/// <summary>The password for <c>set credentials</c>: always a secret reference.</summary>
+	public string? Password { get; init; }
+}
+
+/// <summary><c>drag &lt;source&gt; &lt;target&gt;</c>.</summary>
+public sealed record DragCommand(JourneyTarget Source, JourneyTarget Target) : JourneyCommand;
+
+/// <summary><c>scroll [up|down|left|right] [pixels] [-s selector]</c>.</summary>
+public sealed record ScrollCommand(string Direction, int Pixels, JourneyTarget? Within) : JourneyCommand;
+
+/// <summary><c>keyboard type &lt;text&gt;</c> or <c>keyboard inserttext &lt;text&gt;</c>, into whatever has focus.</summary>
+public sealed record KeyboardCommand(string Mode, string Text) : JourneyCommand;
 
 /// <summary><c>snapshot [-i] [-c] [-d n] [-s selector]</c>, a checkpoint.</summary>
 public sealed record SnapshotCommand(AxSnapshotOptions Options) : JourneyCommand
@@ -162,12 +207,16 @@ public sealed partial class Journey
 	public static IReadOnlyList<string> SupportedCommands { get; } =
 	[
 		"allow <host pattern...>", "open <url>", "back", "forward", "reload",
-		"click <selector>", "hover <selector>", "fill <selector> <text>", "type <selector> <text>",
-		"check <selector>", "uncheck <selector>", "select <selector> <value...>", "press <key>",
-		"find role|text|label|placeholder|alt|title|testid <value> [click|fill|check|hover|text] [text] [--name <name>] [--exact]",
-		"wait <selector>|<ms>|--text <text>", "set viewport <width> <height>", "set media dark|light",
-		"snapshot [-i] [-c] [-d <n>] [-s <selector>]",
-		"get text|html|value|count <selector>", "get attr <selector> <name>", "get title", "get url",
+		"click <selector>", "dblclick <selector>", "hover <selector>", "focus <selector>", "scrollintoview <selector>",
+		"fill <selector> <text>", "type <selector> <text>", "check <selector>", "uncheck <selector>",
+		"select <selector> <value...>", "upload <selector> <files...>", "drag <source> <target>",
+		"scroll [up|down|left|right] [pixels] [-s <selector>]", "press <key>", "keyboard type|inserttext <text>",
+		"find role|text|label|placeholder|alt|title|testid <value> | first|last <selector> | nth <n> <selector> [click|fill|check|hover|text] [text] [--name <name>] [--exact]",
+		"wait <selector>|<ms>|--text <text>|--url <glob>|--load <state>",
+		"set viewport <w> <h> [scale]", "set media dark|light", "set device <name>", "set geo <lat> <lng>",
+		"set offline [on|off]", "set headers <json>", "set credentials <user> <password>",
+		"snapshot [-i] [-c] [-u] [-d <n>] [-s <selector>]",
+		"get text|html|value|count|box|styles <selector>", "get attr <selector> <name>", "get title", "get url",
 		"is visible|enabled|checked <selector>",
 	];
 
@@ -189,7 +238,14 @@ public sealed partial class Journey
 		{
 			"open" or "goto" or "navigate" => rest.Length == 1 ? new OpenCommand(rest[0]) : throw Usage("open <url>"),
 			"back" or "forward" or "reload" => rest.Length == 0 ? new HistoryCommand(command) : throw Usage(command),
-			"click" or "hover" or "check" or "uncheck" => rest.Length == 1 ? new ActCommand(command, Css(rest[0]), []) : throw Usage($"{command} <selector>"),
+			"click" or "dblclick" or "hover" or "focus" or "check" or "uncheck" => rest.Length == 1
+				? new ActCommand(command, Css(rest[0]), [])
+				: throw Usage($"{command} <selector>"),
+			"scrollintoview" or "scrollinto" => rest.Length == 1 ? new ActCommand("scrollintoview", Css(rest[0]), []) : throw Usage($"{command} <selector>"),
+			"upload" => rest.Length >= 2 ? new ActCommand("upload", Css(rest[0]), [.. rest[1..].Select(UploadPath)]) : throw Usage("upload <selector> <files...>"),
+			"drag" => rest.Length == 2 ? new DragCommand(Css(rest[0]), Css(rest[1])) : throw Usage("drag <source> <target>"),
+			"scroll" => ParseScroll(rest),
+			"keyboard" => rest is ["type" or "inserttext", var text] ? new KeyboardCommand(rest[0], Value(text)) : throw Usage("keyboard type|inserttext <text>"),
 			"fill" or "type" => rest.Length == 2 ? new ActCommand(command, Css(rest[0]), [Value(rest[1])]) : throw Usage($"{command} <selector> <text>"),
 			"select" => rest.Length >= 2 ? new ActCommand(command, Css(rest[0]), [.. rest[1..].Select(Value)]) : throw Usage("select <selector> <value...>"),
 			"press" or "key" => rest.Length == 1 ? new PressCommand(rest[0]) : throw Usage("press <key>"),
@@ -210,6 +266,42 @@ public sealed partial class Journey
 		? throw new JourneySyntaxException($"'{value}' is not a secret reference: write $env:NAME with letters, digits and _.")
 		: value;
 
+	// Upload paths are relative to the journey's folder and may not leave it; checked again when the step runs.
+	private static string UploadPath(string path) =>
+		Path.IsPathRooted(path) || path.Replace('\\', '/').Split('/').Contains("..")
+			? throw new JourneySyntaxException($"'{path}' must be a path inside the journey's folder, relative to it.")
+			: path;
+
+	private static ScrollCommand ParseScroll(string[] rest)
+	{
+		const string usage = "scroll [up|down|left|right] [pixels] [-s <selector>]";
+		string direction = "down";
+		var pixels = 300;
+		JourneyTarget? within = null;
+		var positional = 0;
+		for (var i = 0; i < rest.Length; i++)
+		{
+			if (rest[i] is "-s" or "--selector")
+			{
+				within = i + 1 < rest.Length ? Css(rest[++i]) : throw new JourneySyntaxException("-s needs a selector");
+				continue;
+			}
+
+			if (positional == 0 && rest[i] is "up" or "down" or "left" or "right")
+				direction = rest[i];
+			else if (positional <= 1 && int.TryParse(rest[i], NumberStyles.None, CultureInfo.InvariantCulture, out var amount) && amount > 0)
+			{
+				pixels = amount;
+				positional = 1;
+			}
+			else
+				throw Usage(usage);
+			positional++;
+		}
+
+		return new ScrollCommand(direction, pixels, within);
+	}
+
 	private static JourneyTarget Css(string selector)
 	{
 		if (Ref().IsMatch(selector))
@@ -220,7 +312,7 @@ public sealed partial class Journey
 
 	private static JourneyCommand ParseFind(string[] rest)
 	{
-		const string usage = "find role|text|label|placeholder|alt|title|testid <value> [click|fill|check|hover|text] [text] [--name <name>] [--exact]";
+		const string usage = "find role|text|label|placeholder|alt|title|testid <value> | first|last <selector> | nth <n> <selector> [click|fill|check|hover|text] [text] [--name <name>] [--exact]";
 		string? name = null;
 		var exact = false;
 		var positional = new List<string>();
@@ -253,13 +345,26 @@ public sealed partial class Journey
 			"alt" => LocatorKind.Alt,
 			"title" => LocatorKind.Title,
 			"testid" => LocatorKind.TestId,
-			"first" or "last" or "nth" => throw new JourneySyntaxException(
-				$"find {positional[0]} is not supported in journeys; use a CSS selector that matches one element."),
+			"first" or "last" or "nth" => LocatorKind.Css,
 			var other => throw new JourneySyntaxException($"unknown locator '{other}': {usage}"),
 		};
 		if (name is not null && kind != LocatorKind.Role)
 			throw new JourneySyntaxException("--name only applies to find role");
-		var target = new JourneyTarget(kind, positional[1], name, exact);
+
+		// find first <selector> …, find last <selector> …, find nth <n> <selector> …
+		int? index = positional[0] switch
+		{
+			"first" => 0,
+			"last" => -1,
+			"nth" when positional.Count >= 3 && int.TryParse(positional[1], NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var n) => n,
+			"nth" => throw new JourneySyntaxException("usage: find nth <n> <selector> [action] [text]"),
+			_ => null,
+		};
+		var skip = positional[0] == "nth" ? 1 : 0;
+		positional = [.. positional.Skip(skip)];
+		var target = index is null
+			? new JourneyTarget(kind, positional[1], name, exact)
+			: Css(positional[1]) with { Index = index };
 		var action = positional.Count > 2 ? positional[2] : "click";
 		return action switch
 		{
@@ -274,12 +379,17 @@ public sealed partial class Journey
 
 	private static WaitCommand ParseWait(string[] rest)
 	{
+		const string usage = "wait <selector>|<ms>|--text <text>|--url <glob>|--load load|domcontentloaded|networkidle";
 		if (rest.Length == 2 && rest[0] == "--text")
 			return new WaitCommand(new JourneyTarget(LocatorKind.Text, rest[1]), null);
-		if (rest.Length == 1 && rest[0].StartsWith("--", StringComparison.Ordinal))
-			throw new JourneySyntaxException($"wait {rest[0]} is not supported in journeys; use wait <selector>, wait <ms> or wait --text <text>.");
-		if (rest.Length != 1)
-			throw Usage("wait <selector>|<ms>|--text <text>");
+		if (rest.Length == 2 && rest[0] == "--url")
+			return new WaitCommand(null, null, Url: rest[1]);
+		if (rest.Length == 2 && rest[0] == "--load")
+			return rest[1] is "load" or "domcontentloaded" or "networkidle" ? new WaitCommand(null, null, LoadState: rest[1]) : throw Usage(usage);
+		if (rest.Length >= 1 && rest[0] is "--fn" or "--download")
+			throw new JourneySyntaxException($"wait {rest[0]} is not supported in journeys: it runs page script or saves files.");
+		if (rest.Length != 1 || rest[0].StartsWith("--", StringComparison.Ordinal))
+			throw Usage(usage);
 		return int.TryParse(rest[0], NumberStyles.None, CultureInfo.InvariantCulture, out var ms)
 			? new WaitCommand(null, ms)
 			: new WaitCommand(Css(rest[0]), null);
@@ -287,19 +397,64 @@ public sealed partial class Journey
 
 	private static SetCommand ParseSet(string[] rest)
 	{
-		if (rest.Length >= 1 && rest[0] == "viewport")
+		const string all = "set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | credentials <user> <password>";
+		switch (rest)
 		{
-			if (rest.Length == 3 && int.TryParse(rest[1], NumberStyles.None, CultureInfo.InvariantCulture, out var w) && w > 0
-				&& int.TryParse(rest[2], NumberStyles.None, CultureInfo.InvariantCulture, out var h) && h > 0)
-				return new SetCommand("viewport", w, h);
-			throw Usage("set viewport <width> <height>");
-		}
+			case ["viewport", var width, var height, .. var scale] when scale.Length <= 1:
+				if (int.TryParse(width, NumberStyles.None, CultureInfo.InvariantCulture, out var w) && w > 0
+					&& int.TryParse(height, NumberStyles.None, CultureInfo.InvariantCulture, out var h) && h > 0)
+				{
+					if (scale.Length == 0)
+						return new SetCommand("viewport", w, h);
+					if (double.TryParse(scale[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var factor) && factor > 0)
+						return new SetCommand("viewport", w, h) { Scale = factor };
+				}
 
-		if (rest.Length >= 1 && rest[0] == "media")
-			return rest.Length == 2 && rest[1] is "dark" or "light" ? new SetCommand("media", Scheme: rest[1]) : throw Usage("set media dark|light");
-		throw new JourneySyntaxException(rest.Length == 0
-			? "usage: set viewport <width> <height> | set media dark|light"
-			: $"set {rest[0]} is not supported in journeys; use set viewport or set media.");
+				throw Usage("set viewport <width> <height> [scale]");
+			case ["viewport", ..]:
+				throw Usage("set viewport <width> <height> [scale]");
+			case ["media", "dark" or "light"]:
+				return new SetCommand("media", Scheme: rest[1]);
+			case ["media", ..]:
+				throw Usage("set media dark|light");
+			case ["device", var device]:
+				return Devices.All.ContainsKey(device)
+					? new SetCommand("device") { Device = device }
+					: throw new JourneySyntaxException($"unknown device '{device}'; known: {string.Join(", ", Devices.All.Keys.Order(StringComparer.Ordinal))}");
+			case ["geo", var lat, var lng]:
+				return double.TryParse(lat, NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude) && latitude is >= -90 and <= 90
+					&& double.TryParse(lng, NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude) && longitude is >= -180 and <= 180
+					? new SetCommand("geo") { Position = (latitude, longitude) }
+					: throw Usage("set geo <latitude> <longitude>");
+			case ["offline"]:
+				return new SetCommand("offline");
+			case ["offline", "on" or "off"]:
+				return new SetCommand("offline") { Offline = rest[1] == "on" };
+			case ["headers", var json]:
+				return ValidHeaders(json) ? new SetCommand("headers") { Headers = json } : throw new JourneySyntaxException("set headers needs a JSON object of string values, e.g. '{\"x-test\": \"1\"}'");
+			case ["credentials", var user, var password]:
+				return JourneySecrets.IsReference(password)
+					? new SetCommand("credentials") { User = Value(user), Password = password }
+					: throw new JourneySyntaxException("set credentials needs a secret reference for the password ($env:NAME), not a literal");
+			case [var other, ..] when other is not ("viewport" or "media" or "device" or "geo" or "offline" or "headers" or "credentials"):
+				throw new JourneySyntaxException($"set {other} is not supported in journeys: {all}");
+			default:
+				throw Usage(all);
+		}
+	}
+
+	private static bool ValidHeaders(string json)
+	{
+		try
+		{
+			using var document = System.Text.Json.JsonDocument.Parse(json);
+			return document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+				&& document.RootElement.EnumerateObject().All(p => p.Value.ValueKind == System.Text.Json.JsonValueKind.String);
+		}
+		catch (System.Text.Json.JsonException)
+		{
+			return false;
+		}
 	}
 
 	private static SnapshotCommand ParseSnapshot(string[] rest)
@@ -316,6 +471,11 @@ public sealed partial class Journey
 				case "-c" or "--compact":
 					options = options with { Compact = true };
 					break;
+				case "-u" or "--urls":
+					options = options with { Urls = true };
+					break;
+				case "--delta" or "--full":
+					throw new JourneySyntaxException($"snapshot {rest[i]} is not supported in journeys: a checkpoint records the whole tree, and the transcript diff shows what changed.");
 				case "-d" or "--depth":
 					if (!hasValue || !int.TryParse(rest[i + 1], NumberStyles.None, CultureInfo.InvariantCulture, out var depth))
 						throw new JourneySyntaxException("-d needs a number");
@@ -328,7 +488,7 @@ public sealed partial class Journey
 					options = options with { Selector = Css(rest[++i]).Value };
 					break;
 				default:
-					throw new JourneySyntaxException($"snapshot {rest[i]} is not supported in journeys; use -i, -c, -d <n> or -s <selector>.");
+					throw new JourneySyntaxException($"snapshot {rest[i]} is not supported in journeys; use -i, -c, -u, -d <n> or -s <selector>.");
 			}
 		}
 
@@ -337,13 +497,13 @@ public sealed partial class Journey
 
 	private static ReadCommand ParseGet(string[] rest)
 	{
-		const string usage = "get text|html|value|count <selector> | get attr <selector> <name> | get title | get url";
+		const string usage = "get text|html|value|count|box|styles <selector> | get attr <selector> <name> | get title | get url";
 		return rest switch
 		{
 			["title" or "url"] => new ReadCommand(rest[0], null),
-			["text" or "html" or "value" or "count", var selector] => new ReadCommand(rest[0], Css(selector)),
+			["text" or "html" or "value" or "count" or "box" or "styles", var selector] => new ReadCommand(rest[0], Css(selector)),
 			["attr", var selector, var name] => new ReadCommand("attr", Css(selector), name),
-			[var what, ..] when what is not ("title" or "url" or "text" or "html" or "value" or "count" or "attr")
+			[var what, ..] when what is not ("title" or "url" or "text" or "html" or "value" or "count" or "attr" or "box" or "styles")
 				=> throw new JourneySyntaxException($"get {what} is not supported in journeys: {usage}"),
 			_ => throw Usage(usage),
 		};
@@ -361,7 +521,7 @@ public sealed partial class Journey
 	public string ToAgentBrowserBatch(Uri? baseUrl = null, Func<string, string?>? secrets = null)
 	{
 		var resolver = secrets is null ? null : new JourneySecrets(secrets);
-		var unresolved = Steps.Where(s => s.Command is ActCommand act && act.Values.Any(JourneySecrets.IsReference)).ToArray();
+		var unresolved = Steps.Where(s => s.Arguments.Any(JourneySecrets.IsReference)).ToArray();
 		if (resolver is null && unresolved.Length > 0)
 			throw new JourneyParseException(Source, [.. unresolved.Select(s =>
 				new JourneyError(s.Line, "uses a secret reference, which agent-browser cannot read; pass a secret resolver to export the value"))]);
@@ -378,6 +538,15 @@ public sealed partial class Journey
 				{
 					json.WriteStringValue("open");
 					json.WriteStringValue(ResolveUrl(step, open.Url, baseUrl));
+				}
+				else if (step.Command is ActCommand { Action: "upload" } upload)
+				{
+					// agent-browser reads upload paths from its own working folder; journeys from theirs.
+					json.WriteStringValue("upload");
+					json.WriteStringValue(step.Arguments[1]);
+					var folder = Path.GetDirectoryName(Path.GetFullPath(Source)) ?? ".";
+					foreach (var file in upload.Values)
+						json.WriteStringValue(Path.GetFullPath(Path.Combine(folder, file)));
 				}
 				else
 				{
