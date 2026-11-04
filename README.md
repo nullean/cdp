@@ -43,6 +43,41 @@ await page.Text("3 results").WaitAsync();
 
 `page.SendAsync(method, params)` and `browser.Connection` reach any CDP command the library does not wrap.
 
+## Journeys
+
+`Nullean.Cdp.Journeys` runs *synthetic journeys*: text files with one agent-browser command per line.
+
+```
+# checkout.journey
+open /shop
+find label Search fill lamp
+press Enter
+wait --text "results"
+find role button click --name "Add to basket"
+snapshot -c -s main          # a checkpoint: its output is recorded
+get text .basket-count       # another
+```
+
+```csharp
+var journey = Journey.Load("journeys/checkout.journey");
+var result = await JourneyRunner.RunAsync(journey, browser, new JourneyOptions { BaseUrl = new("http://localhost:5000/") });
+foreach (var checkpoint in result.Checkpoints)
+    Console.WriteLine($"{checkpoint.Command}\n{checkpoint.Output}");
+if (result.Failure is { } failure)
+    Console.WriteLine(failure.Describe(result.Source));   // checkout.journey:5: find role button ... and why
+```
+
+- **The commands** are a subset of agent-browser's, written the same way: `open`, `back`, `forward`, `reload`,
+  `click`, `hover`, `fill`, `type`, `check`, `uncheck`, `select`, `press`, `find`, `wait`, `set viewport`,
+  `set media`, and the checkpoints `snapshot`, `get` and `is` (and `find … text`). Anything else is an error that
+  names the line.
+- **No refs.** `@e3` changes from run to run, so journeys use `find role … --name`, `find text`, `find label` or CSS.
+- **Quoting** is a shell's: double or single quotes, backslash escapes. `# ` starts a comment, but `#id` is a selector.
+- **URLs:** `open /shop` resolves against the base URL like a link in a page would, so a base URL for a folder needs
+  its trailing slash.
+- **Replay in agent-browser:** `journey.ToAgentBrowserBatch(baseUrl)` gives the batch JSON, for
+  `agent-browser batch --bail`. A journey using every supported command runs there unchanged.
+
 ## Finding Chrome
 
 `CDP_CHROME`, then `CHROME_PATH`, then the standard install locations for Chrome, Chrome for Testing, Chromium and

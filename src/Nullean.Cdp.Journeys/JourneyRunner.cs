@@ -1,0 +1,189 @@
+using System.Globalization;
+using Nullean.Cdp.Protocol;
+
+namespace Nullean.Cdp.Journeys;
+
+/// <summary>How a journey runs.</summary>
+public sealed class JourneyOptions
+{
+	/// <summary>What relative <c>open</c> URLs resolve against.</summary>
+	public Uri? BaseUrl { get; init; }
+
+	/// <summary>Overrides <see cref="Page.ActionTimeout"/> for the run.</summary>
+	public TimeSpan? ActionTimeout { get; init; }
+
+	/// <summary>Overrides <see cref="Page.NavigationTimeout"/> for the run.</summary>
+	public TimeSpan? NavigationTimeout { get; init; }
+}
+
+/// <summary>The output of one checkpoint.</summary>
+/// <param name="Line">The journey line.</param>
+/// <param name="Command">The command as one normalised line (<see cref="JourneyStep.Text"/>).</param>
+/// <param name="Url">The page's URL when the checkpoint ran.</param>
+/// <param name="Output">What it read: an accessibility tree, a value, <c>true</c> or <c>false</c>.</param>
+public sealed record Checkpoint(int Line, string Command, string Url, string Output);
+
+/// <summary>The step a journey stopped at, and why.</summary>
+/// <param name="Line">The journey line.</param>
+/// <param name="Command">The command as one normalised line.</param>
+/// <param name="Message">The error, in plain text.</param>
+public sealed record JourneyFailure(int Line, string Command, string Message)
+{
+	/// <summary><c>file:line: command</c>, then the error.</summary>
+	public string Describe(string source) => $"{source}:{Line}: {Command}\n{Message}";
+}
+
+/// <summary>What a run produced: every checkpoint that ran, and the failure if a step failed.</summary>
+public sealed record JourneyResult(string Source, IReadOnlyList<Checkpoint> Checkpoints, JourneyFailure? Failure)
+{
+	/// <summary>Whether every step ran.</summary>
+	public bool Passed => Failure is null;
+}
+
+/// <summary>Runs journeys against a page or a browser.</summary>
+public static class JourneyRunner
+{
+	/// <summary>Runs <paramref name="journey"/> in a new context of <paramref name="browser"/>, disposed afterwards.</summary>
+	public static async Task<JourneyResult> RunAsync(Journey journey, Browser browser, JourneyOptions? options = null, CancellationToken cancellationToken = default)
+	{
+		ArgumentNullException.ThrowIfNull(browser);
+		await using var context = await browser.NewContextAsync(cancellationToken).ConfigureAwait(false);
+		var page = await context.NewPageAsync(cancellationToken).ConfigureAwait(false);
+		return await RunAsync(journey, page, options, cancellationToken).ConfigureAwait(false);
+	}
+
+	/// <summary>
+	/// Runs <paramref name="journey"/> on <paramref name="page"/>, step by step. A failing step stops the run and is
+	/// returned, not thrown, together with the checkpoints that already ran.
+	/// </summary>
+	public static async Task<JourneyResult> RunAsync(Journey journey, Page page, JourneyOptions? options = null, CancellationToken cancellationToken = default)
+	{
+		ArgumentNullException.ThrowIfNull(journey);
+		ArgumentNullException.ThrowIfNull(page);
+		options ??= new JourneyOptions();
+		if (options.ActionTimeout is { } action)
+			page.ActionTimeout = action;
+		if (options.NavigationTimeout is { } navigation)
+			page.NavigationTimeout = navigation;
+
+		var checkpoints = new List<Checkpoint>();
+		foreach (var step in journey.Steps)
+		{
+			try
+			{
+				if (await RunStepAsync(journey, step, page, options, cancellationToken).ConfigureAwait(false) is { } output)
+					checkpoints.Add(new Checkpoint(step.Line, step.Text, await page.UrlAsync(cancellationToken).ConfigureAwait(false), output));
+			}
+			catch (Exception e) when (IsStepFailure(e, cancellationToken))
+			{
+				return new JourneyResult(journey.Source, checkpoints, new JourneyFailure(step.Line, step.Text, e.Message));
+			}
+		}
+
+		return new JourneyResult(journey.Source, checkpoints, null);
+	}
+
+	// Anything a step can fail with, but not the caller cancelling.
+	private static bool IsStepFailure(Exception e, CancellationToken cancellationToken) => e switch
+	{
+		OperationCanceledException when cancellationToken.IsCancellationRequested => false,
+		LocatorTimeoutException or LocatorException or PageNavigationException or PageScriptException or PageSelectorException
+			or TimeoutException or CdpException or CdpDisconnectedException or ArgumentException or JourneyParseException
+			or InvalidOperationException => true,
+		_ => false,
+	};
+
+	private static async Task<string?> RunStepAsync(Journey journey, JourneyStep step, Page page, JourneyOptions options, CancellationToken ct)
+	{
+		switch (step.Command)
+		{
+			case OpenCommand open:
+				await page.GotoAsync(journey.ResolveUrl(step, open.Url, options.BaseUrl), ct).ConfigureAwait(false);
+				return null;
+			case HistoryCommand { Direction: "back" }:
+				await page.BackAsync(ct).ConfigureAwait(false);
+				return null;
+			case HistoryCommand { Direction: "forward" }:
+				await page.ForwardAsync(ct).ConfigureAwait(false);
+				return null;
+			case HistoryCommand:
+				await page.ReloadAsync(ct).ConfigureAwait(false);
+				return null;
+			case ActCommand act:
+				await ActAsync(act, act.Target.On(page), ct).ConfigureAwait(false);
+				return null;
+			case PressCommand press:
+				await page.PressAsync(press.Keys, ct).ConfigureAwait(false);
+				return null;
+			case WaitCommand { Milliseconds: { } ms }:
+				await Task.Delay(ms, ct).ConfigureAwait(false);
+				return null;
+			case WaitCommand { Target: { } target }:
+				await target.On(page).WaitAsync(LocatorState.Visible, ct).ConfigureAwait(false);
+				return null;
+			case SetCommand { Setting: "viewport" } viewport:
+				await page.SetViewportAsync(viewport.Width, viewport.Height, ct).ConfigureAwait(false);
+				return null;
+			case SetCommand media:
+				await page.SetColorSchemeAsync(media.Scheme!, ct).ConfigureAwait(false);
+				return null;
+			case SnapshotCommand snapshot:
+				return (await page.SnapshotAsync(snapshot.Options, ct).ConfigureAwait(false)).TrimEnd('\n');
+			case ReadCommand read:
+				return await ReadAsync(read, page, ct).ConfigureAwait(false);
+			default:
+				throw new InvalidOperationException($"No runner for {step.Command.GetType().Name}.");
+		}
+	}
+
+	private static async Task ActAsync(ActCommand act, Locator locator, CancellationToken ct)
+	{
+		switch (act.Action)
+		{
+			case "click":
+				await locator.ClickAsync(ct).ConfigureAwait(false);
+				break;
+			case "hover":
+				await locator.HoverAsync(ct).ConfigureAwait(false);
+				break;
+			case "check":
+				await locator.CheckAsync(ct).ConfigureAwait(false);
+				break;
+			case "uncheck":
+				await locator.UncheckAsync(ct).ConfigureAwait(false);
+				break;
+			case "fill":
+				await locator.FillAsync(act.Values[0], ct).ConfigureAwait(false);
+				break;
+			case "type":
+				await locator.TypeAsync(act.Values[0], ct).ConfigureAwait(false);
+				break;
+			case "select":
+				await locator.SelectAsync(act.Values, ct).ConfigureAwait(false);
+				break;
+			default:
+				throw new InvalidOperationException($"No runner for action {act.Action}.");
+		}
+	}
+
+	private static async Task<string> ReadAsync(ReadCommand read, Page page, CancellationToken ct)
+	{
+		var locator = read.Target?.On(page);
+		return read.What switch
+		{
+			"title" => await page.TitleAsync(ct).ConfigureAwait(false),
+			"url" => await page.UrlAsync(ct).ConfigureAwait(false),
+			"text" => await locator!.TextAsync(ct).ConfigureAwait(false),
+			"html" => await locator!.HtmlAsync(ct).ConfigureAwait(false),
+			"value" => await locator!.ValueAsync(ct).ConfigureAwait(false),
+			"count" => (await locator!.CountAsync(ct).ConfigureAwait(false)).ToString(CultureInfo.InvariantCulture),
+			"attr" => await locator!.AttributeAsync(read.Attribute!, ct).ConfigureAwait(false) ?? "null",
+			"is visible" => Bool(await locator!.IsVisibleAsync(ct).ConfigureAwait(false)),
+			"is enabled" => Bool(await locator!.IsEnabledAsync(ct).ConfigureAwait(false)),
+			"is checked" => Bool(await locator!.IsCheckedAsync(ct).ConfigureAwait(false)),
+			_ => throw new InvalidOperationException($"No runner for get {read.What}."),
+		};
+
+		static string Bool(bool value) => value ? "true" : "false";
+	}
+}

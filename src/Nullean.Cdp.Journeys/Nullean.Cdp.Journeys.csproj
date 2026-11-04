@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Nullean.Cdp.Journeys</RootNamespace>
+    <Description>Synthetic browser journeys: plain text files in agent-browser's command language, parsed, run with Nullean.Cdp and exported to agent-browser's batch JSON.</Description>
+    <PackageTags>cdp;chrome;browser;testing;journey;synthetic;agent-browser</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Nullean.Cdp/Nullean.Cdp.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Nullean.Cdp.Tests" />
+  </ItemGroup>
+
+</Project>

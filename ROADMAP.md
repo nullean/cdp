@@ -21,11 +21,11 @@ One PR each; done means CI green on linux, windows and macos.
    temporary `--user-data-dir` and `--remote-debugging-port=0`, read `DevToolsActivePort`. Contexts through
    `Target.createBrowserContext`. `Accessibility.getFullAXTree` printed as `- role "name" [attrs]`, with `-c` and
    `-i` filtering.
-2. *(#3)* **Locators, actions, waiting.** CSS, `role` + name (from the full accessibility tree; see DECISIONS.md), text, label, placeholder,
+2. *(done, #3)* **Locators, actions, waiting.** CSS, `role` + name (from the full accessibility tree; see DECISIONS.md), text, label, placeholder,
    alt, title, testid. Click and hover through `Input.dispatchMouseEvent` at the content quad's centre, fill through
    `Input.insertText`, keys through `Input.dispatchKeyEvent`. Locators poll until visible and enabled (5 s default);
    an action that starts a navigation waits for `load`.
-3. **Journeys.** One command per line, shell quoting, `#` comments. The subset: `open back forward reload`, `click
+3. *(#4)* **Journeys.** One command per line, shell quoting, `#` comments. The subset: `open back forward reload`, `click
    fill type press check uncheck select hover`, `find role|text|label|placeholder|alt|title|testid … [--name]
    [--exact]`, `wait`, `set viewport|media`, and the checkpoints `snapshot`, `get`, `is`. `@eN` refs and anything else
    are parse errors with line numbers. The runner returns checkpoints and keeps them when a step fails.

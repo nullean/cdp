@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Nullean.Cdp/Nullean.Cdp.csproj" />
+    <Project Path="src/Nullean.Cdp.Journeys/Nullean.Cdp.Journeys.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Nullean.Cdp.Tests/Nullean.Cdp.Tests.csproj" />

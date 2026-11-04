@@ -1,0 +1,1 @@
+[["open","http://localhost:5000/shop"],["open","http://localhost:5000/app/docs?page=2"],["open","https://elsewhere.test/a"],["find","role","button","--name","Say hello"],["fill","#q","red \"lamp\""],["snapshot","-c"]]
