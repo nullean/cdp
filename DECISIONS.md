@@ -238,6 +238,27 @@ rejection a little after the task that caused it, so an `errors` read straight a
 - With the network guard on, each request waits for the guard's verdict, which adds a little to `blocked`; record
   with the guard off when the timings themselves are the point.
 
+## Accessibility audit
+
+Our own rules, no third-party engine: axe-core (MPL-2.0) is not an option, nuget.org's web checkers all bundle it,
+and the permissive engines are either large (IBM Equal Access, Apache-2.0) or not built to inject (Siteimprove Alfa,
+MIT). A separate optional package could bundle IBM's engine later.
+
+- **From Chrome's accessibility tree**, which computes accessible names: `image-alt`, `button-name`, `link-name`,
+  `label` (text boxes, comboboxes, checkboxes, radios, sliders, …), `empty-heading`, `heading-order` (a level may
+  only go down by one), `landmark-one-main`.
+- **From the DOM:** `document-title`, `html-has-lang`, `aria-hidden-focus`, `duplicate-id`, and `color-contrast`:
+  WCAG AA (4.5:1, 3:1 for text of 24px or bold 18.66px), the text colour composed over the nearest solid background
+  through semi-transparent layers; text over a background image or gradient is skipped as undecidable, and disabled
+  controls are exempt, as WCAG says.
+- **Named and laid out like agent-browser's `a11y`** (axe-core's rule ids, `[impact] rule: help (n nodes)`, elements
+  by tag and identifying attributes), so results read alike; the help texts are our own. On the same page axe-core
+  4.12 reported the same eleven problems plus `region` (content outside landmarks, left out as noisy); we also report
+  `duplicate-id`.
+- **In journeys:** `a11y [-s selector] [--strict]` is a checkpoint; `--strict` fails the step on any violation. The
+  output is deterministic, so it snapshots well. The export keeps `a11y` (agent-browser runs axe-core on it) without
+  `--strict`.
+
 ## Safety for agents
 
 Journeys are written and shared by agents, and their output is read by agents, so a page is untrusted input in both

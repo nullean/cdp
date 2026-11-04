@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Contrast</title>
+<style>
+  body { background: #fff; color: #000; }
+  .pass { color: #767676; }            /* 4.54:1 on white: just passes */
+  .fail { color: #777777; }            /* 4.48:1 on white: just fails */
+  .large { color: #949494; font-size: 32px; }  /* 3.03:1, large text needs 3:1: passes */
+  .small-same { color: #949494; }      /* 3.03:1 at normal size: fails */
+  .veil { background: rgba(0, 0, 0, 0.5); color: #fff; } /* white on 50% black over white: about 3.9:1 */
+  .picture { background-image: linear-gradient(#000, #fff); color: #888; } /* undecidable: skipped */
+</style></head>
+<body>
+<main>
+  <h1>Contrast</h1>
+  <p class="pass">Passes</p>
+  <p class="fail">Fails</p>
+  <p class="large">Large passes</p>
+  <p class="small-same">Small fails</p>
+  <p class="veil">Veiled</p>
+  <p class="picture">Over a picture</p>
+</main>
+</body>
+</html>

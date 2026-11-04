@@ -71,7 +71,7 @@ if (result.Failure is { } failure)
   `dblclick`, `hover`, `focus`, `fill`, `type`, `check`, `select`, `upload`, `drag`, `scroll`, ...), `press` and
   `keyboard`, `find` (role, text, label, ..., first, last, nth), `wait` (element, time, text, URL, load state),
   `set` (viewport, media, device, geo, offline, headers, credentials), and the checkpoints `snapshot`, `get`, `is`,
-  `console`, `errors`, `network requests`, and `timings`, `vitals` and `metrics` (raw, or `--budget lcp=2500 cls=0.1`
+  `console`, `errors`, `network requests`, `a11y` (our own accessibility rules), and `timings`, `vitals` and `metrics` (raw, or `--budget lcp=2500 cls=0.1`
   for stable transcripts). `network har start` / `network har stop <path>` record a HAR file into the artifacts folder. Left out on purpose: refs, `eval`, cookies and session state, tabs, screenshots and downloads. Anything
   unsupported is an error that names the line.
 - **No refs.** `@e3` changes from run to run, so journeys use `find role … --name`, `find text`, `find label` or CSS.

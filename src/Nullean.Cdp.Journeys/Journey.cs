@@ -135,6 +135,16 @@ public sealed record RequestsCommand(bool Clear, string? Filter, IReadOnlyList<s
 	public override int GetHashCode() => HashCode.Combine(Clear, Filter, Method, Status);
 }
 
+/// <summary>
+/// <c>a11y [-s selector] [--strict]</c>, a checkpoint: our own accessibility rules (<c>AccessibilityAudit</c>);
+/// <c>--strict</c> fails the step on any violation.
+/// </summary>
+public sealed record AuditCommand(string? Selector, bool Strict) : JourneyCommand
+{
+	/// <inheritdoc />
+	public override bool IsCheckpoint => true;
+}
+
 /// <summary><c>console --clear</c> or <c>errors --clear</c>: forgets what the page logged so far.</summary>
 public sealed record ClearLogCommand(string Log) : JourneyCommand;
 
@@ -262,7 +272,7 @@ public sealed partial class Journey
 		"get text|html|value|count|box|styles <selector>", "get attr <selector> <name>", "get title", "get url",
 		"console [--clear]", "errors [--clear]",
 		"network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>]",
-		"network har start", "network har stop <path>",
+		"network har start", "network har stop <path>", "a11y [-s <selector>] [--strict]",
 		"timings [--budget <name>=<ms>...]", "vitals [--budget <name>=<limit>...]", "metrics [--budget <name>=<limit>...]",
 		"is visible|enabled|checked <selector>",
 	];
@@ -303,6 +313,7 @@ public sealed partial class Journey
 			"get" => ParseGet(rest),
 			"timings" or "vitals" or "metrics" => ParsePerformance(command, rest),
 			"network" => ParseNetwork(rest),
+			"a11y" => ParseAudit(rest),
 			"console" or "errors" => rest switch
 			{
 				[] => new ReadCommand(command, null),
@@ -582,6 +593,30 @@ public sealed partial class Journey
 	[GeneratedRegex(@"^(\d{3}|[1-5]xx|\d{3}-\d{3})$")]
 	private static partial Regex StatusPattern();
 
+	private static AuditCommand ParseAudit(string[] rest)
+	{
+		string? selector = null;
+		var strict = false;
+		for (var i = 0; i < rest.Length; i++)
+		{
+			switch (rest[i])
+			{
+				case "-s" or "--selector" when i + 1 < rest.Length:
+					selector = Css(rest[++i]).Value;
+					break;
+				case "--strict":
+					strict = true;
+					break;
+				default:
+					throw new JourneySyntaxException(rest[i].StartsWith("--tags", StringComparison.Ordinal)
+						? "a11y --tags is not supported in journeys: these are our own rules, not axe-core's."
+						: "usage: a11y [-s <selector>] [--strict]");
+			}
+		}
+
+		return new AuditCommand(selector, strict);
+	}
+
 	private static bool ValidHeaders(string json)
 	{
 		try
@@ -678,6 +713,16 @@ public sealed partial class Journey
 				json.WriteStartArray();
 				if (step.Command is PerformanceCommand)
 					json.WriteStringValue("vitals");
+				else if (step.Command is AuditCommand audit)
+				{
+					// agent-browser's a11y runs axe-core; --strict is ours.
+					json.WriteStringValue("a11y");
+					if (audit.Selector is { } scope)
+					{
+						json.WriteStringValue("--selector");
+						json.WriteStringValue(scope);
+					}
+				}
 				else if (step.Command is OpenCommand open)
 				{
 					json.WriteStringValue("open");
