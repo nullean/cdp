@@ -5,7 +5,6 @@
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="Nullean.Snapshots.AwesomeAssertions" />
     <PackageReference Include="Nullean.Snapshots.TUnit" />
-    <PackageReference Include="Microsoft.Testing.Extensions.HangDump" />
     <ProjectReference Include="../../src/Nullean.Cdp.Cli/Nullean.Cdp.Cli.csproj" />
   </ItemGroup>
 
