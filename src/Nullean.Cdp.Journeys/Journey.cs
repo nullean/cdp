@@ -89,11 +89,15 @@ public sealed record JourneyStep(int Line, IReadOnlyList<string> Arguments, Jour
 /// </summary>
 public sealed partial class Journey
 {
-	private Journey(string source, IReadOnlyList<JourneyStep> steps)
+	private Journey(string source, IReadOnlyList<JourneyStep> steps, IReadOnlyList<string> allowedHosts)
 	{
 		Source = source;
 		Steps = steps;
+		AllowedHosts = allowedHosts;
 	}
+
+	/// <summary>The host patterns from the journey's <c>allow</c> lines.</summary>
+	public IReadOnlyList<string> AllowedHosts { get; }
 
 	/// <summary>The file the journey came from, or <c>journey</c>.</summary>
 	public string Source { get; }
@@ -111,6 +115,7 @@ public sealed partial class Journey
 		ArgumentNullException.ThrowIfNull(text);
 		var steps = new List<JourneyStep>();
 		var errors = new List<JourneyError>();
+		var allowed = new List<string>();
 		var lines = text.Split('\n');
 		for (var i = 0; i < lines.Length; i++)
 		{
@@ -123,6 +128,21 @@ public sealed partial class Journey
 
 			if (arguments.Count == 0)
 				continue;
+			if (arguments[0] == "allow")
+			{
+				if (arguments.Count == 1)
+					errors.Add(new JourneyError(i + 1, "usage: allow <host pattern...>, e.g. allow shop.test *.shop.test"));
+				foreach (var pattern in arguments.Skip(1))
+				{
+					if (JourneyAllowList.IsValidPattern(pattern))
+						allowed.Add(pattern);
+					else
+						errors.Add(new JourneyError(i + 1, $"'{pattern}' is not a host pattern: use a host name, *.domain, or *"));
+				}
+
+				continue;
+			}
+
 			try
 			{
 				steps.Add(new JourneyStep(i + 1, arguments, ParseCommand(arguments)));
@@ -135,13 +155,13 @@ public sealed partial class Journey
 
 		if (errors.Count > 0)
 			throw new JourneyParseException(source, errors);
-		return new Journey(source, steps);
+		return new Journey(source, steps, allowed);
 	}
 
 	/// <summary>The commands journeys support, for error messages and docs.</summary>
 	public static IReadOnlyList<string> SupportedCommands { get; } =
 	[
-		"open <url>", "back", "forward", "reload",
+		"allow <host pattern...>", "open <url>", "back", "forward", "reload",
 		"click <selector>", "hover <selector>", "fill <selector> <text>", "type <selector> <text>",
 		"check <selector>", "uncheck <selector>", "select <selector> <value...>", "press <key>",
 		"find role|text|label|placeholder|alt|title|testid <value> [click|fill|check|hover|text] [text] [--name <name>] [--exact]",
@@ -170,8 +190,8 @@ public sealed partial class Journey
 			"open" or "goto" or "navigate" => rest.Length == 1 ? new OpenCommand(rest[0]) : throw Usage("open <url>"),
 			"back" or "forward" or "reload" => rest.Length == 0 ? new HistoryCommand(command) : throw Usage(command),
 			"click" or "hover" or "check" or "uncheck" => rest.Length == 1 ? new ActCommand(command, Css(rest[0]), []) : throw Usage($"{command} <selector>"),
-			"fill" or "type" => rest.Length == 2 ? new ActCommand(command, Css(rest[0]), [rest[1]]) : throw Usage($"{command} <selector> <text>"),
-			"select" => rest.Length >= 2 ? new ActCommand(command, Css(rest[0]), rest[1..]) : throw Usage("select <selector> <value...>"),
+			"fill" or "type" => rest.Length == 2 ? new ActCommand(command, Css(rest[0]), [Value(rest[1])]) : throw Usage($"{command} <selector> <text>"),
+			"select" => rest.Length >= 2 ? new ActCommand(command, Css(rest[0]), [.. rest[1..].Select(Value)]) : throw Usage("select <selector> <value...>"),
 			"press" or "key" => rest.Length == 1 ? new PressCommand(rest[0]) : throw Usage("press <key>"),
 			"find" => ParseFind(rest),
 			"wait" => ParseWait(rest),
@@ -185,6 +205,10 @@ public sealed partial class Journey
 				$"'{command}' is not supported in journeys. Supported: {string.Join(", ", SupportedCommands.Select(c => c.Split(' ')[0]).Distinct())}."),
 		};
 	}
+
+	private static string Value(string value) => JourneySecrets.IsMalformedReference(value)
+		? throw new JourneySyntaxException($"'{value}' is not a secret reference: write $env:NAME with letters, digits and _.")
+		: value;
 
 	private static JourneyTarget Css(string selector)
 	{
@@ -240,7 +264,7 @@ public sealed partial class Journey
 		return action switch
 		{
 			"click" or "check" or "hover" when positional.Count is 2 or 3 => new ActCommand(action, target, []),
-			"fill" when positional.Count == 4 => new ActCommand("fill", target, [positional[3]]),
+			"fill" when positional.Count == 4 => new ActCommand("fill", target, [Value(positional[3])]),
 			"fill" => throw new JourneySyntaxException("find … fill needs the text to fill"),
 			"text" when positional.Count == 3 => new ReadCommand("text", target),
 			"click" or "check" or "hover" or "text" => throw Usage(usage),
@@ -329,8 +353,19 @@ public sealed partial class Journey
 	/// The journey as agent-browser's batch input: a JSON array with one array of arguments per step, relative
 	/// <c>open</c> URLs resolved against <paramref name="baseUrl"/>. Pipe it to <c>agent-browser batch --bail</c>.
 	/// </summary>
-	public string ToAgentBrowserBatch(Uri? baseUrl = null)
+	/// <remarks>
+	/// <c>allow</c> lines are not commands there; pass them as <c>--allowed-domains</c> (<see cref="AllowedHosts"/>).
+	/// Secret references cannot be read by agent-browser, so a journey that uses them is refused unless
+	/// <paramref name="secrets"/> resolves them, and the output then holds the secret values.
+	/// </remarks>
+	public string ToAgentBrowserBatch(Uri? baseUrl = null, Func<string, string?>? secrets = null)
 	{
+		var resolver = secrets is null ? null : new JourneySecrets(secrets);
+		var unresolved = Steps.Where(s => s.Command is ActCommand act && act.Values.Any(JourneySecrets.IsReference)).ToArray();
+		if (resolver is null && unresolved.Length > 0)
+			throw new JourneyParseException(Source, [.. unresolved.Select(s =>
+				new JourneyError(s.Line, "uses a secret reference, which agent-browser cannot read; pass a secret resolver to export the value"))]);
+
 		var buffer = new ArrayBufferWriter<byte>();
 		// The relaxed encoder writes \" rather than \u0022; the output is for people and agent-browser, never HTML.
 		using (var json = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
@@ -347,7 +382,7 @@ public sealed partial class Journey
 				else
 				{
 					foreach (var argument in step.Arguments)
-						json.WriteStringValue(argument);
+						json.WriteStringValue(resolver is not null && JourneySecrets.IsReference(argument) ? resolver.Resolve(argument) : argument);
 				}
 
 				json.WriteEndArray();

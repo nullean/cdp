@@ -4,7 +4,6 @@
     <PackageReference Include="TUnit" />
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="CsCheck" />
-    <PackageReference Include="Microsoft.Testing.Extensions.HangDump" />
     <PackageReference Include="Nullean.Snapshots.AwesomeAssertions" />
     <PackageReference Include="Nullean.Snapshots.TUnit" />
     <ProjectReference Include="../../src/Nullean.Cdp/Nullean.Cdp.csproj" />

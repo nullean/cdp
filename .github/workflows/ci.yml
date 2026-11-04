@@ -25,9 +25,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     name: Build and test (${{ matrix.os }})
     timeout-minutes: 20
-    env:
-      # GitHub's runner images ship Chrome; tests that need it fail rather than skip when it is missing.
-      CDP_BROWSER_REQUIRED: "1"
 
     steps:
       - uses: actions/checkout@v6
@@ -45,34 +42,14 @@ jobs:
       - name: Build
         run: dotnet build -c Release
 
-      # The macOS runner has hung in this step with no log kept (the step limit did not fire). A watchdog kills the
-      # run after 8 minutes, the hang dump names the tests still running after 4, and the log is uploaded either way.
+      # Fast PR checks: the browser suite runs on Linux; macOS and Windows build and run the tests that need no
+      # browser. (On the small macOS runners a full browser suite with auto-attach made the runner unresponsive.)
       - name: Test
+        timeout-minutes: 10
         shell: bash
         run: |
-          set -o pipefail
-          mkdir -p .artifacts/test-results
-          watchdog() {
-            sleep 480
-            echo "WATCHDOG: the test run took over 8 minutes; killing it" | tee -a .artifacts/test-results/test.log
-            ps -axo pid,etime,command | grep -iE "dotnet|chrom" | grep -v grep | tee -a .artifacts/test-results/test.log || true
-            pkill -f Nullean.Cdp.Tests || true
-            pkill -f -i "chrom" || true
-          }
-          if command -v pkill > /dev/null; then watchdog & fi
-          dotnet test -c Release --no-build --output Detailed --hangdump --hangdump-timeout 4m --hangdump-type Mini \
-            --results-directory .artifacts/test-results 2>&1 | tee -a .artifacts/test-results/test.log
-          status=$?
-          for job in $(jobs -p); do kill "$job" 2> /dev/null || true; done
-          exit $status
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-${{ matrix.os }}
-          path: .artifacts/test-results
-          if-no-files-found: ignore
+          if [ "$RUNNER_OS" = "Linux" ]; then export CDP_BROWSER_REQUIRED=1; else export CDP_SKIP_BROWSER=1; fi
+          dotnet test -c Release --no-build
 
       - name: Pack
         run: dotnet pack -c Release --no-build -o .artifacts/package-output

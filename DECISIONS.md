@@ -142,9 +142,51 @@ selected]: value`, two spaces per level. Checked against agent-browser 0.41.0 on
   command, was exported and run with `agent-browser batch --bail`: all 40 steps succeeded, and its reads are the
   values `JourneyRunnerTests` expects from this runner.
 
+## Safety for agents
+
+Journeys are written and shared by agents, and their output is read by agents, so a page is untrusted input in both
+directions. Researched against agent-browser 0.41.0 (its `--content-boundaries`, `--allowed-domains`,
+`--action-policy`, `--confirm-actions` and auth vault, all off by default) and current guidance (spotlighting, Anthropic's
+prompt-injection research, Playwright MCP, Browser Use): marking content only mitigates; limiting what a run can reach
+and where data can go is what holds.
+
+- **Allow list, on by default.** A run may reach the base URL's host, the hosts in the journey's `allow` lines
+  (`shop.test`, `*.shop.test` which also matches `shop.test`, or `*`) and hosts the runner adds. Ports are not part of
+  it. `allow` is not an agent-browser command; the batch export leaves it out (pass `--allowed-domains` there).
+- **Enforced on every request**, not only `open`: the `Fetch` domain holds each request of the page until the list
+  allows it. A refused navigation of the page or of a popup fails the step, naming the host and the `allow` line that
+  would permit it (agent-browser reports a blocked click as success). Refused sub-resources and frames are reported
+  with the result and do not fail it, so a third-party pixel does not break a journey.
+- **Popups.** `--block-new-web-contents` did not stop `window.open` under `--headless=new` (it returned a window and a
+  new target loaded). Instead the browser auto-attaches every new target paused (`Target.setAutoAttach` with
+  `waitForDebuggerOnStart`): pages this library creates are set up and then resumed, a popup is handed to the guard of
+  the page that opened it before it runs, and anything else is resumed at once. A page nobody claims within five
+  seconds is resumed, so a browser this library connected to never keeps another client's tab paused. Frames that run
+  in their own process are attached the same way by the page.
+- **`file://` only under one folder**, the base URL's folder when it is a file URL or `JourneyOptions.FileRoot`. A
+  journey cannot widen it: `open ../x` that leaves the folder is refused before navigating, and the guard refuses it too.
+- **Secrets by reference.** `fill #pw $env:SHOP_PASSWORD` reads the value when the step runs (the environment, or the
+  host's resolver). Every resolved value is replaced by its reference in checkpoints, URLs and failure messages, longest
+  first. Values shorter than four characters are refused: redacting `abc` would mangle ordinary text. Filling a password
+  field with a literal fails the step. The batch export refuses secret references unless given a resolver.
+- **Downloads are denied** in every context (`Browser.setDownloadBehavior deny`); a test sees the download cancelled.
+- **Page content fence.** `PageContent.Fence` wraps text from a page in `--- PAGE_CONTENT nonce=<128-bit> ---` …
+  `--- END_PAGE_CONTENT nonce=<same> ---`, escapes lines inside that imitate a marker, and truncates with a visible note.
+  The CLI will fence every page-derived output, titles and attributes included (agent-browser leaves those bare). It is
+  a label, not a defence.
+- **Hidden text:** the accessibility tree already drops `display:none` and `aria-hidden` content; off-screen, zero-size
+  and low-contrast text still reaches it, as it does agent-browser's. Not claimed as a defence.
+- **Not done:** confirmations before side effects (an interactive agent mode, later); a second network layer below the
+  browser (`--host-resolver-rules`); dedicated and service workers' requests are not shown to be covered by the guard.
+
 ## Tests
 
 - Every test has a 60 second timeout (assembly level): mutating reply routing showed a lost reply hangs the run.
+- **PR checks are quick.** The browser suite runs on Linux (where a missing Chrome is a failure); macOS and Windows
+  build and run only the tests that need no browser (`CDP_SKIP_BROWSER=1` skips the rest). On the small macOS runners
+  the full browser suite with browser-level auto-attach made the runner unresponsive, losing even the job's log; a
+  bisect pinned it to auto-attach under the full suite's load (the safety tests alone passed). It does not happen on
+  a developer Mac. Not chased further: speed of development wins.
 - Navigation tests that need `load` to come late use a local `HttpListener` with an image that answers after 800 ms:
   mutation showed `file://` pages load so fast that not waiting at all still passed.
 - Fixtures that tests read live under `site/`, which is copied to the output. A separate `journeys/` folder clashed
