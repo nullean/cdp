@@ -179,6 +179,28 @@ and where data can go is what holds.
 - **Not done:** confirmations before side effects (an interactive agent mode, later); a second network layer below the
   browser (`--host-resolver-rules`); dedicated and service workers' requests are not shown to be covered by the guard.
 
+## CLI
+
+- **The command is `cdp` for now**, a working name to be settled with the owner. It is set once, as the assembly name
+  and `ToolCommandName` in `src/Nullean.Cdp.Cli/Nullean.Cdp.Cli.csproj`; the smoke script and CI name it too.
+- **One-shot commands, no daemon:** `run`, `check`, `batch`, `snapshot`, `chrome`. A run launches Chrome, runs every
+  journey given in its own context, and closes it. Built on Nullean.Argh, packed as a native AOT tool per RID like
+  snap and curb, with a framework-dependent `any` fallback. There is no release job yet: publishing waits for the
+  owner.
+- **Exit codes:** 0 ok, 1 a journey (or the snapshot) failed, 2 usage or a journey that does not parse (no browser is
+  started then), 3 no browser.
+- **Every page-derived output is fenced**, checkpoints, refused URLs and failure messages alike, with one nonce per
+  run announced in a header line; the structural lines around them (`== file`, `-- file:line: command`, `ok`,
+  `FAILED`) come from the journey, never the page. Output is cut at 20,000 characters per checkpoint (`--max-output`,
+  0 for none), inside the fence.
+- **JSON** puts everything that came from the page under a `page` key and says so in a top-level `note`.
+- **Safety defaults carry over:** `run` reaches only the base URL's host and `--allow`/`allow` hosts; `snapshot`
+  only the page's host. `--base-url` takes a folder for `file://` pages (made into a URL with its trailing slash), and
+  file access stays inside it. `batch` refuses secrets unless `--resolve-secrets`, and prints the
+  `--allowed-domains` to pass to agent-browser on stderr.
+- **Measured:** the native binary is 8.6 MB on osx-arm64 and runs `everything.journey` (40 steps) in 1.2 s including
+  Chrome's start.
+
 ## Tests
 
 - Every test has a 60 second timeout (assembly level): mutating reply routing showed a lost reply hangs the run.

@@ -14,12 +14,17 @@ dotnet test -c Release --project tests/Nullean.Cdp.Tests --treenode-filter "/*/*
 Requires the .NET 10 SDK (pinned in `global.json`). Tests run on Microsoft.Testing.Platform with TUnit. Tests that need
 a real Chrome skip with a reason when none is found; CI sets `CDP_BROWSER_REQUIRED=1` so they fail instead.
 
+The CLI: `dotnet run --project src/Nullean.Cdp.Cli -- run <journey> --base-url <url or folder>`.
+`build/smoke-cli.sh <command that runs cdp>` smoke-tests a built or installed tool against the fixture site.
+
 ## Rules
 
 - No dependencies beyond the BCL in `Nullean.Cdp`. Libraries set `IsAotCompatible`: JSON through `Utf8JsonReader` and
   `Utf8JsonWriter`, no reflection.
 - No `lock`: concurrent collections, `Interlocked`, `Lazy<T>`.
 - Error messages are plain text: no ANSI, readable by people and agents, and they say what was tried.
+- Anything the CLI prints that came from a page goes inside `PageContent.Fence`; nothing from a page reaches a
+  structural line.
 - Journeys never use agent-browser `@ref`s; they are not stable between runs.
 - Test the tests: break the code on purpose and confirm the suite fails. After restoring a mutated file, `touch` it
   before the next build: a restored copy keeps an older timestamp and MSBuild keeps the mutated binary.

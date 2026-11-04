@@ -8,6 +8,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Nullean.Cdp.Tests" />
+    <!-- The CLI ships as one self-contained binary with its own copy of this assembly. -->
+    <InternalsVisibleTo Include="cdp" />
   </ItemGroup>
 
 </Project>

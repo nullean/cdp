@@ -41,8 +41,9 @@ public sealed class Browser : IAsyncDisposable
 	private readonly ConcurrentDictionary<string, Func<string, string, Task>> _openers = new(StringComparer.Ordinal);
 	private IDisposable? _attaching;
 
-	private Browser(CdpConnection connection, Process? process, string? userDataDirectory)
+	private Browser(CdpConnection connection, Process? process, string? userDataDirectory, Uri webSocketUrl)
 	{
+		WebSocketUrl = webSocketUrl.AbsoluteUri;
 		Connection = connection;
 		_process = process;
 		_userDataDirectory = userDataDirectory;
@@ -127,6 +128,9 @@ public sealed class Browser : IAsyncDisposable
 	private static void Observe(Task task) =>
 		_ = task.ContinueWith(static t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
 
+	/// <summary>The browser's DevTools web socket, for <see cref="ConnectAsync"/> from another client.</summary>
+	public string WebSocketUrl { get; }
+
 	/// <summary>The connection, for commands this library does not wrap.</summary>
 	public CdpConnection Connection { get; }
 
@@ -188,7 +192,7 @@ public sealed class Browser : IAsyncDisposable
 		{
 			var url = await WaitForDevToolsAsync(process, userData, options.StartTimeout, output, cancellationToken).ConfigureAwait(false);
 			var connection = await CdpConnection.ConnectAsync(url, cancellationToken).ConfigureAwait(false);
-			return await new Browser(connection, process, userData).StartAsync(cancellationToken).ConfigureAwait(false);
+			return await new Browser(connection, process, userData, url).StartAsync(cancellationToken).ConfigureAwait(false);
 		}
 		catch
 		{
@@ -201,7 +205,7 @@ public sealed class Browser : IAsyncDisposable
 
 	/// <summary>Connects to a browser that is already running, from its DevTools web socket URL.</summary>
 	public static async Task<Browser> ConnectAsync(Uri webSocketUrl, CancellationToken cancellationToken = default) =>
-		await new Browser(await CdpConnection.ConnectAsync(webSocketUrl, cancellationToken).ConfigureAwait(false), null, null)
+		await new Browser(await CdpConnection.ConnectAsync(webSocketUrl, cancellationToken).ConfigureAwait(false), null, null, webSocketUrl)
 			.StartAsync(cancellationToken).ConfigureAwait(false);
 
 	internal static IEnumerable<string> Arguments(BrowserLaunchOptions options, string userDataDirectory)
