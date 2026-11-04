@@ -211,7 +211,7 @@ jobs:
     timeout-minutes: 20
     environment: release
     permissions:
-      contents: read
+      contents: write   # the GitHub release
       id-token: write   # trusted publishing: exchange the workflow's OIDC token for a short-lived key
 
     steps:
@@ -258,3 +258,16 @@ jobs:
             [ "$package" = "$root" ] || push "$package"
           done
           push "$root"
+
+      # A GitHub release for the tag, with notes generated from the pull requests since the previous one, and the
+      # packages attached. After publishing, so a release always means the packages are on nuget.org.
+      - name: GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pre=""
+          case "$GITHUB_REF_NAME" in *-*) pre="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" packages/*.nupkg --repo "$GITHUB_REPOSITORY" --verify-tag $pre \
+            --title "$GITHUB_REF_NAME" --generate-notes \
+            --notes "Packages: https://www.nuget.org/packages?q=Nullean.Cdp"
