@@ -182,6 +182,11 @@ and where data can go is what holds.
 ## Tests
 
 - Every test has a 60 second timeout (assembly level): mutating reply routing showed a lost reply hangs the run.
+- **PR checks are quick.** The browser suite runs on Linux (where a missing Chrome is a failure); macOS and Windows
+  build and run only the tests that need no browser (`CDP_SKIP_BROWSER=1` skips the rest). On the small macOS runners
+  the full browser suite with browser-level auto-attach made the runner unresponsive, losing even the job's log; a
+  bisect pinned it to auto-attach under the full suite's load (the safety tests alone passed). It does not happen on
+  a developer Mac. Not chased further: speed of development wins.
 - Navigation tests that need `load` to come late use a local `HttpListener` with an image that answers after 800 ms:
   mutation showed `file://` pages load so fast that not waiting at all still passed.
 - Fixtures that tests read live under `site/`, which is copied to the output. A separate `journeys/` folder clashed

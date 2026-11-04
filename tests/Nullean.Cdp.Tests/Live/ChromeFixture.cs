@@ -13,6 +13,12 @@ public sealed class ChromeFixture : IAsyncInitializer, IAsyncDisposable
 
 	public async Task InitializeAsync()
 	{
+		if (Environment.GetEnvironmentVariable("CDP_SKIP_BROWSER") == "1")
+		{
+			_missing = "CDP_SKIP_BROWSER=1: browser tests run on Linux in CI.";
+			return;
+		}
+
 		var location = new ChromeLocator().Locate();
 		if (!location.Found)
 		{

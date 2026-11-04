@@ -65,10 +65,11 @@ public class JourneyRunnerTests(ChromeFixture chrome)
 	[Test]
 	public async Task CallerCancellationIsThrownNotReported()
 	{
+		var browser = chrome.Browser; // skips without a Chrome, outside the assertion below
 		using var cancel = new CancellationTokenSource();
 		await cancel.CancelAsync();
 
-		var act = () => JourneyRunner.RunAsync(Journey.Parse("open actions.html"), chrome.Browser, new JourneyOptions { BaseUrl = Site }, cancel.Token);
+		var act = () => JourneyRunner.RunAsync(Journey.Parse("open actions.html"), browser, new JourneyOptions { BaseUrl = Site }, cancel.Token);
 		await act.Should().ThrowAsync<OperationCanceledException>();
 	}
 }
