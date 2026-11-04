@@ -63,6 +63,10 @@ public class JourneyParseTests
 		One("snapshot -u -c").Should().Be(new SnapshotCommand(new AxSnapshotOptions { Urls = true, Compact = true }));
 		One("get box #a").Should().Be(new ReadCommand("box", css("#a")));
 		One("get styles #a").Should().Be(new ReadCommand("styles", css("#a")));
+		One("console").Should().Be(new ReadCommand("console", null));
+		One("errors").Should().Be(new ReadCommand("errors", null));
+		One("console --clear").Should().Be(new ClearLogCommand("console"));
+		One("errors --clear").Should().Be(new ClearLogCommand("errors"));
 	}
 
 	[Test]
@@ -106,7 +110,7 @@ public class JourneyParseTests
 	[Test]
 	public void EveryErrorIsReportedWithItsLine() =>
 		Error("open /\nscreenshot a.png\nfill #q\nfind nth li\nclick \"open").Should().Be(
-			"x.journey:2: 'screenshot' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, is.\n" +
+			"x.journey:2: 'screenshot' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, is.\n" +
 			"x.journey:3: usage: fill <selector> <text>\n" +
 			"x.journey:4: usage: find nth <n> <selector> [action] [text]\n" +
 			"x.journey:5: the double quote is not closed");
@@ -142,6 +146,7 @@ public class JourneyParseTests
 	[Arguments("get text", "usage: get text|html|value|count|box|styles <selector> | get attr <selector> <name> | get title | get url")]
 	[Arguments("is hidden #a", "usage: is visible|enabled|checked <selector>")]
 	[Arguments("back now", "usage: back")]
+	[Arguments("console all", "usage: console [--clear]")]
 	public void RejectsWithAReason(string line, string message) => Error(line).Should().Be("x.journey:1: " + message);
 
 	[Test]

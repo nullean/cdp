@@ -181,6 +181,16 @@ Every agent-browser command that acts on or reads the page in a repeatable way i
 - **HTML drag and drop** needs the mouse moves to report the left button held; Chrome then hands the drag over
   (`Input.setInterceptDrags`) and it is dropped on the target. A plain mouse drag gets the same moves.
 
+## Console and errors
+
+`console` and `errors` are checkpoints, as agent-browser's commands of the same names; `--clear` forgets what was
+collected and prints nothing. A page collects from the moment it is created (`Runtime.enable`; `consoleAPICalled` and
+`exceptionThrown`). Console lines print as agent-browser prints them, `[type] text`, arguments as agent-browser
+prints them (`{a: 2}`, `[1, "x"]`). agent-browser's text `errors` printed only an empty `✗` per error, so errors print one line
+each: the first line of the error, then `(url:line:column)`, 1-based, from the top stack frame. For an inline event
+handler Chrome gives the column within the compiled handler, not the HTML line. Chrome reports an unhandled promise
+rejection a little after the task that caused it, so an `errors` read straight after `open` can miss one; wait first.
+
 ## Safety for agents
 
 Journeys are written and shared by agents, and their output is read by agents, so a page is untrusted input in both

@@ -256,6 +256,12 @@ public static class JourneyRunner
 			case SetCommand media:
 				await page.SetColorSchemeAsync(media.Scheme!, ct).ConfigureAwait(false);
 				return null;
+			case ClearLogCommand { Log: "console" }:
+				page.ClearConsole();
+				return null;
+			case ClearLogCommand:
+				page.ClearErrors();
+				return null;
 			case SnapshotCommand snapshot:
 				return (await page.SnapshotAsync(snapshot.Options, ct).ConfigureAwait(false)).TrimEnd('\n');
 			case ReadCommand read:
@@ -336,6 +342,8 @@ public static class JourneyRunner
 		return read.What switch
 		{
 			"title" => await page.TitleAsync(ct).ConfigureAwait(false),
+			"console" => string.Join('\n', page.ConsoleMessages),
+			"errors" => string.Join('\n', page.Errors),
 			"url" => await page.UrlAsync(ct).ConfigureAwait(false),
 			"text" => await locator!.TextAsync(ct).ConfigureAwait(false),
 			"html" => await locator!.HtmlAsync(ct).ConfigureAwait(false),

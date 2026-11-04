@@ -1,0 +1,4 @@
+<!doctype html><html><head><title>Console</title></head><body>
+<button onclick="console.log('clicked', 1, {a: 2}, [1, 'x'], null, undefined); console.warn('careful'); console.error('bad thing'); setTimeout(() => { throw new Error('boom') }, 0)">Go</button>
+<script>console.info('loaded'); Promise.reject(new Error('rejected'));</script>
+</body></html>
