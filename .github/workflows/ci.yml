@@ -49,6 +49,10 @@ jobs:
       # run after 8 minutes, the hang dump names the tests still running after 4, and the log is uploaded either way.
       - name: Test
         shell: bash
+        timeout-minutes: 12
+        # The macOS runners are small; a full suite opens around twenty Chrome windows at once there.
+        env:
+          PARALLEL: ${{ runner.os == 'macOS' && '4' || '0' }}
         run: |
           set -o pipefail
           mkdir -p .artifacts/test-results
@@ -60,8 +64,11 @@ jobs:
             pkill -f -i "chrom" || true
           }
           if command -v pkill > /dev/null; then watchdog & fi
+          limit=()
+          if [ "$PARALLEL" != "0" ]; then limit=(--maximum-parallel-tests "$PARALLEL"); fi
+          vm_stat 2> /dev/null | head -5 || free -m 2> /dev/null || true
           dotnet test -c Release --no-build --output Detailed --hangdump --hangdump-timeout 4m --hangdump-type Mini \
-            --results-directory .artifacts/test-results 2>&1 | tee -a .artifacts/test-results/test.log
+            --results-directory .artifacts/test-results ${limit[@]+"${limit[@]}"} 2>&1 | tee -a .artifacts/test-results/test.log
           status=$?
           for job in $(jobs -p); do kill "$job" 2> /dev/null || true; done
           exit $status
