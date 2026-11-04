@@ -45,14 +45,29 @@ jobs:
       - name: Build
         run: dotnet build -c Release
 
-      # A hang dumps the test process after 5 minutes and names the tests still running; the step limit keeps the
-      # job (and its log) alive when that is not enough.
+      # The macOS runner has hung in this step with no log kept (the step limit did not fire). A watchdog kills the
+      # run after 8 minutes, the hang dump names the tests still running after 4, and the log is uploaded either way.
       - name: Test
-        timeout-minutes: 10
-        run: dotnet test -c Release --no-build --output Detailed --hangdump --hangdump-timeout 5m --hangdump-type Mini --results-directory .artifacts/test-results
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p .artifacts/test-results
+          watchdog() {
+            sleep 480
+            echo "WATCHDOG: the test run took over 8 minutes; killing it" | tee -a .artifacts/test-results/test.log
+            ps -axo pid,etime,command | grep -iE "dotnet|chrom" | grep -v grep | tee -a .artifacts/test-results/test.log || true
+            pkill -f Nullean.Cdp.Tests || true
+            pkill -f -i "chrom" || true
+          }
+          if command -v pkill > /dev/null; then watchdog & fi
+          dotnet test -c Release --no-build --output Detailed --hangdump --hangdump-timeout 4m --hangdump-type Mini \
+            --results-directory .artifacts/test-results 2>&1 | tee -a .artifacts/test-results/test.log
+          status=$?
+          for job in $(jobs -p); do kill "$job" 2> /dev/null || true; done
+          exit $status
 
-      - name: Upload hang dumps
-        if: failure()
+      - name: Upload test results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.os }}
