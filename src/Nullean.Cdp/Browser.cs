@@ -151,7 +151,17 @@ public sealed class Browser : IAsyncDisposable
 			executable = location.Path ?? throw new BrowserLaunchException(location.Describe());
 		}
 
-		var userData = Directory.CreateTempSubdirectory("nullean-cdp-").FullName;
+		// Chromes left behind by processes that were killed are closed first; with none it is a directory listing.
+		try
+		{
+			await ChromeProcesses.ReapOrphansAsync().WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+		}
+		catch (TimeoutException)
+		{
+			// Left for the next launch.
+		}
+
+		var userData = Directory.CreateTempSubdirectory(ChromeProcesses.ProfilePrefix).FullName;
 		var start = new ProcessStartInfo(executable)
 		{
 			UseShellExecute = false,
@@ -183,6 +193,7 @@ public sealed class Browser : IAsyncDisposable
 				output.TryDequeue(out string? _);
 		}
 
+		ChromeProcesses.Track(process, userData);
 		process.ErrorDataReceived += Keep;
 		process.OutputDataReceived += Keep;
 		process.BeginErrorReadLine();
@@ -196,6 +207,7 @@ public sealed class Browser : IAsyncDisposable
 		}
 		catch
 		{
+			ChromeProcesses.Untrack(process);
 			Kill(process);
 			process.Dispose();
 			TryDelete(userData);
@@ -356,6 +368,7 @@ public sealed class Browser : IAsyncDisposable
 			Kill(_process);
 		}
 
+		ChromeProcesses.Untrack(_process);
 		_process.Dispose();
 		if (_userDataDirectory is not null)
 			await DeleteWithRetriesAsync(_userDataDirectory).ConfigureAwait(false);
