@@ -120,20 +120,40 @@ public sealed record HarCommand(string Action, string? Path = null) : JourneyCom
 
 /// <summary>
 /// <c>network requests</c>, a checkpoint listing the requests since the journey started (or since <c>--clear</c>),
-/// optionally filtered by URL, type, method or status.
+/// optionally filtered by URL, type, method or status. <c>--failed</c> keeps requests answered with 400 or more and
+/// requests that got no answer, except those the allow list refused or a navigation cancelled; <c>--strict</c> fails
+/// the step when any request is listed.
 /// </summary>
-public sealed record RequestsCommand(bool Clear, string? Filter, IReadOnlyList<string> Types, string? Method, string? Status) : JourneyCommand
+public sealed record RequestsCommand(bool Clear, string? Filter, IReadOnlyList<string> Types, string? Method, string? Status, bool Failed = false, bool Strict = false) : JourneyCommand
 {
 	/// <inheritdoc />
 	public override bool IsCheckpoint => !Clear;
 
 	/// <inheritdoc />
 	public bool Equals(RequestsCommand? other) =>
-		other is not null && Clear == other.Clear && Filter == other.Filter && Types.SequenceEqual(other.Types) && Method == other.Method && Status == other.Status;
+		other is not null && Clear == other.Clear && Filter == other.Filter && Types.SequenceEqual(other.Types) && Method == other.Method
+		&& Status == other.Status && Failed == other.Failed && Strict == other.Strict;
 
 	/// <inheritdoc />
-	public override int GetHashCode() => HashCode.Combine(Clear, Filter, Method, Status);
+	public override int GetHashCode() => HashCode.Combine(Clear, Filter, Method, Status, Failed, Strict);
 }
+
+/// <summary>
+/// <c>links [-s selector] [--external] [--all] [--strict]</c>, a checkpoint: checks the page's links and lists the
+/// broken ones (every one with <c>--all</c>). Links to other sites are checked only with <c>--external</c>, and only
+/// those the allow list allows; <c>--strict</c> fails the step on a broken link.
+/// </summary>
+public sealed record LinksCommand(string? Selector, bool External, bool All, bool Strict) : JourneyCommand
+{
+	/// <inheritdoc />
+	public override bool IsCheckpoint => true;
+}
+
+/// <summary>
+/// <c>screenshot [selector] &lt;path&gt; [--full]</c>: writes a PNG of the viewport, the whole page or one element into
+/// the artifacts folder. Not a checkpoint: pixels differ between machines.
+/// </summary>
+public sealed record ScreenshotCommand(string? Selector, string Path, bool Full) : JourneyCommand;
 
 /// <summary>
 /// <c>a11y [-s selector] [--strict]</c>, a checkpoint: our own accessibility rules (<c>AccessibilityAudit</c>);
@@ -271,7 +291,8 @@ public sealed partial class Journey
 		"snapshot [-i] [-c] [-u] [-d <n>] [-s <selector>]",
 		"get text|html|value|count|box|styles <selector>", "get attr <selector> <name>", "get title", "get url",
 		"console [--clear]", "errors [--clear]",
-		"network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>]",
+		"network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>] [--failed] [--strict]",
+		"links [-s <selector>] [--external] [--all] [--strict]", "screenshot [selector] <path.png> [--full]",
 		"network har start", "network har stop <path>", "a11y [-s <selector>] [--strict]",
 		"timings [--budget <name>=<ms>...]", "vitals [--budget <name>=<limit>...]", "metrics [--budget <name>=<limit>...]",
 		"is visible|enabled|checked <selector>",
@@ -314,6 +335,8 @@ public sealed partial class Journey
 			"timings" or "vitals" or "metrics" => ParsePerformance(command, rest),
 			"network" => ParseNetwork(rest),
 			"a11y" => ParseAudit(rest),
+			"links" => ParseLinks(rest),
+			"screenshot" => ParseScreenshot(rest),
 			"console" or "errors" => rest switch
 			{
 				[] => new ReadCommand(command, null),
@@ -540,19 +563,17 @@ public sealed partial class Journey
 
 	private static JourneyCommand ParseNetwork(string[] rest)
 	{
-		const string usage = "network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>] | network har start | network har stop <path>";
+		const string usage = "network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>] [--failed] [--strict] | network har start | network har stop <path>";
 		switch (rest)
 		{
 			case ["har", "start"]:
 				return new HarCommand("start");
 			case ["har", "stop", var path]:
-				return Path.IsPathRooted(path) || path.Replace('\\', '/').Split('/').Contains("..")
-					? throw new JourneySyntaxException($"'{path}' must be a path inside the artifacts folder, relative to it.")
-					: new HarCommand("stop", path);
+				return new HarCommand("stop", ArtifactPath(path));
 			case ["har", "stop"]:
 				throw new JourneySyntaxException("network har stop needs a path for the HAR file, relative to the artifacts folder");
 			case ["requests", .. var options]:
-				bool clear = false;
+				bool clear = false, failed = false, strict = false;
 				string? filter = null, method = null, status = null;
 				var types = new List<string>();
 				for (var i = 0; i < options.Length; i++)
@@ -562,6 +583,12 @@ public sealed partial class Journey
 					{
 						case "--clear":
 							clear = true;
+							continue;
+						case "--failed":
+							failed = true;
+							continue;
+						case "--strict":
+							strict = true;
 							continue;
 						case "--filter" when value is not null:
 							filter = value;
@@ -582,7 +609,9 @@ public sealed partial class Journey
 					i++;
 				}
 
-				return new RequestsCommand(clear, filter, types, method, status);
+				return clear && (failed || strict)
+					? throw Usage(usage)
+					: new RequestsCommand(clear, filter, types, method, status, failed, strict);
 			case ["route" or "unroute" or "request", ..]:
 				throw new JourneySyntaxException($"network {rest[0]} is not supported in journeys: it changes or reads what the page receives outside the page.");
 			default:
@@ -592,6 +621,60 @@ public sealed partial class Journey
 
 	[GeneratedRegex(@"^(\d{3}|[1-5]xx|\d{3}-\d{3})$")]
 	private static partial Regex StatusPattern();
+
+	private static string ArtifactPath(string path) =>
+		Path.IsPathRooted(path) || path.Replace('\\', '/').Split('/').Contains("..")
+			? throw new JourneySyntaxException($"'{path}' must be a path inside the artifacts folder, relative to it.")
+			: path;
+
+	private static LinksCommand ParseLinks(string[] rest)
+	{
+		string? selector = null;
+		bool external = false, all = false, strict = false;
+		for (var i = 0; i < rest.Length; i++)
+		{
+			switch (rest[i])
+			{
+				case "-s" or "--selector" when i + 1 < rest.Length:
+					selector = Css(rest[++i]).Value;
+					break;
+				case "--external":
+					external = true;
+					break;
+				case "--all":
+					all = true;
+					break;
+				case "--strict":
+					strict = true;
+					break;
+				default:
+					throw new JourneySyntaxException("usage: links [-s <selector>] [--external] [--all] [--strict]");
+			}
+		}
+
+		return new LinksCommand(selector, external, all, strict);
+	}
+
+	private static ScreenshotCommand ParseScreenshot(string[] rest)
+	{
+		const string usage = "usage: screenshot [selector] <path.png> [--full]";
+		var full = rest.Any(r => r is "--full" or "-f");
+		var positional = rest.Where(r => r is not ("--full" or "-f")).ToArray();
+		if (positional.Any(p => p.StartsWith("--", StringComparison.Ordinal)))
+			throw new JourneySyntaxException(rest.Any(r => r is "--annotate") ? "screenshot --annotate is not supported in journeys." : usage);
+		var (selector, path) = positional switch
+		{
+			[var p] => (null, p),
+			[var sel, var p] => (Css(sel).Value, p),
+			[] => throw new JourneySyntaxException("screenshot needs a path for the PNG, relative to the artifacts folder"),
+			_ => throw new JourneySyntaxException(usage),
+		};
+		if (!path.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+			throw new JourneySyntaxException($"'{path}': screenshots are PNG files, so the path ends in .png.");
+		if (selector is not null && full)
+			throw new JourneySyntaxException("screenshot takes a selector or --full, not both.");
+		return new ScreenshotCommand(selector, ArtifactPath(path), full);
+	}
 
 	private static AuditCommand ParseAudit(string[] rest)
 	{
@@ -707,8 +790,8 @@ public sealed partial class Journey
 			json.WriteStartArray();
 			foreach (var step in Steps)
 			{
-				// timings and metrics are not agent-browser commands; vitals is, without our budgets.
-				if (step.Command is PerformanceCommand { Kind: not "vitals" })
+				// timings, metrics and links are not agent-browser commands; vitals is, without our budgets.
+				if (step.Command is PerformanceCommand { Kind: not "vitals" } or LinksCommand)
 					continue;
 				json.WriteStartArray();
 				if (step.Command is PerformanceCommand)
@@ -721,6 +804,17 @@ public sealed partial class Journey
 					{
 						json.WriteStringValue("--selector");
 						json.WriteStringValue(scope);
+					}
+				}
+				else if (step.Command is RequestsCommand { Failed: true } or RequestsCommand { Strict: true })
+				{
+					// --failed and --strict are ours: agent-browser gets the closest status filter.
+					foreach (var argument in step.Arguments.Where(a => a is not ("--failed" or "--strict")))
+						json.WriteStringValue(argument);
+					if (step.Command is RequestsCommand { Failed: true, Status: null })
+					{
+						json.WriteStringValue("--status");
+						json.WriteStringValue("400-599");
 					}
 				}
 				else if (step.Command is OpenCommand open)

@@ -27,13 +27,13 @@ public class BrowserLaunchTests
 	{
 		var arguments = Browser.Arguments(new BrowserLaunchOptions { Arguments = ["--lang=nl"] }, "/tmp/p").ToArray();
 
-		arguments.Should().StartWith(["--headless=new", "--remote-debugging-port=0", "--user-data-dir=/tmp/p"]);
+		arguments.Should().StartWith(["--headless=new", "--hide-scrollbars", "--remote-debugging-port=0", "--user-data-dir=/tmp/p"]);
 		arguments.Should().EndWith(["--lang=nl", "about:blank"]);
 	}
 
 	[Test]
-	public void HeadedLeavesOutHeadless() =>
-		Browser.Arguments(new BrowserLaunchOptions { Headless = false }, "/tmp/p").Should().NotContain("--headless=new");
+	public void HeadedLeavesOutHeadlessAndKeepsScrollbars() =>
+		Browser.Arguments(new BrowserLaunchOptions { Headless = false }, "/tmp/p").Should().NotContain(["--headless=new", "--hide-scrollbars"]);
 
 	[Test]
 	public async Task AMissingExecutableIsALaunchError()

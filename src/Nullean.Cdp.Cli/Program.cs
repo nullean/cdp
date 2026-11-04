@@ -74,6 +74,28 @@ namespace Nullean.Cdp.Cli
 		) => Cli().SnapshotAsync(url, new AxSnapshotOptions { Compact = compact, Interactive = interactive, Depth = depth, Selector = selector },
 			allow ?? [], headed, maxOutput, cancellationToken);
 
+		/// <summary>Open one page and save a PNG of it. Only the page's host is reachable unless allowed.</summary>
+		/// <param name="url">A URL, or a local HTML file.</param>
+		/// <param name="output">-o, --output, The PNG file to write.</param>
+		/// <param name="selector">-s, --selector, Only the first element this CSS selector matches.</param>
+		/// <param name="full">-f, --full, The whole page, past the viewport.</param>
+		/// <param name="width">Viewport width in CSS pixels.</param>
+		/// <param name="height">Viewport height in CSS pixels.</param>
+		/// <param name="allow">-a, --allow, Another host pattern the page may reach (repeatable).</param>
+		/// <param name="headed">Show the browser window.</param>
+		/// <param name="cancellationToken">Stops the command.</param>
+		public static Task<int> Screenshot(
+			[Argument] string url,
+			string output,
+			string? selector = null,
+			bool full = false,
+			int width = 1280,
+			int height = 720,
+			string[]? allow = null,
+			bool headed = false,
+			CancellationToken cancellationToken = default
+		) => Cli().ScreenshotAsync(url, output, selector, full, width, height, allow ?? [], headed, cancellationToken);
+
 		/// <summary>Show which Chrome would be used, or every place that was searched.</summary>
 		public static int Chrome() => Cli().Chrome();
 

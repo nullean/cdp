@@ -285,6 +285,19 @@ public sealed class Locator
 			}
 			""", cancellationToken);
 
+	/// <summary>A PNG of the element's box, scrolled into view first.</summary>
+	public async Task<byte[]> ScreenshotAsync(CancellationToken cancellationToken = default)
+	{
+		byte[] png = [];
+		await UsingAsync(LocatorState.Visible, async element =>
+		{
+			await _page.SendAsync("DOM.scrollIntoViewIfNeeded", w => w.WriteString("objectId", element), cancellationToken).ConfigureAwait(false);
+			var box = await CallAsync(element, "function() { const r = this.getBoundingClientRect(); return [r.x + scrollX, r.y + scrollY, r.width, r.height]; }", null, cancellationToken).ConfigureAwait(false);
+			png = await PageScreenshots.CaptureAsync(_page, (box[0].GetDouble(), box[1].GetDouble(), box[2].GetDouble(), box[3].GetDouble()), cancellationToken).ConfigureAwait(false);
+		}, cancellationToken).ConfigureAwait(false);
+		return png;
+	}
+
 	/// <summary>Every computed style of the element, sorted, one <c>property: value</c> per line, as agent-browser's <c>get styles</c>.</summary>
 	public Task<string> StylesAsync(CancellationToken cancellationToken = default) =>
 		ReadStringAsync("""

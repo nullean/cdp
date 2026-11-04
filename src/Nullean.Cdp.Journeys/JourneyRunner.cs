@@ -292,7 +292,19 @@ public static class JourneyRunner
 					run.HarStart = 0;
 				return null;
 			case RequestsCommand requests:
-				return string.Join('\n', Filter(run.Network!.Requests, requests));
+				var listed = Filter(run.Network!.Requests, requests).ToList();
+				if (requests.Strict && listed.Count > 0)
+					throw new ArgumentException($"{listed.Count} request(s) listed with --strict:\n{string.Join('\n', listed.Take(10))}");
+				return string.Join('\n', listed);
+			case LinksCommand links:
+				return await LinksAsync(run, links, ct).ConfigureAwait(false);
+			case ScreenshotCommand shot:
+				var png = shot.Selector is { } element
+					? await page.Css(element).ScreenshotAsync(ct).ConfigureAwait(false)
+					: await page.ScreenshotAsync(shot.Full, ct).ConfigureAwait(false);
+				var file = ArtifactFile(run, shot.Path, "screenshot");
+				await File.WriteAllBytesAsync(file, png, ct).ConfigureAwait(false);
+				return null;
 			case ClearLogCommand { Log: "console" }:
 				page.ClearConsole();
 				return null;
@@ -352,7 +364,58 @@ public static class JourneyRunner
 			(filter.Filter is null || (glob?.IsMatch(r.Url) ?? r.Url.Contains(filter.Filter, StringComparison.Ordinal)))
 			&& (filter.Types.Count == 0 || filter.Types.Contains(r.ResourceType, StringComparer.OrdinalIgnoreCase))
 			&& (filter.Method is null || r.Method == filter.Method)
-			&& (filter.Status is null || StatusMatches(r.Status, filter.Status)));
+			&& (filter.Status is null || StatusMatches(r.Status, filter.Status))
+			&& (!filter.Failed || Failed(r)));
+	}
+
+	// A failed request: 400 or more, or no answer, except what the allow list refused or a navigation cancelled.
+	internal static bool Failed(NetworkRequest request) =>
+		request.Status is >= 400
+		|| (request.Status is null && request.Error is { } error
+			&& !error.Contains("ERR_BLOCKED_BY_CLIENT", StringComparison.Ordinal) && !error.Contains("ERR_ABORTED", StringComparison.Ordinal));
+
+	private static async Task<string> LinksAsync(Run run, LinksCommand command, CancellationToken ct)
+	{
+		var page = run.Page;
+		var here = new Uri(await page.UrlAsync(ct).ConfigureAwait(false));
+		var links = await page.LinksAsync(command.Selector, ct).ConfigureAwait(false);
+		var check = new List<string>();
+		int external = 0, refused = 0;
+		foreach (var link in links)
+		{
+			var uri = new Uri(link);
+			var sameSite = uri.IsFile ? here.IsFile : uri.GetLeftPart(UriPartial.Authority) == here.GetLeftPart(UriPartial.Authority);
+			if (!sameSite && !command.External)
+				external++;
+			else if (!run.AllowList.Allows(uri))
+				refused++;
+			else
+				check.Add(link);
+		}
+
+		var results = await page.CheckLinksAsync(check, cancellationToken: ct).ConfigureAwait(false);
+		var broken = results.Where(r => r.Broken).ToList();
+		var summary = $"links: {results.Count} checked, {broken.Count} broken"
+			+ (external > 0 ? $", {external} on other sites not checked (--external)" : "")
+			+ (refused > 0 ? $", {refused} outside the allow list" : "");
+		var lines = (command.All ? results : broken).Select(r => $"{r.Outcome} {Display(run, here, r.Url)}");
+		if (command.Strict && broken.Count > 0)
+			throw new ArgumentException($"{broken.Count} broken link(s):\n{string.Join('\n', broken.Take(10).Select(r => $"{r.Outcome} {r.Url}"))}");
+		return string.Join('\n', lines.Prepend(summary));
+	}
+
+	// Same-site links print without the origin (or, for files, relative to the base URL's folder), so transcripts
+	// don't depend on the port or the machine.
+	private static string Display(Run run, Uri here, string url)
+	{
+		var uri = new Uri(url);
+		if (uri.IsFile)
+		{
+			var folder = run.Options.BaseUrl is { IsFile: true } baseUrl ? new Uri(baseUrl, ".").AbsoluteUri : null;
+			return folder is not null && url.StartsWith(folder, StringComparison.Ordinal) ? "/" + url[folder.Length..] : url;
+		}
+
+		return uri.GetLeftPart(UriPartial.Authority) == here.GetLeftPart(UriPartial.Authority) ? uri.PathAndQuery : url;
 	}
 
 	internal static bool StatusMatches(int? status, string pattern)
@@ -372,15 +435,22 @@ public static class JourneyRunner
 	{
 		if (run.HarStart < 0)
 			throw new ArgumentException("network har stop without network har start.");
+		var full = ArtifactFile(run, path, "network har stop");
+		File.WriteAllText(full, NetworkRecording.ToHar(run.Network!.Requests.Skip(run.HarStart), run.Secrets.Redact));
+		run.HarStart = -1;
+	}
+
+	// Files go only inside the artifacts folder the host chose.
+	private static string ArtifactFile(Run run, string path, string command)
+	{
 		if (run.Options.ArtifactsDirectory is not { } artifacts)
-			throw new ArgumentException("network har stop needs an artifacts folder to write into (JourneyOptions.ArtifactsDirectory, or --artifacts).");
+			throw new ArgumentException($"{command} needs an artifacts folder to write into (JourneyOptions.ArtifactsDirectory, or --artifacts).");
 		var folder = Path.TrimEndingDirectorySeparator(Path.GetFullPath(artifacts)) + Path.DirectorySeparatorChar;
 		var full = Path.GetFullPath(Path.Combine(folder, path));
 		if (!full.StartsWith(folder, OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase))
 			throw new ArgumentException($"'{path}' is outside the artifacts folder.");
 		Directory.CreateDirectory(Path.GetDirectoryName(full)!);
-		File.WriteAllText(full, NetworkRecording.ToHar(run.Network!.Requests.Skip(run.HarStart), run.Secrets.Redact));
-		run.HarStart = -1;
+		return full;
 	}
 
 	private static Dictionary<string, string> Headers(string json)
