@@ -24,6 +24,12 @@ public sealed class JourneyOptions
 	/// </summary>
 	public string? FileRoot { get; init; }
 
+	/// <summary>
+	/// The folder <c>network har stop</c> writes into; a journey cannot write outside it. Without it, writing a HAR file
+	/// fails the step.
+	/// </summary>
+	public string? ArtifactsDirectory { get; init; }
+
 	/// <summary>Called before each step runs, e.g. to show progress.</summary>
 	public Action<JourneyStep>? OnStep { get; init; }
 
@@ -107,6 +113,11 @@ public static class JourneyRunner
 			? await page.GuardNetworkAsync(options.GuardNetwork ? run.AllowList.Allows : _ => true, cancellationToken).ConfigureAwait(false)
 			: null;
 		run.Guard = guard;
+		// The network is recorded only for journeys that read it.
+		await using var network = journey.Steps.Any(s => s.Command is HarCommand or RequestsCommand)
+			? await page.RecordNetworkAsync(cancellationToken).ConfigureAwait(false)
+			: null;
+		run.Network = network;
 		// Interactions are recorded only for journeys that read vitals.
 		if (journey.Steps.Any(s => s.Command is PerformanceCommand { Kind: "vitals" }))
 			await page.RecordInteractionsAsync(cancellationToken).ConfigureAwait(false);
@@ -141,6 +152,10 @@ public static class JourneyRunner
 		public NetworkGuard? Guard { get; set; }
 
 		public bool Offline { get; set; }
+
+		public NetworkRecording? Network { get; set; }
+
+		public int HarStart { get; set; } = -1;
 	}
 
 	// A refused navigation fails the step; refused sub-resources are reported with the result.
@@ -259,6 +274,19 @@ public static class JourneyRunner
 			case SetCommand media:
 				await page.SetColorSchemeAsync(media.Scheme!, ct).ConfigureAwait(false);
 				return null;
+			case HarCommand { Action: "start" }:
+				run.HarStart = run.Network!.Requests.Count;
+				return null;
+			case HarCommand har:
+				WriteHar(run, har.Path!);
+				return null;
+			case RequestsCommand { Clear: true }:
+				run.Network!.Clear();
+				if (run.HarStart >= 0)
+					run.HarStart = 0;
+				return null;
+			case RequestsCommand requests:
+				return string.Join('\n', Filter(run.Network!.Requests, requests));
 			case ClearLogCommand { Log: "console" }:
 				page.ClearConsole();
 				return null;
@@ -309,6 +337,44 @@ public static class JourneyRunner
 		return over.Count > 0
 			? throw new ArgumentException($"Over budget: {string.Join("; ", over)}.")
 			: string.Join('\n', lines);
+	}
+
+	private static IEnumerable<NetworkRequest> Filter(IReadOnlyList<NetworkRequest> requests, RequestsCommand filter)
+	{
+		var glob = filter.Filter is { } f && f.Contains('*') ? Page.UrlGlob(f) : null;
+		return requests.Where(r =>
+			(filter.Filter is null || (glob?.IsMatch(r.Url) ?? r.Url.Contains(filter.Filter, StringComparison.Ordinal)))
+			&& (filter.Types.Count == 0 || filter.Types.Contains(r.ResourceType, StringComparer.OrdinalIgnoreCase))
+			&& (filter.Method is null || r.Method == filter.Method)
+			&& (filter.Status is null || StatusMatches(r.Status, filter.Status)));
+	}
+
+	internal static bool StatusMatches(int? status, string pattern)
+	{
+		if (status is not { } code)
+			return false;
+		if (pattern.EndsWith("xx", StringComparison.Ordinal))
+			return code / 100 == pattern[0] - '0';
+		var range = pattern.Split('-');
+		return range.Length == 2
+			? code >= int.Parse(range[0], CultureInfo.InvariantCulture) && code <= int.Parse(range[1], CultureInfo.InvariantCulture)
+			: code == int.Parse(pattern, CultureInfo.InvariantCulture);
+	}
+
+	// HAR files go only inside the artifacts folder the host chose; secrets typed during the run are redacted.
+	private static void WriteHar(Run run, string path)
+	{
+		if (run.HarStart < 0)
+			throw new ArgumentException("network har stop without network har start.");
+		if (run.Options.ArtifactsDirectory is not { } artifacts)
+			throw new ArgumentException("network har stop needs an artifacts folder to write into (JourneyOptions.ArtifactsDirectory, or --artifacts).");
+		var folder = Path.TrimEndingDirectorySeparator(Path.GetFullPath(artifacts)) + Path.DirectorySeparatorChar;
+		var full = Path.GetFullPath(Path.Combine(folder, path));
+		if (!full.StartsWith(folder, OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase))
+			throw new ArgumentException($"'{path}' is outside the artifacts folder.");
+		Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+		File.WriteAllText(full, NetworkRecording.ToHar(run.Network!.Requests.Skip(run.HarStart), run.Secrets.Redact));
+		run.HarStart = -1;
 	}
 
 	private static Dictionary<string, string> Headers(string json)

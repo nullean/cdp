@@ -115,6 +115,26 @@ public sealed record PerformanceCommand(string Kind, IReadOnlyList<PerformanceBu
 /// <summary>A limit for one reading: <c>lcp=2500</c> means at most 2500 ms.</summary>
 public sealed record PerformanceBudget(string Name, double Limit);
 
+/// <summary><c>network har start</c> or <c>network har stop &lt;path&gt;</c>: records a HAR file into the artifacts folder.</summary>
+public sealed record HarCommand(string Action, string? Path = null) : JourneyCommand;
+
+/// <summary>
+/// <c>network requests</c>, a checkpoint listing the requests since the journey started (or since <c>--clear</c>),
+/// optionally filtered by URL, type, method or status.
+/// </summary>
+public sealed record RequestsCommand(bool Clear, string? Filter, IReadOnlyList<string> Types, string? Method, string? Status) : JourneyCommand
+{
+	/// <inheritdoc />
+	public override bool IsCheckpoint => !Clear;
+
+	/// <inheritdoc />
+	public bool Equals(RequestsCommand? other) =>
+		other is not null && Clear == other.Clear && Filter == other.Filter && Types.SequenceEqual(other.Types) && Method == other.Method && Status == other.Status;
+
+	/// <inheritdoc />
+	public override int GetHashCode() => HashCode.Combine(Clear, Filter, Method, Status);
+}
+
 /// <summary><c>console --clear</c> or <c>errors --clear</c>: forgets what the page logged so far.</summary>
 public sealed record ClearLogCommand(string Log) : JourneyCommand;
 
@@ -241,6 +261,8 @@ public sealed partial class Journey
 		"snapshot [-i] [-c] [-u] [-d <n>] [-s <selector>]",
 		"get text|html|value|count|box|styles <selector>", "get attr <selector> <name>", "get title", "get url",
 		"console [--clear]", "errors [--clear]",
+		"network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>]",
+		"network har start", "network har stop <path>",
 		"timings [--budget <name>=<ms>...]", "vitals [--budget <name>=<limit>...]", "metrics [--budget <name>=<limit>...]",
 		"is visible|enabled|checked <selector>",
 	];
@@ -280,6 +302,7 @@ public sealed partial class Journey
 			"snapshot" => ParseSnapshot(rest),
 			"get" => ParseGet(rest),
 			"timings" or "vitals" or "metrics" => ParsePerformance(command, rest),
+			"network" => ParseNetwork(rest),
 			"console" or "errors" => rest switch
 			{
 				[] => new ReadCommand(command, null),
@@ -503,6 +526,61 @@ public sealed partial class Journey
 
 		return inBudget && budgets.Count == 0 ? throw Usage(usage) : new PerformanceCommand(kind, budgets);
 	}
+
+	private static JourneyCommand ParseNetwork(string[] rest)
+	{
+		const string usage = "network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>] | network har start | network har stop <path>";
+		switch (rest)
+		{
+			case ["har", "start"]:
+				return new HarCommand("start");
+			case ["har", "stop", var path]:
+				return Path.IsPathRooted(path) || path.Replace('\\', '/').Split('/').Contains("..")
+					? throw new JourneySyntaxException($"'{path}' must be a path inside the artifacts folder, relative to it.")
+					: new HarCommand("stop", path);
+			case ["har", "stop"]:
+				throw new JourneySyntaxException("network har stop needs a path for the HAR file, relative to the artifacts folder");
+			case ["requests", .. var options]:
+				bool clear = false;
+				string? filter = null, method = null, status = null;
+				var types = new List<string>();
+				for (var i = 0; i < options.Length; i++)
+				{
+					var value = i + 1 < options.Length ? options[i + 1] : null;
+					switch (options[i])
+					{
+						case "--clear":
+							clear = true;
+							continue;
+						case "--filter" when value is not null:
+							filter = value;
+							break;
+						case "--type" when value is not null:
+							types.AddRange(value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+							break;
+						case "--method" when value is not null:
+							method = value.ToUpperInvariant();
+							break;
+						case "--status" when value is not null && StatusPattern().IsMatch(value):
+							status = value;
+							break;
+						default:
+							throw Usage(usage);
+					}
+
+					i++;
+				}
+
+				return new RequestsCommand(clear, filter, types, method, status);
+			case ["route" or "unroute" or "request", ..]:
+				throw new JourneySyntaxException($"network {rest[0]} is not supported in journeys: it changes or reads what the page receives outside the page.");
+			default:
+				throw Usage(usage);
+		}
+	}
+
+	[GeneratedRegex(@"^(\d{3}|[1-5]xx|\d{3}-\d{3})$")]
+	private static partial Regex StatusPattern();
 
 	private static bool ValidHeaders(string json)
 	{
