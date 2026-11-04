@@ -25,7 +25,20 @@ internal static class ChromeProcesses
 			AppDomain.CurrentDomain.ProcessExit += (_, _) => KillAll();
 		Running[chrome.Id] = (chrome, userDataDirectory);
 		using var self = Process.GetCurrentProcess();
-		File.WriteAllText(Path.Combine(userDataDirectory, OwnerFile), Owner(self.Id, self.StartTime));
+		File.WriteAllText(Path.Combine(userDataDirectory, OwnerFile), Owner(self.Id, self.StartTime) + ChromeLines(chrome));
+	}
+
+	// Chrome's own id and start time, so a reaper can wait for it to exit; nothing when it already has.
+	private static string ChromeLines(Process chrome)
+	{
+		try
+		{
+			return $"chrome={chrome.Id.ToString(CultureInfo.InvariantCulture)}\nchromeStarted={chrome.StartTime.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture)}\n";
+		}
+		catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception)
+		{
+			return string.Empty;
+		}
 	}
 
 	public static void Untrack(Process chrome) => Running.TryRemove(chrome.Id, out _);
@@ -87,24 +100,18 @@ internal static class ChromeProcesses
 
 		foreach (var profile in profiles)
 		{
-			if (!IsOrphan(profile))
+			if (ReadOwner(profile) is not { } owner || IsRunning(owner.Pid, owner.Started))
 				continue;
 			if (Browser.TryReadDevToolsActivePort(Path.Combine(profile, "DevToolsActivePort")) is { } url)
 				await CloseAsync(url).ConfigureAwait(false);
-			// Chrome writes to its profile while it shuts down; deleting before it is gone would leave a stray folder.
+			// Chrome writes to its profile while it shuts down (on Linux even after dropping its lock): wait for the
+			// process to be gone, never killing it by id, and for the lock, before deleting.
+			await WaitForExitAsync(owner.Chrome).ConfigureAwait(false);
 			await WaitForUnlockAsync(profile).ConfigureAwait(false);
-			for (var attempt = 0; attempt < 10 && Directory.Exists(profile); attempt++)
-			{
-				try
-				{
-					Directory.Delete(profile, recursive: true);
-				}
-				catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-				{
-					await Task.Delay(100).ConfigureAwait(false);
-				}
-			}
-
+			await DeleteAsync(profile).ConfigureAwait(false);
+			// A last write can still recreate the folder just after it was deleted.
+			await Task.Delay(200).ConfigureAwait(false);
+			await DeleteAsync(profile).ConfigureAwait(false);
 			if (!Directory.Exists(profile))
 				reaped++;
 		}
@@ -133,7 +140,31 @@ internal static class ChromeProcesses
 		}
 	}
 
-	private static bool IsOrphan(string profile)
+	private static async Task DeleteAsync(string profile)
+	{
+		for (var attempt = 0; attempt < 10 && Directory.Exists(profile); attempt++)
+		{
+			try
+			{
+				Directory.Delete(profile, recursive: true);
+			}
+			catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+			{
+				await Task.Delay(100).ConfigureAwait(false);
+			}
+		}
+	}
+
+	private static async Task WaitForExitAsync((int Pid, long Started)? chrome)
+	{
+		var waited = Stopwatch.StartNew();
+		while (chrome is { } c && waited.Elapsed < TimeSpan.FromSeconds(5) && IsRunning(c.Pid, c.Started))
+			await Task.Delay(50).ConfigureAwait(false);
+	}
+
+	private sealed record ProfileOwner(int Pid, long Started, (int Pid, long Started)? Chrome);
+
+	private static ProfileOwner? ReadOwner(string profile)
 	{
 		Dictionary<string, string> owner;
 		try
@@ -145,13 +176,18 @@ internal static class ChromeProcesses
 		}
 		catch (Exception e) when (e is IOException or UnauthorizedAccessException)
 		{
-			return false;
+			return null;
 		}
 
 		if (!owner.TryGetValue("pid", out var pidText) || !int.TryParse(pidText, NumberStyles.None, CultureInfo.InvariantCulture, out var pid)
 			|| !owner.TryGetValue("started", out var startedText) || !long.TryParse(startedText, NumberStyles.None, CultureInfo.InvariantCulture, out var started))
-			return false;
-		return !IsRunning(pid, started);
+			return null;
+		(int, long)? chrome = owner.TryGetValue("chrome", out var chromeText) && int.TryParse(chromeText, NumberStyles.None, CultureInfo.InvariantCulture, out var chromePid)
+			&& owner.TryGetValue("chromeStarted", out var chromeStartedText)
+			&& long.TryParse(chromeStartedText, NumberStyles.None, CultureInfo.InvariantCulture, out var chromeStarted)
+				? (chromePid, chromeStarted)
+				: null;
+		return new ProfileOwner(pid, started, chrome);
 	}
 
 	// The same process id with the same start time; a reused id belongs to a process that started later.
