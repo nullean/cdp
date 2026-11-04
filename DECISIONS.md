@@ -378,7 +378,10 @@ As nullean/snapshots does it: push a tag (`0.1.0`; MinVer takes the version from
 including the tool smoke tests, checks that every package carries the tag's version, and publishes through nuget.org
 trusted publishing (`NuGet/login` with the organisation's `NUGET_USER`; no API key is stored). The `release`
 environment only lets tags deploy. The root tool package is pushed last, after the per-RID and `any` packages it
-points at. A tag push alone never publishes. Versions stay 0.x until the owner says otherwise.
+points at. A tag push alone never publishes. Once the packages are on nuget.org the job creates the GitHub release
+for the tag (`gh release create --generate-notes`, notes from the pull requests since the previous tag, the
+packages attached, a `-` version marked as a prerelease); the job needs `contents: write` for it. Versions stay 0.x
+until the owner says otherwise.
 
 ## Repository
 
