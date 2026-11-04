@@ -1,0 +1,38 @@
+# The commands added for agent-browser parity, against site/more.html. Replayed in agent-browser by hand (DECISIONS.md).
+open more.html
+set viewport 1024 768 2
+dblclick "button[ondblclick]"
+get text #log
+focus #focus-me
+get text #log
+focus #editor
+keyboard type "hi there"
+get value #editor
+keyboard inserttext "!"
+get value #editor
+scroll down 80 -s #list-area
+wait 200
+get text #log
+find first li text
+find last li text
+find nth 1 li text
+get box #box
+drag #drag-me #drop
+get text #log
+upload #file files/note.txt
+get text #log
+scrollintoview #bottom
+scroll up 100
+set geo 52.37 4.89
+find role button click --name "Where am I"
+wait 500
+get text #log
+set offline on
+set offline off
+snapshot -u -c -s "a[href]"
+find role link click --name "To about"
+wait --url "**/about.html?from=more"
+wait --load networkidle
+get url
+set device "iPhone 15"
+get title

@@ -142,6 +142,36 @@ selected]: value`, two spaces per level. Checked against agent-browser 0.41.0 on
   command, was exported and run with `agent-browser batch --bail`: all 40 steps succeeded, and its reads are the
   values `JourneyRunnerTests` expects from this runner.
 
+## agent-browser parity
+
+Every agent-browser command that acts on or reads the page in a repeatable way is a journey command:
+`dblclick`, `focus`, `scrollintoview` (and `scrollinto`), `scroll [dir] [px] [-s sel]`, `drag`, `upload`,
+`keyboard type|inserttext`, `find first|last|nth`, `wait --url <glob>`, `wait --load <state>`, `get box`,
+`get styles`, `set viewport w h [scale]`, `set device`, `set geo`, `set offline [on|off]`, `set headers`,
+`set credentials`, and `snapshot -u`. `site/journeys/more.journey` uses them; exported and run with agent-browser
+0.41.0 all 37 steps succeeded, and `MoreCommandTests` expects the values it read.
+
+- **Still left out, on purpose:** refs; `eval` and `wait --fn` (page script); cookies, storage, `state`, `connect`,
+  `auth` (session state and credentials outside the journey); tabs, `screenshot`, `pdf`, `record`, `download` and
+  `wait --download` (files and windows); `snapshot --delta`/`--full` (a checkpoint records the whole tree and the
+  transcript diff shows the change); `get cdp-url`; `mouse` (raw coordinates); `set headers`'s cleared-for-new-tabs
+  nuance.
+- **Differences found:** agent-browser's `set geo` left a `file://` page without permission (`geo error 1`); this
+  runner grants geolocation to the context, so the page reads the position. `get box` prints the same
+  `x:      10` lines; `get styles` the same sorted `property: value` lines.
+- **Uploads** are paths relative to the journey's folder and may not leave it (refused when parsed; checked again when
+  run, which no parsed journey can reach). The batch export writes them as absolute paths, since agent-browser reads
+  them from its working folder.
+- **`set credentials`** needs a secret reference for the password; the guard answers HTTP authentication only for
+  allowed URLs (a refused URL never reaches a server, so this is a second layer) and cancels challenges otherwise.
+- **`set offline`** without on|off toggles, as agent-browser's does; the runner tracks the state from a journey's start.
+- **`set device`** knows twelve devices by their Playwright names, with representative sizes and user agents, not
+  Playwright's full catalogue.
+- **`wait --load`** reads the main frame's lifecycle events for the current document (`load`, `DOMContentLoaded`,
+  `networkIdle`); a new document clears them. `wait --url` takes a glob: `**` anything, `*` anything but `/`.
+- **HTML drag and drop** needs the mouse moves to report the left button held; Chrome then hands the drag over
+  (`Input.setInterceptDrags`) and it is dropped on the target. A plain mouse drag gets the same moves.
+
 ## Safety for agents
 
 Journeys are written and shared by agents, and their output is read by agents, so a page is untrusted input in both

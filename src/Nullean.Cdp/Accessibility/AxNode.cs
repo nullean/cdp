@@ -8,7 +8,7 @@ namespace Nullean.Cdp.Accessibility;
 /// <param name="Name">The accessible name; empty when there is none.</param>
 /// <param name="Value">The value (a text box's text, a combobox's choice); empty when there is none.</param>
 /// <param name="Properties">The printed states, in print order: <c>level</c>, <c>checked</c>, <c>pressed</c>,
-/// <c>expanded</c>, <c>selected</c>, <c>disabled</c>, <c>required</c>.</param>
+/// <c>expanded</c>, <c>selected</c>, <c>disabled</c>, <c>required</c>, <c>url</c> (printed only when asked).</param>
 /// <param name="Children">The children, after lifting.</param>
 public sealed record AxNode(string Role, string Name, string Value, IReadOnlyList<AxProperty> Properties, IReadOnlyList<AxNode> Children);
 
@@ -30,6 +30,9 @@ public sealed record AxSnapshotOptions
 	/// <summary>Print this many levels below the top; <c>0</c> prints the top level only (agent-browser's <c>-d</c>).</summary>
 	public int? Depth { get; init; }
 
+	/// <summary>Print links' targets as <c>url=…</c> (agent-browser's <c>-u</c>).</summary>
+	public bool Urls { get; init; }
+
 	/// <summary>Only the tree of the first element this CSS selector matches (agent-browser's <c>-s</c>).</summary>
 	public string? Selector { get; init; }
 }
@@ -37,7 +40,7 @@ public sealed record AxSnapshotOptions
 /// <summary>Builds <see cref="AxNode"/>s from <c>Accessibility.getFullAXTree</c>.</summary>
 public static class AxTree
 {
-	private static readonly string[] PrintedProperties = ["level", "checked", "pressed", "expanded", "selected", "disabled", "required"];
+	private static readonly string[] PrintedProperties = ["level", "checked", "pressed", "expanded", "selected", "disabled", "required", "url"];
 
 	private sealed record Raw(bool Ignored, string Role, string Name, string Value, AxProperty[] Properties, string[] ChildIds, long? BackendNodeId);
 

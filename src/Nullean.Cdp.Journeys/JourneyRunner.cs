@@ -102,7 +102,11 @@ public static class JourneyRunner
 		var run = new Run(journey, page, options, options.AllowList(journey), new JourneySecrets(options.Secrets));
 		var checkpoints = new List<Checkpoint>();
 		var blocked = new List<BlockedRequest>();
-		await using var guard = options.GuardNetwork ? await page.GuardNetworkAsync(run.AllowList.Allows, cancellationToken).ConfigureAwait(false) : null;
+		// Without the guard, a guard that allows everything is still started when a step needs one (credentials).
+		await using var guard = options.GuardNetwork || journey.Steps.Any(s => s.Command is SetCommand { Setting: "credentials" })
+			? await page.GuardNetworkAsync(options.GuardNetwork ? run.AllowList.Allows : _ => true, cancellationToken).ConfigureAwait(false)
+			: null;
+		run.Guard = guard;
 		foreach (var step in journey.Steps)
 		{
 			string? failure;
@@ -129,7 +133,12 @@ public static class JourneyRunner
 		return new JourneyResult(journey.Source, checkpoints, null, blocked);
 	}
 
-	private sealed record Run(Journey Journey, Page Page, JourneyOptions Options, JourneyAllowList AllowList, JourneySecrets Secrets);
+	private sealed record Run(Journey Journey, Page Page, JourneyOptions Options, JourneyAllowList AllowList, JourneySecrets Secrets)
+	{
+		public NetworkGuard? Guard { get; set; }
+
+		public bool Offline { get; set; }
+	}
 
 	// A refused navigation fails the step; refused sub-resources are reported with the result.
 	private static string? Blocked(NetworkGuard? guard, JourneyAllowList allowList, List<BlockedRequest> blocked)
@@ -182,11 +191,42 @@ public static class JourneyRunner
 			case HistoryCommand:
 				await page.ReloadAsync(ct).ConfigureAwait(false);
 				return null;
+			case ActCommand { Action: "upload" } upload:
+				await upload.Target.On(page).UploadAsync(UploadFiles(run.Journey, upload.Values), ct).ConfigureAwait(false);
+				return null;
 			case ActCommand act:
 				await ActAsync(act, act.Target.On(page), run.Secrets, ct).ConfigureAwait(false);
 				return null;
 			case PressCommand press:
 				await page.PressAsync(press.Keys, ct).ConfigureAwait(false);
+				return null;
+			case KeyboardCommand { Mode: "type" } keyboard:
+				await page.Keyboard.TypeAsync(run.Secrets.Resolve(keyboard.Text), ct).ConfigureAwait(false);
+				return null;
+			case KeyboardCommand keyboard:
+				await page.Keyboard.InsertTextAsync(run.Secrets.Resolve(keyboard.Text), ct).ConfigureAwait(false);
+				return null;
+			case DragCommand drag:
+				await drag.Source.On(page).DragToAsync(drag.Target.On(page), ct).ConfigureAwait(false);
+				return null;
+			case ScrollCommand scroll:
+				var (dx, dy) = scroll.Direction switch
+				{
+					"up" => (0, -scroll.Pixels),
+					"left" => (-scroll.Pixels, 0),
+					"right" => (scroll.Pixels, 0),
+					_ => (0, scroll.Pixels),
+				};
+				if (scroll.Within is { } within)
+					await within.On(page).ScrollByAsync(dx, dy, ct).ConfigureAwait(false);
+				else
+					await page.ScrollAsync(dx, dy, ct).ConfigureAwait(false);
+				return null;
+			case WaitCommand { Url: { } glob }:
+				await page.WaitForUrlAsync(glob, ct).ConfigureAwait(false);
+				return null;
+			case WaitCommand { LoadState: { } state }:
+				await page.WaitForLoadStateAsync(state, ct).ConfigureAwait(false);
 				return null;
 			case WaitCommand { Milliseconds: { } ms }:
 				await Task.Delay(ms, ct).ConfigureAwait(false);
@@ -195,7 +235,23 @@ public static class JourneyRunner
 				await target.On(page).WaitAsync(LocatorState.Visible, ct).ConfigureAwait(false);
 				return null;
 			case SetCommand { Setting: "viewport" } viewport:
-				await page.SetViewportAsync(viewport.Width, viewport.Height, ct).ConfigureAwait(false);
+				await page.SetViewportAsync(viewport.Width, viewport.Height, viewport.Scale, ct).ConfigureAwait(false);
+				return null;
+			case SetCommand { Setting: "device" } device:
+				await page.SetDeviceAsync(device.Device!, ct).ConfigureAwait(false);
+				return null;
+			case SetCommand { Setting: "geo" } geo:
+				await page.SetGeolocationAsync(geo.Position.Latitude, geo.Position.Longitude, ct).ConfigureAwait(false);
+				return null;
+			case SetCommand { Setting: "offline" } offline:
+				run.Offline = offline.Offline ?? !run.Offline;
+				await page.SetOfflineAsync(run.Offline, ct).ConfigureAwait(false);
+				return null;
+			case SetCommand { Setting: "headers" } headers:
+				await page.SetExtraHeadersAsync(Headers(headers.Headers!), ct).ConfigureAwait(false);
+				return null;
+			case SetCommand { Setting: "credentials" } credentials:
+				run.Guard!.UseCredentials(run.Secrets.Resolve(credentials.User!), run.Secrets.Resolve(credentials.Password!));
 				return null;
 			case SetCommand media:
 				await page.SetColorSchemeAsync(media.Scheme!, ct).ConfigureAwait(false);
@@ -209,6 +265,28 @@ public static class JourneyRunner
 		}
 	}
 
+	private static Dictionary<string, string> Headers(string json)
+	{
+		using var document = System.Text.Json.JsonDocument.Parse(json);
+		return document.RootElement.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetString() ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+	}
+
+	// Uploads read only files inside the journey's own folder: a shared journey must not pick files from elsewhere.
+	private static string[] UploadFiles(Journey journey, IReadOnlyList<string> files)
+	{
+		if (!File.Exists(journey.Source))
+			throw new ArgumentException("upload needs a journey loaded from a file: files are read relative to its folder.");
+		var folder = Path.TrimEndingDirectorySeparator(Path.GetDirectoryName(Path.GetFullPath(journey.Source))!) + Path.DirectorySeparatorChar;
+		var comparison = OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+		return [.. files.Select(file =>
+		{
+			var full = Path.GetFullPath(Path.Combine(folder, file));
+			if (!full.StartsWith(folder, comparison))
+				throw new ArgumentException($"'{file}' is outside the journey's folder.");
+			return File.Exists(full) ? full : throw new ArgumentException($"'{file}' does not exist next to the journey.");
+		})];
+	}
+
 	private static async Task ActAsync(ActCommand act, Locator locator, JourneySecrets secrets, CancellationToken ct)
 	{
 		if (act.Action is "fill" or "type" && !JourneySecrets.IsReference(act.Values[0])
@@ -219,6 +297,15 @@ public static class JourneyRunner
 		{
 			case "click":
 				await locator.ClickAsync(ct).ConfigureAwait(false);
+				break;
+			case "dblclick":
+				await locator.DoubleClickAsync(ct).ConfigureAwait(false);
+				break;
+			case "focus":
+				await locator.FocusAsync(ct).ConfigureAwait(false);
+				break;
+			case "scrollintoview":
+				await locator.ScrollIntoViewAsync(ct).ConfigureAwait(false);
 				break;
 			case "hover":
 				await locator.HoverAsync(ct).ConfigureAwait(false);
@@ -254,6 +341,8 @@ public static class JourneyRunner
 			"html" => await locator!.HtmlAsync(ct).ConfigureAwait(false),
 			"value" => await locator!.ValueAsync(ct).ConfigureAwait(false),
 			"count" => (await locator!.CountAsync(ct).ConfigureAwait(false)).ToString(CultureInfo.InvariantCulture),
+			"box" => await locator!.BoxAsync(ct).ConfigureAwait(false),
+			"styles" => await locator!.StylesAsync(ct).ConfigureAwait(false),
 			"attr" => await locator!.AttributeAsync(read.Attribute!, ct).ConfigureAwait(false) ?? "null",
 			"is visible" => Bool(await locator!.IsVisibleAsync(ct).ConfigureAwait(false)),
 			"is enabled" => Bool(await locator!.IsEnabledAsync(ct).ConfigureAwait(false)),

@@ -114,14 +114,27 @@ public sealed class Locator
 	// one page at once never release each other's handles.
 	private readonly string _objectGroup = "nullean-cdp-" + Interlocked.Increment(ref GroupCounter).ToString(CultureInfo.InvariantCulture);
 
-	internal Locator(Page page, LocatorKind kind, string value, string? name, bool exact)
+	internal Locator(Page page, LocatorKind kind, string value, string? name, bool exact, int? index = null)
 	{
 		_page = page;
 		Kind = kind;
 		Value = value;
 		Name = name;
 		Exact = exact || kind == LocatorKind.TestId;
+		Index = index;
 	}
+
+	/// <summary>Which match to use: <c>0</c> the first, <c>-1</c> the last, <c>n</c> the n-th from zero; <c>null</c> the first that is ready.</summary>
+	public int? Index { get; }
+
+	/// <summary>Only the first match (agent-browser's <c>find first</c>).</summary>
+	public Locator First => Nth(0);
+
+	/// <summary>Only the last match (agent-browser's <c>find last</c>).</summary>
+	public Locator Last => Nth(-1);
+
+	/// <summary>Only the match at <paramref name="index"/>, from zero; negative counts from the end (agent-browser's <c>find nth</c>).</summary>
+	public Locator Nth(int index) => new(_page, Kind, Value, Name, Exact, index);
 
 	/// <summary>How elements are found.</summary>
 	public LocatorKind Kind { get; }
@@ -138,7 +151,14 @@ public sealed class Locator
 	/// <summary>The locator as agent-browser writes it, for messages: <c>role button --name "Go"</c>.</summary>
 	public override string ToString()
 	{
-		var text = new StringBuilder(Kind == LocatorKind.Css ? "css " : Kind.ToString().ToLowerInvariant() + " ").Append(Quote(Value));
+		var text = new StringBuilder(Index switch
+		{
+			null => "",
+			0 => "first ",
+			-1 => "last ",
+			var i => $"nth {i.Value.ToString(CultureInfo.InvariantCulture)} ",
+		});
+		text.Append(Kind == LocatorKind.Css ? "css " : Kind.ToString().ToLowerInvariant() + " ").Append(Quote(Value));
 		if (Name is not null)
 			text.Append(" --name ").Append(Quote(Name));
 		if (Exact && Kind != LocatorKind.TestId)
@@ -183,6 +203,96 @@ public sealed class Locator
 			var (x, y) = await ClickPointAsync(element, cancellationToken).ConfigureAwait(false);
 			await _page.WithNavigationAsync(() => _page.Mouse.ClickAsync(x, y, cancellationToken), cancellationToken).ConfigureAwait(false);
 		}, cancellationToken);
+
+	/// <summary>Double-clicks the element's centre, then waits for any navigation it starts.</summary>
+	public Task DoubleClickAsync(CancellationToken cancellationToken = default) =>
+		UsingAsync(LocatorState.Actionable, async element =>
+		{
+			var (x, y) = await ClickPointAsync(element, cancellationToken).ConfigureAwait(false);
+			await _page.WithNavigationAsync(() => _page.Mouse.DoubleClickAsync(x, y, cancellationToken), cancellationToken).ConfigureAwait(false);
+		}, cancellationToken);
+
+	/// <summary>Gives the element keyboard focus.</summary>
+	public Task FocusAsync(CancellationToken cancellationToken = default) =>
+		UsingAsync(LocatorState.Visible, element => FocusAsync(element, cancellationToken), cancellationToken);
+
+	/// <summary>Scrolls until the element is in the viewport.</summary>
+	public Task ScrollIntoViewAsync(CancellationToken cancellationToken = default) =>
+		UsingAsync(LocatorState.Attached, async element =>
+			await _page.SendAsync("DOM.scrollIntoViewIfNeeded", w => w.WriteString("objectId", element), cancellationToken).ConfigureAwait(false),
+			cancellationToken);
+
+	/// <summary>Scrolls the element itself (a scrollable container) by a number of pixels.</summary>
+	public Task ScrollByAsync(double deltaX, double deltaY, CancellationToken cancellationToken = default) =>
+		UsingAsync(LocatorState.Visible, async element =>
+		{
+			var (x, y) = await ClickPointAsync(element, cancellationToken).ConfigureAwait(false);
+			await _page.Mouse.WheelAsync(x, y, deltaX, deltaY, cancellationToken).ConfigureAwait(false);
+		}, cancellationToken);
+
+	/// <summary>
+	/// Drags the element onto <paramref name="target"/>: the mouse goes down on its centre, moves to the target's and
+	/// comes up. HTML drag and drop is delivered too: Chrome hands the drag over (<c>Input.setInterceptDrags</c>) and it
+	/// is dropped on the target.
+	/// </summary>
+	public Task DragToAsync(Locator target, CancellationToken cancellationToken = default)
+	{
+		ArgumentNullException.ThrowIfNull(target);
+		return UsingAsync(LocatorState.Actionable, async source =>
+		{
+			var from = await ClickPointAsync(source, cancellationToken).ConfigureAwait(false);
+			var to = await target.PointAsync(cancellationToken).ConfigureAwait(false);
+			await _page.Mouse.DragAsync(from, to, cancellationToken).ConfigureAwait(false);
+		}, cancellationToken);
+	}
+
+	// The centre of this locator's element, scrolled into view; for being the other end of a drag.
+	private async Task<(double X, double Y)> PointAsync(CancellationToken cancellationToken)
+	{
+		(double, double) point = default;
+		await UsingAsync(LocatorState.Visible, async element => point = await ClickPointAsync(element, cancellationToken).ConfigureAwait(false),
+			cancellationToken).ConfigureAwait(false);
+		return point;
+	}
+
+	/// <summary>Sets the files of a file input (<c>&lt;input type=file&gt;</c>), as a user picking them would.</summary>
+	public Task UploadAsync(IReadOnlyList<string> files, CancellationToken cancellationToken = default)
+	{
+		ArgumentNullException.ThrowIfNull(files);
+		return UsingAsync(LocatorState.Attached, async element =>
+		{
+			var isFileInput = await CallAsync(element, "function() { return this.tagName === 'INPUT' && this.type === 'file'; }", null, cancellationToken)
+				.ConfigureAwait(false);
+			if (isFileInput.ValueKind != JsonValueKind.True)
+				throw new LocatorException($"Cannot upload to {this}: the element is not a file input.");
+			await _page.SendAsync("DOM.setFileInputFiles", w =>
+			{
+				w.WriteStartArray("files");
+				foreach (var file in files)
+					w.WriteStringValue(Path.GetFullPath(file));
+				w.WriteEndArray();
+				w.WriteString("objectId", element);
+			}, cancellationToken).ConfigureAwait(false);
+		}, cancellationToken);
+	}
+
+	/// <summary>The element's box in CSS pixels, as agent-browser's <c>get box</c> prints it.</summary>
+	public Task<string> BoxAsync(CancellationToken cancellationToken = default) =>
+		ReadStringAsync("""
+			function() {
+				const r = this.getBoundingClientRect();
+				return ['x', 'y', 'width', 'height'].map(k => (k + ':').padEnd(8) + r[k]).join('\n');
+			}
+			""", cancellationToken);
+
+	/// <summary>Every computed style of the element, sorted, one <c>property: value</c> per line, as agent-browser's <c>get styles</c>.</summary>
+	public Task<string> StylesAsync(CancellationToken cancellationToken = default) =>
+		ReadStringAsync("""
+			function() {
+				const s = getComputedStyle(this);
+				return Array.from(s).sort().map(p => p + ': ' + s.getPropertyValue(p)).join('\n');
+			}
+			""", cancellationToken);
 
 	/// <summary>Moves the mouse over the element's centre.</summary>
 	public Task HoverAsync(CancellationToken cancellationToken = default) =>
@@ -422,8 +532,17 @@ public sealed class Locator
 		return visible == 0 ? $"{count}, none visible" : $"{count}, {(visible == 1 ? "the visible one is" : "the visible ones are")} disabled";
 	}
 
-	/// <summary>Object ids of the matching elements, in document order.</summary>
+	/// <summary>Object ids of the matching elements in document order, narrowed to <see cref="Index"/> when set.</summary>
 	private async Task<IReadOnlyList<string>> FindAsync(CancellationToken cancellationToken)
+	{
+		var all = await FindAllAsync(cancellationToken).ConfigureAwait(false);
+		if (Index is not { } index)
+			return all;
+		var at = index < 0 ? all.Count + index : index;
+		return at >= 0 && at < all.Count ? [all[at]] : [];
+	}
+
+	private async Task<IReadOnlyList<string>> FindAllAsync(CancellationToken cancellationToken)
 	{
 		if (Kind == LocatorKind.Role)
 			return await FindByRoleAsync(cancellationToken).ConfigureAwait(false);

@@ -31,7 +31,7 @@ public static class AxPrinter
 
 		var text = new StringBuilder();
 		foreach (var node in filtered)
-			Append(text, node, 0, options.Depth);
+			Append(text, node, 0, options.Depth, options.Urls);
 		return text.ToString();
 	}
 
@@ -51,7 +51,7 @@ public static class AxPrinter
 		return empty ? [] : [node with { Children = children }];
 	}
 
-	private static void Append(StringBuilder text, AxNode node, int depth, int? maxDepth)
+	private static void Append(StringBuilder text, AxNode node, int depth, int? maxDepth, bool urls)
 	{
 		text.Append(' ', depth * 2).Append("- ").Append(node.Role);
 		if (node.Name.Length > 0)
@@ -60,7 +60,7 @@ public static class AxPrinter
 		var first = true;
 		foreach (var property in node.Properties)
 		{
-			if (Flags.Contains(property.Name) && property.Value != "true")
+			if ((Flags.Contains(property.Name) && property.Value != "true") || (property.Name == "url" && (!urls || node.Role != "link")))
 				continue;
 			text.Append(first ? " [" : ", ").Append(property.Name);
 			if (!Flags.Contains(property.Name))
@@ -77,7 +77,7 @@ public static class AxPrinter
 		if (maxDepth is { } max && depth >= max)
 			return;
 		foreach (var child in node.Children)
-			Append(text, child, depth + 1, maxDepth);
+			Append(text, child, depth + 1, maxDepth, urls);
 	}
 
 	private static void AppendQuoted(StringBuilder text, string value)

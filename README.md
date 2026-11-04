@@ -67,10 +67,12 @@ if (result.Failure is { } failure)
     Console.WriteLine(failure.Describe(result.Source));   // checkout.journey:5: find role button ... and why
 ```
 
-- **The commands** are a subset of agent-browser's, written the same way: `open`, `back`, `forward`, `reload`,
-  `click`, `hover`, `fill`, `type`, `check`, `uncheck`, `select`, `press`, `find`, `wait`, `set viewport`,
-  `set media`, and the checkpoints `snapshot`, `get` and `is` (and `find … text`). Anything else is an error that
-  names the line.
+- **The commands** are agent-browser's, written the same way: navigation, every element action (`click`,
+  `dblclick`, `hover`, `focus`, `fill`, `type`, `check`, `select`, `upload`, `drag`, `scroll`, ...), `press` and
+  `keyboard`, `find` (role, text, label, ..., first, last, nth), `wait` (element, time, text, URL, load state),
+  `set` (viewport, media, device, geo, offline, headers, credentials), and the checkpoints `snapshot`, `get` and
+  `is`. Left out on purpose: refs, `eval`, cookies and session state, tabs, screenshots and downloads. Anything
+  unsupported is an error that names the line.
 - **No refs.** `@e3` changes from run to run, so journeys use `find role … --name`, `find text`, `find label` or CSS.
 - **Quoting** is a shell's: double or single quotes, backslash escapes. `# ` starts a comment, but `#id` is a selector.
 - **URLs:** `open /shop` resolves against the base URL like a link in a page would, so a base URL for a folder needs

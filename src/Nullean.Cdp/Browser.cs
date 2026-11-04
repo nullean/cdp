@@ -426,7 +426,7 @@ public sealed class BrowserContext : IAsyncDisposable
 		var targetId = created.GetProperty("targetId").GetString()!;
 		// Chrome attached the new page, paused; set it up, then let it run.
 		var sessionId = await _browser.ClaimAsync(targetId, cancellationToken).ConfigureAwait(false);
-		var page = new Page(_browser, connection, targetId, sessionId);
+		var page = new Page(_browser, connection, targetId, sessionId, Id);
 		await page.InitializeAsync(cancellationToken).ConfigureAwait(false);
 		await _browser.ResumeAsync(sessionId).ConfigureAwait(false);
 		return page;
