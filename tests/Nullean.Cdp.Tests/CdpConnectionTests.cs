@@ -187,6 +187,69 @@ public class CdpConnectionTests
 			.WithMessage("The connection to the browser was disposed.");
 	}
 
+	// Which exception a pending read ends with when the connection is disposed depends on a race between the cancellation and
+	// the transport closing underneath it (a channel completing, a socket disposed). Whatever it is, disposal started it.
+	[Test]
+	[Arguments("ObjectDisposedException")]
+	[Arguments("ChannelClosedException")]
+	[Arguments("WebSocketException")]
+	public async Task AnyReadFailureAfterDisposalStartedIsReportedAsDisposed(string failure)
+	{
+		Exception exception = failure switch
+		{
+			"ObjectDisposedException" => new ObjectDisposedException("socket"),
+			"ChannelClosedException" => new ChannelClosedException(),
+			_ => new System.Net.WebSockets.WebSocketException(System.Net.WebSockets.WebSocketError.ConnectionClosedPrematurely),
+		};
+		var transport = new FailsWhenDisposed(exception);
+		var connection = new CdpConnection(transport);
+		var pending = connection.SendAsync("Never.answered");
+		await transport.Reading.Task.WaitAsync(Wait);
+
+		await connection.DisposeAsync();
+
+		await FluentActions.Awaiting(() => pending.WaitAsync(Wait)).Should().ThrowAsync<CdpDisconnectedException>()
+			.WithMessage("The connection to the browser was disposed.");
+	}
+
+	[Test]
+	public async Task AReadFailureWithoutDisposalIsReportedAsAReadFailure()
+	{
+		var transport = new FailsWhenDisposed(new InvalidOperationException("the socket broke"));
+		await using var connection = new CdpConnection(transport);
+		var pending = connection.SendAsync("Never.answered");
+		await transport.Reading.Task.WaitAsync(Wait);
+
+		transport.Fail();
+
+		await FluentActions.Awaiting(() => pending.WaitAsync(Wait)).Should().ThrowAsync<CdpDisconnectedException>()
+			.WithMessage("Reading from the browser failed: the socket broke");
+	}
+
+	// A transport whose pending read fails with the given exception, not a cancellation, when it is disposed (or Fail is called).
+	private sealed class FailsWhenDisposed(Exception failure) : ICdpTransport
+	{
+		private readonly TaskCompletionSource<ReadOnlyMemory<byte>?> _read = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+		public TaskCompletionSource Reading { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+		public ValueTask SendAsync(ReadOnlyMemory<byte> message, CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
+		public async ValueTask<ReadOnlyMemory<byte>?> ReceiveAsync(CancellationToken cancellationToken)
+		{
+			Reading.TrySetResult();
+			return await _read.Task;
+		}
+
+		public void Fail() => _read.TrySetException(failure);
+
+		public ValueTask DisposeAsync()
+		{
+			Fail();
+			return ValueTask.CompletedTask;
+		}
+	}
+
 	[Test]
 	public async Task CancellingStopsWaitingAndForgetsTheCommand()
 	{
