@@ -233,12 +233,12 @@ jobs:
           "$GITHUB_WORKSPACE/build/smoke-cli.sh" "$temp/tool/$cdp"
           "$GITHUB_WORKSPACE/build/smoke-cli.sh" dotnet dnx "Nullean.Cdp.Cli@$root" --add-source "$feed" --yes
 
-  # Publishing to nuget.org: only from a manual run on a tag (gh workflow run ci.yml --ref <tag>), and only once every
-  # gate above has passed. Starting that run is the release decision; pushing a tag alone runs CI but never publishes.
+  # Publishing to nuget.org: a pushed tag (X.Y.Z or X.Y.Z-pre.N) publishes, and only once every gate above has passed.
+  # Pushing the tag is the release decision. A failed run can be re-run: pushing is skipped for packages already there.
   # The 'release' environment only lets tags deploy, and nuget.org's trusted publishing policy names it, so no API key
   # is stored.
   release:
-    if: github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     needs: [build, aot-pack, tool-pack, tool-smoke]
     runs-on: ubuntu-latest
     name: Publish to nuget.org
@@ -306,10 +306,10 @@ jobs:
             --title "$GITHUB_REF_NAME" --generate-notes \
             --notes "Packages: https://www.nuget.org/packages?q=Nullean.Cdp"
 
-  # The npm package is published like the NuGet ones: only from a manual run on a tag, in the `release` environment,
+  # The npm package is published like the NuGet ones: from a pushed tag, in the `release` environment,
   # through trusted publishing (the workflow's OIDC token; no token is stored). The tag gives the version.
   publish-npm:
-    if: github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     needs: [build, journeys-js]
     runs-on: ubuntu-latest
     name: Publish @nullean/journeys to npm

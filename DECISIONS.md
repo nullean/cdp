@@ -401,17 +401,18 @@ and where data can go is what holds.
 
 ## Releasing
 
-As nullean/snapshots does it: push a tag (`0.1.0`; MinVer takes the version from it), then start CI by hand on that tag
-(`gh workflow run ci.yml --ref 0.1.0`). The `release` job runs only for such a manual run, needs every other job
-including the tool smoke tests, checks that every package carries the tag's version, and publishes through nuget.org
-trusted publishing (`NuGet/login` with the organisation's `NUGET_USER`; no API key is stored). The `release`
-environment only lets tags deploy. The root tool package is pushed last, after the per-RID and `any` packages it
-points at. A tag push alone never publishes. Once the packages are on nuget.org the job creates the GitHub release
+As nullean/entities and nullean/curb do it: push a tag (`0.1.0`; MinVer takes the version from it). The `release`
+job runs for a pushed tag, needs every other job including the tool smoke tests, checks that every package carries
+the tag's version, and publishes through nuget.org trusted publishing (`NuGet/login` with the organisation's
+`NUGET_USER`; no API key is stored). Pushing the tag is the release decision, so tag only what is meant to ship; a
+failed run is fixed and re-run (the pushes skip what is already there). It was a manual run on the tag, as in
+nullean/snapshots, until the repositories were aligned. The `release` environment only lets tags deploy. The root
+tool package is pushed last, after the per-RID and `any` packages it points at. Once the packages are on nuget.org the job creates the GitHub release
 for the tag (`gh release create --generate-notes`, notes from the pull requests since the previous tag, the
 packages attached, a `-` version marked as a prerelease); the job needs `contents: write` for it. Versions stay 0.x
 until the owner says otherwise.
 
-`@nullean/journeys` (js/journeys) goes out in the same manual run, as the `publish-npm` job: same `release` environment,
+`@nullean/journeys` (js/journeys) goes out in the same tag run, as the `publish-npm` job: same `release` environment,
 no stored token, npm trusted publishing (`id-token: write`; npm 11.5.1 or later, checked; provenance is automatic for a
 public repository). The tag is the version (`npm pkg set version`; package.json keeps a placeholder), a `-` version
 publishes under the `next` dist-tag, and a version already on npm is skipped so a re-run is safe. The trusted publisher
