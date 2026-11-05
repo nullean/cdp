@@ -20,6 +20,7 @@ toc:
       - file: commands.md
       - file: safety.md
       - file: agent-browser.md
+      - file: playwright.md
   - folder: library
     children:
       - file: index.md

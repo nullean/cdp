@@ -38,6 +38,7 @@ cdp run checkout.journey --base-url http://localhost:5000/
 | `Nullean.Cdp` | finding and launching Chrome, contexts and pages, locators and actions, the accessibility tree, checks |
 | `Nullean.Cdp.Journeys` | the journey language: parsing, running, export to agent-browser batch JSON, the safety rules |
 | `Nullean.Cdp.Cli` | `cdp`: run, lint and export journeys, snapshot or screenshot a page |
+| `@nullean/journeys` (npm) | the same journeys on Playwright Test and Elastic Synthetics: [Playwright and Elastic Synthetics](journeys/playwright.md) |
 
 Start with [getting started](getting-started/index.md). To turn journeys into snapshot tests, see
 [Nullean.Snapshots](reference/snapshots.md).
