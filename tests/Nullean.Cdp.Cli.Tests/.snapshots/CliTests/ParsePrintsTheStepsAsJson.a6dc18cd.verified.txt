@@ -1,0 +1,613 @@
+{
+  "version": 1,
+  "source": "everything.journey",
+  "allow": [],
+  "steps": [
+    {
+      "line": 2,
+      "args": [
+        "open",
+        "actions.html"
+      ],
+      "command": {
+        "type": "open",
+        "url": "actions.html"
+      }
+    },
+    {
+      "line": 3,
+      "args": [
+        "set",
+        "viewport",
+        "1024",
+        "768"
+      ],
+      "command": {
+        "type": "set",
+        "setting": "viewport",
+        "width": 1024,
+        "height": 768
+      }
+    },
+    {
+      "line": 4,
+      "args": [
+        "set",
+        "media",
+        "light"
+      ],
+      "command": {
+        "type": "set",
+        "setting": "media",
+        "scheme": "light"
+      }
+    },
+    {
+      "line": 5,
+      "args": [
+        "wait",
+        "main"
+      ],
+      "command": {
+        "type": "wait",
+        "target": {
+          "kind": "css",
+          "value": "main"
+        }
+      }
+    },
+    {
+      "line": 6,
+      "args": [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Say hello"
+      ],
+      "command": {
+        "type": "act",
+        "action": "click",
+        "target": {
+          "kind": "role",
+          "value": "button",
+          "name": "Say hello"
+        }
+      }
+    },
+    {
+      "line": 7,
+      "args": [
+        "get",
+        "text",
+        "#log"
+      ],
+      "command": {
+        "type": "read",
+        "what": "text",
+        "target": {
+          "kind": "css",
+          "value": "#log"
+        }
+      }
+    },
+    {
+      "line": 8,
+      "args": [
+        "find",
+        "text",
+        "Say hello",
+        "click",
+        "--exact"
+      ],
+      "command": {
+        "type": "act",
+        "action": "click",
+        "target": {
+          "kind": "text",
+          "value": "Say hello",
+          "exact": true
+        }
+      }
+    },
+    {
+      "line": 9,
+      "args": [
+        "hover",
+        "[title='Tooltip text']"
+      ],
+      "command": {
+        "type": "act",
+        "action": "hover",
+        "target": {
+          "kind": "css",
+          "value": "[title='Tooltip text']"
+        }
+      }
+    },
+    {
+      "line": 10,
+      "args": [
+        "get",
+        "text",
+        "#log"
+      ],
+      "command": {
+        "type": "read",
+        "what": "text",
+        "target": {
+          "kind": "css",
+          "value": "#log"
+        }
+      }
+    },
+    {
+      "line": 11,
+      "args": [
+        "click",
+        "#hello"
+      ],
+      "command": {
+        "type": "act",
+        "action": "click",
+        "target": {
+          "kind": "css",
+          "value": "#hello"
+        }
+      }
+    },
+    {
+      "line": 12,
+      "args": [
+        "fill",
+        "#name",
+        "Grace Hopper"
+      ],
+      "command": {
+        "type": "act",
+        "action": "fill",
+        "target": {
+          "kind": "css",
+          "value": "#name"
+        },
+        "values": [
+          "Grace Hopper"
+        ]
+      }
+    },
+    {
+      "line": 13,
+      "args": [
+        "get",
+        "value",
+        "#name"
+      ],
+      "command": {
+        "type": "read",
+        "what": "value",
+        "target": {
+          "kind": "css",
+          "value": "#name"
+        }
+      }
+    },
+    {
+      "line": 14,
+      "args": [
+        "type",
+        "textarea[aria-label=Notes]",
+        "hi"
+      ],
+      "command": {
+        "type": "act",
+        "action": "type",
+        "target": {
+          "kind": "css",
+          "value": "textarea[aria-label=Notes]"
+        },
+        "values": [
+          "hi"
+        ]
+      }
+    },
+    {
+      "line": 15,
+      "args": [
+        "press",
+        "Enter"
+      ],
+      "command": {
+        "type": "press",
+        "keys": "Enter"
+      }
+    },
+    {
+      "line": 16,
+      "args": [
+        "find",
+        "label",
+        "Newsletter",
+        "check"
+      ],
+      "command": {
+        "type": "act",
+        "action": "check",
+        "target": {
+          "kind": "label",
+          "value": "Newsletter"
+        }
+      }
+    },
+    {
+      "line": 17,
+      "args": [
+        "is",
+        "checked",
+        "#news"
+      ],
+      "command": {
+        "type": "read",
+        "what": "is checked",
+        "target": {
+          "kind": "css",
+          "value": "#news"
+        }
+      }
+    },
+    {
+      "line": 18,
+      "args": [
+        "uncheck",
+        "#news"
+      ],
+      "command": {
+        "type": "act",
+        "action": "uncheck",
+        "target": {
+          "kind": "css",
+          "value": "#news"
+        }
+      }
+    },
+    {
+      "line": 19,
+      "args": [
+        "check",
+        "#news"
+      ],
+      "command": {
+        "type": "act",
+        "action": "check",
+        "target": {
+          "kind": "css",
+          "value": "#news"
+        }
+      }
+    },
+    {
+      "line": 20,
+      "args": [
+        "select",
+        "#colour",
+        "Blue"
+      ],
+      "command": {
+        "type": "act",
+        "action": "select",
+        "target": {
+          "kind": "css",
+          "value": "#colour"
+        },
+        "values": [
+          "Blue"
+        ]
+      }
+    },
+    {
+      "line": 21,
+      "args": [
+        "get",
+        "value",
+        "#colour"
+      ],
+      "command": {
+        "type": "read",
+        "what": "value",
+        "target": {
+          "kind": "css",
+          "value": "#colour"
+        }
+      }
+    },
+    {
+      "line": 22,
+      "args": [
+        "find",
+        "placeholder",
+        "Ada Lovelace",
+        "fill",
+        "Ada"
+      ],
+      "command": {
+        "type": "act",
+        "action": "fill",
+        "target": {
+          "kind": "placeholder",
+          "value": "Ada Lovelace"
+        },
+        "values": [
+          "Ada"
+        ]
+      }
+    },
+    {
+      "line": 23,
+      "args": [
+        "find",
+        "alt",
+        "Pixel",
+        "click"
+      ],
+      "command": {
+        "type": "act",
+        "action": "click",
+        "target": {
+          "kind": "alt",
+          "value": "Pixel"
+        }
+      }
+    },
+    {
+      "line": 24,
+      "args": [
+        "find",
+        "testid",
+        "later-enabled",
+        "hover"
+      ],
+      "command": {
+        "type": "act",
+        "action": "hover",
+        "target": {
+          "kind": "testid",
+          "value": "later-enabled"
+        }
+      }
+    },
+    {
+      "line": 25,
+      "args": [
+        "find",
+        "role",
+        "heading",
+        "text",
+        "--name",
+        "Actions"
+      ],
+      "command": {
+        "type": "read",
+        "what": "text",
+        "target": {
+          "kind": "role",
+          "value": "heading",
+          "name": "Actions"
+        }
+      }
+    },
+    {
+      "line": 26,
+      "args": [
+        "get",
+        "attr",
+        "#name",
+        "placeholder"
+      ],
+      "command": {
+        "type": "read",
+        "what": "attr",
+        "target": {
+          "kind": "css",
+          "value": "#name"
+        },
+        "attribute": "placeholder"
+      }
+    },
+    {
+      "line": 27,
+      "args": [
+        "wait",
+        "--text",
+        "Appears late"
+      ],
+      "command": {
+        "type": "wait",
+        "target": {
+          "kind": "text",
+          "value": "Appears late"
+        }
+      }
+    },
+    {
+      "line": 28,
+      "args": [
+        "get",
+        "count",
+        "button"
+      ],
+      "command": {
+        "type": "read",
+        "what": "count",
+        "target": {
+          "kind": "css",
+          "value": "button"
+        }
+      }
+    },
+    {
+      "line": 29,
+      "args": [
+        "get",
+        "html",
+        "form label"
+      ],
+      "command": {
+        "type": "read",
+        "what": "html",
+        "target": {
+          "kind": "css",
+          "value": "form label"
+        }
+      }
+    },
+    {
+      "line": 30,
+      "args": [
+        "is",
+        "visible",
+        "#hello"
+      ],
+      "command": {
+        "type": "read",
+        "what": "is visible",
+        "target": {
+          "kind": "css",
+          "value": "#hello"
+        }
+      }
+    },
+    {
+      "line": 31,
+      "args": [
+        "is",
+        "enabled",
+        "#hello"
+      ],
+      "command": {
+        "type": "read",
+        "what": "is enabled",
+        "target": {
+          "kind": "css",
+          "value": "#hello"
+        }
+      }
+    },
+    {
+      "line": 32,
+      "args": [
+        "wait",
+        "50"
+      ],
+      "command": {
+        "type": "wait",
+        "milliseconds": 50
+      }
+    },
+    {
+      "line": 33,
+      "args": [
+        "snapshot",
+        "-i",
+        "-c"
+      ],
+      "command": {
+        "type": "snapshot",
+        "compact": true,
+        "interactive": true
+      }
+    },
+    {
+      "line": 34,
+      "args": [
+        "snapshot",
+        "-s",
+        "form",
+        "-d",
+        "1"
+      ],
+      "command": {
+        "type": "snapshot",
+        "depth": 1,
+        "selector": "form"
+      }
+    },
+    {
+      "line": 35,
+      "args": [
+        "click",
+        "a[href='about.html']"
+      ],
+      "command": {
+        "type": "act",
+        "action": "click",
+        "target": {
+          "kind": "css",
+          "value": "a[href='about.html']"
+        }
+      }
+    },
+    {
+      "line": 36,
+      "args": [
+        "get",
+        "title"
+      ],
+      "command": {
+        "type": "read",
+        "what": "title"
+      }
+    },
+    {
+      "line": 37,
+      "args": [
+        "back"
+      ],
+      "command": {
+        "type": "history",
+        "direction": "back"
+      }
+    },
+    {
+      "line": 38,
+      "args": [
+        "get",
+        "url"
+      ],
+      "command": {
+        "type": "read",
+        "what": "url"
+      }
+    },
+    {
+      "line": 39,
+      "args": [
+        "forward"
+      ],
+      "command": {
+        "type": "history",
+        "direction": "forward"
+      }
+    },
+    {
+      "line": 40,
+      "args": [
+        "reload"
+      ],
+      "command": {
+        "type": "history",
+        "direction": "reload"
+      }
+    },
+    {
+      "line": 41,
+      "args": [
+        "get",
+        "title"
+      ],
+      "command": {
+        "type": "read",
+        "what": "title"
+      }
+    }
+  ]
+}

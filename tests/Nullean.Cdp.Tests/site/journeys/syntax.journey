@@ -1,0 +1,35 @@
+# The commands the other two journeys do not run: parsed and exported, never run. The corpus for the JSON contract
+# (cdp parse) and for runners in other languages.
+allow shop.test *.shop.test
+open https://shop.test/
+set media dark
+set headers '{"x-test": "1"}'
+set credentials admin $env:SHOP_PASSWORD
+set offline
+click #go
+find role button click --name "Add red lamp" --exact
+find first "nav a" text
+find nth 2 .card hover
+upload #file files/note.txt note.txt
+press Control+a
+keyboard type "hi there"
+wait --text "3 results"
+timings
+vitals --budget lcp=2500 cls=0.1
+metrics --budget Nodes=1500
+network har start
+network requests --filter api --type xhr,fetch --method post --status 4xx
+network requests --failed --strict
+network requests --clear
+network har stop out/run.har
+links -s main --external --all --strict
+a11y -s main --strict
+screenshot #box box.png
+screenshot shots/page.png --full
+console
+errors
+console --clear
+errors --clear
+get styles #box
+get attr #name placeholder
+is visible #hello

@@ -1,0 +1,568 @@
+{
+  "version": 1,
+  "source": "more.journey",
+  "allow": [],
+  "steps": [
+    {
+      "line": 2,
+      "args": [
+        "open",
+        "more.html"
+      ],
+      "command": {
+        "type": "open",
+        "url": "more.html"
+      }
+    },
+    {
+      "line": 3,
+      "args": [
+        "set",
+        "viewport",
+        "1024",
+        "768",
+        "2"
+      ],
+      "command": {
+        "type": "set",
+        "setting": "viewport",
+        "width": 1024,
+        "height": 768,
+        "scale": 2
+      }
+    },
+    {
+      "line": 4,
+      "args": [
+        "dblclick",
+        "button[ondblclick]"
+      ],
+      "command": {
+        "type": "act",
+        "action": "dblclick",
+        "target": {
+          "kind": "css",
+          "value": "button[ondblclick]"
+        }
+      }
+    },
+    {
+      "line": 5,
+      "args": [
+        "get",
+        "text",
+        "#log"
+      ],
+      "command": {
+        "type": "read",
+        "what": "text",
+        "target": {
+          "kind": "css",
+          "value": "#log"
+        }
+      }
+    },
+    {
+      "line": 6,
+      "args": [
+        "focus",
+        "#focus-me"
+      ],
+      "command": {
+        "type": "act",
+        "action": "focus",
+        "target": {
+          "kind": "css",
+          "value": "#focus-me"
+        }
+      }
+    },
+    {
+      "line": 7,
+      "args": [
+        "get",
+        "text",
+        "#log"
+      ],
+      "command": {
+        "type": "read",
+        "what": "text",
+        "target": {
+          "kind": "css",
+          "value": "#log"
+        }
+      }
+    },
+    {
+      "line": 8,
+      "args": [
+        "focus",
+        "#editor"
+      ],
+      "command": {
+        "type": "act",
+        "action": "focus",
+        "target": {
+          "kind": "css",
+          "value": "#editor"
+        }
+      }
+    },
+    {
+      "line": 9,
+      "args": [
+        "keyboard",
+        "type",
+        "hi there"
+      ],
+      "command": {
+        "type": "keyboard",
+        "mode": "type",
+        "text": "hi there"
+      }
+    },
+    {
+      "line": 10,
+      "args": [
+        "get",
+        "value",
+        "#editor"
+      ],
+      "command": {
+        "type": "read",
+        "what": "value",
+        "target": {
+          "kind": "css",
+          "value": "#editor"
+        }
+      }
+    },
+    {
+      "line": 11,
+      "args": [
+        "keyboard",
+        "inserttext",
+        "!"
+      ],
+      "command": {
+        "type": "keyboard",
+        "mode": "inserttext",
+        "text": "!"
+      }
+    },
+    {
+      "line": 12,
+      "args": [
+        "get",
+        "value",
+        "#editor"
+      ],
+      "command": {
+        "type": "read",
+        "what": "value",
+        "target": {
+          "kind": "css",
+          "value": "#editor"
+        }
+      }
+    },
+    {
+      "line": 13,
+      "args": [
+        "scroll",
+        "down",
+        "80",
+        "-s",
+        "#list-area"
+      ],
+      "command": {
+        "type": "scroll",
+        "direction": "down",
+        "pixels": 80,
+        "within": {
+          "kind": "css",
+          "value": "#list-area"
+        }
+      }
+    },
+    {
+      "line": 14,
+      "args": [
+        "wait",
+        "200"
+      ],
+      "command": {
+        "type": "wait",
+        "milliseconds": 200
+      }
+    },
+    {
+      "line": 15,
+      "args": [
+        "get",
+        "text",
+        "#log"
+      ],
+      "command": {
+        "type": "read",
+        "what": "text",
+        "target": {
+          "kind": "css",
+          "value": "#log"
+        }
+      }
+    },
+    {
+      "line": 16,
+      "args": [
+        "find",
+        "first",
+        "li",
+        "text"
+      ],
+      "command": {
+        "type": "read",
+        "what": "text",
+        "target": {
+          "kind": "css",
+          "value": "li",
+          "index": 0
+        }
+      }
+    },
+    {
+      "line": 17,
+      "args": [
+        "find",
+        "last",
+        "li",
+        "text"
+      ],
+      "command": {
+        "type": "read",
+        "what": "text",
+        "target": {
+          "kind": "css",
+          "value": "li",
+          "index": -1
+        }
+      }
+    },
+    {
+      "line": 18,
+      "args": [
+        "find",
+        "nth",
+        "1",
+        "li",
+        "text"
+      ],
+      "command": {
+        "type": "read",
+        "what": "text",
+        "target": {
+          "kind": "css",
+          "value": "li",
+          "index": 1
+        }
+      }
+    },
+    {
+      "line": 19,
+      "args": [
+        "get",
+        "box",
+        "#box"
+      ],
+      "command": {
+        "type": "read",
+        "what": "box",
+        "target": {
+          "kind": "css",
+          "value": "#box"
+        }
+      }
+    },
+    {
+      "line": 20,
+      "args": [
+        "drag",
+        "#drag-me",
+        "#drop"
+      ],
+      "command": {
+        "type": "drag",
+        "source": {
+          "kind": "css",
+          "value": "#drag-me"
+        },
+        "target": {
+          "kind": "css",
+          "value": "#drop"
+        }
+      }
+    },
+    {
+      "line": 21,
+      "args": [
+        "get",
+        "text",
+        "#log"
+      ],
+      "command": {
+        "type": "read",
+        "what": "text",
+        "target": {
+          "kind": "css",
+          "value": "#log"
+        }
+      }
+    },
+    {
+      "line": 22,
+      "args": [
+        "upload",
+        "#file",
+        "files/note.txt"
+      ],
+      "command": {
+        "type": "act",
+        "action": "upload",
+        "target": {
+          "kind": "css",
+          "value": "#file"
+        },
+        "values": [
+          "files/note.txt"
+        ]
+      }
+    },
+    {
+      "line": 23,
+      "args": [
+        "get",
+        "text",
+        "#log"
+      ],
+      "command": {
+        "type": "read",
+        "what": "text",
+        "target": {
+          "kind": "css",
+          "value": "#log"
+        }
+      }
+    },
+    {
+      "line": 24,
+      "args": [
+        "scrollintoview",
+        "#bottom"
+      ],
+      "command": {
+        "type": "act",
+        "action": "scrollintoview",
+        "target": {
+          "kind": "css",
+          "value": "#bottom"
+        }
+      }
+    },
+    {
+      "line": 25,
+      "args": [
+        "scroll",
+        "up",
+        "100"
+      ],
+      "command": {
+        "type": "scroll",
+        "direction": "up",
+        "pixels": 100
+      }
+    },
+    {
+      "line": 26,
+      "args": [
+        "set",
+        "geo",
+        "52.37",
+        "4.89"
+      ],
+      "command": {
+        "type": "set",
+        "setting": "geo",
+        "latitude": 52.37,
+        "longitude": 4.89
+      }
+    },
+    {
+      "line": 27,
+      "args": [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Where am I"
+      ],
+      "command": {
+        "type": "act",
+        "action": "click",
+        "target": {
+          "kind": "role",
+          "value": "button",
+          "name": "Where am I"
+        }
+      }
+    },
+    {
+      "line": 28,
+      "args": [
+        "wait",
+        "500"
+      ],
+      "command": {
+        "type": "wait",
+        "milliseconds": 500
+      }
+    },
+    {
+      "line": 29,
+      "args": [
+        "get",
+        "text",
+        "#log"
+      ],
+      "command": {
+        "type": "read",
+        "what": "text",
+        "target": {
+          "kind": "css",
+          "value": "#log"
+        }
+      }
+    },
+    {
+      "line": 30,
+      "args": [
+        "set",
+        "offline",
+        "on"
+      ],
+      "command": {
+        "type": "set",
+        "setting": "offline",
+        "offline": true
+      }
+    },
+    {
+      "line": 31,
+      "args": [
+        "set",
+        "offline",
+        "off"
+      ],
+      "command": {
+        "type": "set",
+        "setting": "offline",
+        "offline": false
+      }
+    },
+    {
+      "line": 32,
+      "args": [
+        "snapshot",
+        "-u",
+        "-c",
+        "-s",
+        "a[href]"
+      ],
+      "command": {
+        "type": "snapshot",
+        "compact": true,
+        "urls": true,
+        "selector": "a[href]"
+      }
+    },
+    {
+      "line": 33,
+      "args": [
+        "find",
+        "role",
+        "link",
+        "click",
+        "--name",
+        "To about"
+      ],
+      "command": {
+        "type": "act",
+        "action": "click",
+        "target": {
+          "kind": "role",
+          "value": "link",
+          "name": "To about"
+        }
+      }
+    },
+    {
+      "line": 34,
+      "args": [
+        "wait",
+        "--url",
+        "**/about.html?from=more"
+      ],
+      "command": {
+        "type": "wait",
+        "url": "**/about.html?from=more"
+      }
+    },
+    {
+      "line": 35,
+      "args": [
+        "wait",
+        "--load",
+        "networkidle"
+      ],
+      "command": {
+        "type": "wait",
+        "loadState": "networkidle"
+      }
+    },
+    {
+      "line": 36,
+      "args": [
+        "get",
+        "url"
+      ],
+      "command": {
+        "type": "read",
+        "what": "url"
+      }
+    },
+    {
+      "line": 37,
+      "args": [
+        "set",
+        "device",
+        "iPhone 15"
+      ],
+      "command": {
+        "type": "set",
+        "setting": "device",
+        "device": "iPhone 15"
+      }
+    },
+    {
+      "line": 38,
+      "args": [
+        "get",
+        "title"
+      ],
+      "command": {
+        "type": "read",
+        "what": "title"
+      }
+    }
+  ]
+}
