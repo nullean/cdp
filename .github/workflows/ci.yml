@@ -38,6 +38,10 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
 
+      # What would be published: the compiled package and nothing else (no sources, tests or lockfile).
+      - name: Pack (dry run)
+        run: npm pack --dry-run
+
       # The parser is checked against the .NET one (fixtures and the JSON `cdp parse` prints) and the runner against a
       # real Chrome; the Linux runner has Chrome installed.
       - name: Test
@@ -301,3 +305,61 @@ jobs:
           gh release create "$GITHUB_REF_NAME" packages/*.nupkg --repo "$GITHUB_REPOSITORY" --verify-tag $pre \
             --title "$GITHUB_REF_NAME" --generate-notes \
             --notes "Packages: https://www.nuget.org/packages?q=Nullean.Cdp"
+
+  # The npm package is published like the NuGet ones: only from a manual run on a tag, in the `release` environment,
+  # through trusted publishing (the workflow's OIDC token; no token is stored). The tag gives the version.
+  publish-npm:
+    if: github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/')
+    needs: [build, journeys-js]
+    runs-on: ubuntu-latest
+    name: Publish @nullean/journeys to npm
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: read
+      id-token: write   # trusted publishing: npm exchanges the workflow's OIDC token for a short-lived publish credential
+    defaults:
+      run:
+        working-directory: js/journeys
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm 11.5.1 or later.
+      - name: Check npm supports trusted publishing
+        shell: bash
+        run: |
+          v="$(npm --version)"
+          echo "npm $v"
+          [ "$(printf '%s\n' 11.5.1 "$v" | sort -V | head -n1)" = "11.5.1" ] || { echo "::error::npm $v is older than 11.5.1"; exit 1; }
+
+      - run: npm ci
+
+      # package.json keeps a placeholder version; the tag is the version (0.1.0, 0.2.0-beta.1).
+      - name: Version from the tag
+        shell: bash
+        run: npm pkg set version="${GITHUB_REF_NAME}"
+
+      - run: npm run build
+      - run: npm test
+        env:
+          CDP_BROWSER_REQUIRED: "1"
+
+      # A re-run on the same tag must not fail because the version is already there.
+      - name: Publish
+        shell: bash
+        run: |
+          name="$(npm pkg get name | tr -d '"')"
+          if npm view "$name@${GITHUB_REF_NAME}" version >/dev/null 2>&1; then
+            echo "$name@${GITHUB_REF_NAME} is already on npm; nothing to publish."
+            exit 0
+          fi
+          tag=latest
+          case "$GITHUB_REF_NAME" in *-*) tag=next ;; esac
+          # Provenance is automatic with trusted publishing from a public repository.
+          npm publish --access public --tag "$tag"

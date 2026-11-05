@@ -411,6 +411,14 @@ for the tag (`gh release create --generate-notes`, notes from the pull requests 
 packages attached, a `-` version marked as a prerelease); the job needs `contents: write` for it. Versions stay 0.x
 until the owner says otherwise.
 
+`@nullean/journeys` (js/journeys) goes out in the same manual run, as the `publish-npm` job: same `release` environment,
+no stored token, npm trusted publishing (`id-token: write`; npm 11.5.1 or later, checked; provenance is automatic for a
+public repository). The tag is the version (`npm pkg set version`; package.json keeps a placeholder), a `-` version
+publishes under the `next` dist-tag, and a version already on npm is skipped so a re-run is safe. The trusted publisher
+(organisation `nullean`, repository `cdp`, workflow `ci.yml`, environment `release`, direct `npm publish` allowed) is
+configured on npmjs.com, and only exists for a package that already has a first version, so that first version is
+published by hand by the owner.
+
 ## Documentation
 
 - **Built like nullean/snapshots':** a `docs/` docset built by the `elastic/docs-builder` action with the
