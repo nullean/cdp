@@ -1,7 +1,8 @@
 # Journeys
 
 A journey is a text file of agent-browser commands, one per line. Agents explore a site with agent-browser and write
-down the steps that matter; the file then runs unchanged in agent-browser, in `dotnet test` and with `cdp run`.
+down the steps that matter; the file then runs unchanged in agent-browser, in `dotnet test` and with `cdp run`, and on [Playwright and Elastic
+Synthetics](playwright.md) through the `@nullean/journeys` npm package.
 
 ## The file
 

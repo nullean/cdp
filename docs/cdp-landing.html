@@ -12,7 +12,7 @@
 <meta property="og:type" content="website"/>
 <meta property="og:url" content="https://cdp.nullean.net/"/>
 <meta property="og:title" content="Nullean.Cdp — Drive Chrome from .NET"/>
-<meta property="og:description" content="Drive Chrome from .NET over the DevTools Protocol, and share synthetic journeys written in agent-browser's language."/>
+<meta property="og:description" content="Drive Chrome from .NET over the DevTools Protocol, and share synthetic journeys written in agent-browser's language, in .NET, Playwright and Elastic Synthetics."/>
 <meta property="og:image" content="https://cdp.nullean.net/images/brand/png/social-card.png"/>
 <meta property="og:image:width" content="1280"/>
 <meta property="og:image:height" content="640"/>
@@ -218,8 +218,8 @@
       <h1>Drive Chrome from .NET. <em>Share the journeys.</em></h1>
       <p class="lead">
         A small DevTools Protocol client with no dependencies beyond the BCL, and <em>synthetic journeys</em>: plain
-        text files in agent-browser's command language that replay in agent-browser, in <code>dotnet test</code> and
-        from the <code>cdp</code> command line. Screenshots, accessibility audits, Web Vitals, link checks and HAR
+        text files in agent-browser's command language that replay in agent-browser, in <code>dotnet test</code>, on
+        Playwright and Elastic Synthetics, and from the <code>cdp</code> command line. Screenshots, accessibility audits, Web Vitals, link checks and HAR
         recording are one line each.
       </p>
       <div class="actions">
@@ -456,6 +456,36 @@ Console.Write(<span class="t-dim">await</span> page.SnapshotAsync(<span class="t
   </div>
 </section>
 
+<section class="band" id="playwright">
+  <div class="wrap two">
+    <div>
+      <h2>Also on Playwright and Elastic Synthetics</h2>
+      <p class="sub">
+        The same journey file runs as a step-by-step Playwright Test or as a Synthetics browser monitor, through the
+        <code>@nullean/journeys</code> npm package. Its parser is tested against the .NET one, so a journey that parses
+        here parses there. <a href="journeys/playwright/">What is the same, and what is not</a>
+      </p>
+      <div class="panel">
+        <div class="panel-bar">● ● ●<span>install</span></div>
+<pre><span class="t-dim">npm install</span> @nullean/journeys</pre>
+      </div>
+    </div>
+    <div class="panel" aria-label="Elastic Synthetics example">
+      <div class="panel-bar">● ● ●<span>checkout.journey.ts</span></div>
+<pre><span class="t-dim">import</span> { journey, step } <span class="t-dim">from</span> <span class="t-add">'@elastic/synthetics'</span>;
+<span class="t-dim">import</span> { journeySteps } <span class="t-dim">from</span> <span class="t-add">'@nullean/journeys/synthetics'</span>;
+
+journey(<span class="t-add">'checkout'</span>, ({ page, params }) =&gt;
+  journeySteps({ page, step, params }, <span class="t-add">`
+    open /
+    find label Search fill lamp
+    find role button click --name Search --exact
+    get text #count
+  `</span>, { baseUrl: params.url }));</pre>
+    </div>
+  </div>
+</section>
+
 </main>
 
 <footer>
@@ -465,6 +495,7 @@ Console.Write(<span class="t-dim">await</span> page.SnapshotAsync(<span class="t
       <a class="icon-link" href="getting-started/"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.743 3.743 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.75l-.004 7.322a3.752 3.752 0 0 1 1.992-.572H14.5v-9h-3.495a2.25 2.25 0 0 0-2.25 2.25Z"/></svg> Docs</a>
       <a class="icon-link" href="https://github.com/nullean/cdp"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg> GitHub</a>
       <a href="https://www.nuget.org/packages?q=Nullean.Cdp">NuGet</a>
+      <a href="https://www.npmjs.com/package/@nullean/journeys">npm</a>
     </span>
   </div>
 </footer>

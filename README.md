@@ -5,7 +5,8 @@ locators, and read the accessibility tree. Native AOT and trim clean, with no de
 
 It is the browser underneath *synthetic journeys*: plain text files written in agent-browser's command language that
 replay in agent-browser, in `dotnet test` (with [Nullean.Snapshots](https://github.com/nullean/snapshots)) and from
-a command line tool.
+a command line tool. The npm package [`@nullean/journeys`](https://www.npmjs.com/package/@nullean/journeys) runs the same
+journeys on Playwright Test and Elastic Synthetics (see `js/journeys`).
 
 ```
 # Get started from the landing page
