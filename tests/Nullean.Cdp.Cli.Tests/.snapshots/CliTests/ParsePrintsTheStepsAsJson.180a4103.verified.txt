@@ -480,6 +480,496 @@
           "value": "#hello"
         }
       }
+    },
+    {
+      "line": 36,
+      "args": [
+        "expect",
+        "visible",
+        "#go"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "visible",
+        "target": {
+          "kind": "css",
+          "value": "#go"
+        }
+      }
+    },
+    {
+      "line": 37,
+      "args": [
+        "expect",
+        "--not",
+        "hidden",
+        "find",
+        "role",
+        "button",
+        "--name",
+        "Save",
+        "--exact"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "hidden",
+        "target": {
+          "kind": "role",
+          "value": "button",
+          "name": "Save",
+          "exact": true
+        },
+        "not": true
+      }
+    },
+    {
+      "line": 38,
+      "args": [
+        "expect",
+        "enabled",
+        "#go"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "enabled",
+        "target": {
+          "kind": "css",
+          "value": "#go"
+        }
+      }
+    },
+    {
+      "line": 39,
+      "args": [
+        "expect",
+        "disabled",
+        "#off"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "disabled",
+        "target": {
+          "kind": "css",
+          "value": "#off"
+        }
+      }
+    },
+    {
+      "line": 40,
+      "args": [
+        "expect",
+        "checked",
+        "find",
+        "label",
+        "Newsletter"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "checked",
+        "target": {
+          "kind": "label",
+          "value": "Newsletter"
+        }
+      }
+    },
+    {
+      "line": 41,
+      "args": [
+        "expect",
+        "unchecked",
+        "#plain"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "unchecked",
+        "target": {
+          "kind": "css",
+          "value": "#plain"
+        }
+      }
+    },
+    {
+      "line": 42,
+      "args": [
+        "expect",
+        "focused",
+        "#name"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "focused",
+        "target": {
+          "kind": "css",
+          "value": "#name"
+        }
+      }
+    },
+    {
+      "line": 43,
+      "args": [
+        "expect",
+        "editable",
+        "#name"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "editable",
+        "target": {
+          "kind": "css",
+          "value": "#name"
+        }
+      }
+    },
+    {
+      "line": 44,
+      "args": [
+        "expect",
+        "attached",
+        "#hidden"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "attached",
+        "target": {
+          "kind": "css",
+          "value": "#hidden"
+        }
+      }
+    },
+    {
+      "line": 45,
+      "args": [
+        "expect",
+        "empty",
+        "#blank"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "empty",
+        "target": {
+          "kind": "css",
+          "value": "#blank"
+        }
+      }
+    },
+    {
+      "line": 46,
+      "args": [
+        "expect",
+        "text",
+        "#count",
+        "2 results"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "text",
+        "target": {
+          "kind": "css",
+          "value": "#count"
+        },
+        "expected": "2 results"
+      }
+    },
+    {
+      "line": 47,
+      "args": [
+        "expect",
+        "text",
+        "#count",
+        "results",
+        "--contains",
+        "--ignore-case",
+        "--inner-text"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "text",
+        "target": {
+          "kind": "css",
+          "value": "#count"
+        },
+        "expected": "results",
+        "match": "contains",
+        "ignoreCase": true,
+        "innerText": true
+      }
+    },
+    {
+      "line": 48,
+      "args": [
+        "expect",
+        "text",
+        "find",
+        "role",
+        "heading",
+        "--name",
+        "Actions",
+        "Actions"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "text",
+        "target": {
+          "kind": "role",
+          "value": "heading",
+          "name": "Actions"
+        },
+        "expected": "Actions"
+      }
+    },
+    {
+      "line": 49,
+      "args": [
+        "expect",
+        "text",
+        "#count",
+        "^\\d+ results$",
+        "--regex"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "text",
+        "target": {
+          "kind": "css",
+          "value": "#count"
+        },
+        "expected": "^\\d+ results$",
+        "match": "regex"
+      }
+    },
+    {
+      "line": 50,
+      "args": [
+        "expect",
+        "value",
+        "#name",
+        "Ada"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "value",
+        "target": {
+          "kind": "css",
+          "value": "#name"
+        },
+        "expected": "Ada"
+      }
+    },
+    {
+      "line": 51,
+      "args": [
+        "expect",
+        "attr",
+        "#name",
+        "placeholder"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "attribute",
+        "target": {
+          "kind": "css",
+          "value": "#name"
+        },
+        "name": "placeholder"
+      }
+    },
+    {
+      "line": 52,
+      "args": [
+        "expect",
+        "attr",
+        "#name",
+        "data-state",
+        "ready",
+        "--contains"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "attribute",
+        "target": {
+          "kind": "css",
+          "value": "#name"
+        },
+        "name": "data-state",
+        "expected": "ready",
+        "match": "contains"
+      }
+    },
+    {
+      "line": 53,
+      "args": [
+        "expect",
+        "class",
+        "#go",
+        "primary big"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "class",
+        "target": {
+          "kind": "css",
+          "value": "#go"
+        },
+        "expected": "primary big"
+      }
+    },
+    {
+      "line": 54,
+      "args": [
+        "expect",
+        "class",
+        "#go",
+        "big",
+        "--contains"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "class",
+        "target": {
+          "kind": "css",
+          "value": "#go"
+        },
+        "expected": "big",
+        "match": "contains"
+      }
+    },
+    {
+      "line": 55,
+      "args": [
+        "expect",
+        "count",
+        "li",
+        "3"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "count",
+        "target": {
+          "kind": "css",
+          "value": "li"
+        },
+        "count": 3
+      }
+    },
+    {
+      "line": 56,
+      "args": [
+        "expect",
+        "--timeout",
+        "1500",
+        "visible",
+        "find",
+        "first",
+        "li"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "visible",
+        "target": {
+          "kind": "css",
+          "value": "li",
+          "index": 0
+        },
+        "timeoutMs": 1500
+      }
+    },
+    {
+      "line": 57,
+      "args": [
+        "expect",
+        "text",
+        "find",
+        "nth",
+        "2",
+        "li",
+        "Three"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "text",
+        "target": {
+          "kind": "css",
+          "value": "li",
+          "index": 2
+        },
+        "expected": "Three"
+      }
+    },
+    {
+      "line": 58,
+      "args": [
+        "expect",
+        "value",
+        "#pw",
+        "$env:SHOP_PASSWORD"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "value",
+        "target": {
+          "kind": "css",
+          "value": "#pw"
+        },
+        "expected": "$env:SHOP_PASSWORD"
+      }
+    },
+    {
+      "line": 59,
+      "args": [
+        "expect",
+        "title",
+        "Loaded"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "title",
+        "expected": "Loaded"
+      }
+    },
+    {
+      "line": 60,
+      "args": [
+        "expect",
+        "title",
+        "Load",
+        "--contains"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "title",
+        "expected": "Load",
+        "match": "contains"
+      }
+    },
+    {
+      "line": 61,
+      "args": [
+        "expect",
+        "url",
+        "**/about.html"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "url",
+        "expected": "**/about.html"
+      }
+    },
+    {
+      "line": 62,
+      "args": [
+        "expect",
+        "--not",
+        "url",
+        "**/error",
+        "--ignore-case"
+      ],
+      "command": {
+        "type": "expect",
+        "matcher": "url",
+        "expected": "**/error",
+        "not": true,
+        "ignoreCase": true
+      }
     }
   ]
 }

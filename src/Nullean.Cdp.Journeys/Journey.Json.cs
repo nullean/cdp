@@ -183,6 +183,23 @@ public sealed partial class Journey
 				WriteFlag(json, "urls", c.Options.Urls);
 				WriteOptional(json, "selector", c.Options.Selector);
 				break;
+			case ExpectCommand c:
+				json.WriteString("type", "expect");
+				json.WriteString("matcher", c.Matcher.Kind.ToString().ToLowerInvariant());
+				if (c.Target is { } expectTarget)
+					WriteTarget(json, "target", expectTarget);
+				WriteOptional(json, "name", c.Matcher.Name);
+				WriteOptional(json, "expected", c.Matcher.Expected);
+				if (c.Matcher.Number is { } number)
+					json.WriteNumber("count", number);
+				if (c.Matcher.Match != TextMatch.Exact)
+					json.WriteString("match", c.Matcher.Match.ToString().ToLowerInvariant());
+				WriteFlag(json, "not", c.Options.Negate);
+				WriteFlag(json, "ignoreCase", c.Options.IgnoreCase);
+				WriteFlag(json, "innerText", c.Options.UseInnerText);
+				if (c.Options.Timeout is { } timeout)
+					json.WriteNumber("timeoutMs", (int)timeout.TotalMilliseconds);
+				break;
 			case ReadCommand c:
 				json.WriteString("type", "read");
 				json.WriteString("what", c.What);

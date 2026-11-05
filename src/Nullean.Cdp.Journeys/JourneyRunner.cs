@@ -317,6 +317,9 @@ public static class JourneyRunner
 				return (await page.SnapshotAsync(snapshot.Options, ct).ConfigureAwait(false)).TrimEnd('\n');
 			case ReadCommand read:
 				return await ReadAsync(read, page, ct).ConfigureAwait(false);
+			case ExpectCommand expect:
+				await ExpectAsync(expect, page, run.Secrets, ct).ConfigureAwait(false);
+				return null;
 			default:
 				throw new InvalidOperationException($"No runner for {step.Command.GetType().Name}.");
 		}
@@ -516,6 +519,17 @@ public static class JourneyRunner
 			default:
 				throw new InvalidOperationException($"No runner for action {act.Action}.");
 		}
+	}
+
+	// A passing assertion records nothing; a failing one fails the step with the assertion's own message.
+	private static async Task ExpectAsync(ExpectCommand expect, Page page, JourneySecrets secrets, CancellationToken ct)
+	{
+		var matcher = expect.Matcher.Expected is { } text ? expect.Matcher with { Expected = secrets.Resolve(text) } : expect.Matcher;
+		var result = expect.Target is { } target
+			? await target.On(page).CheckAsync(matcher, expect.Options, ct).ConfigureAwait(false)
+			: await page.CheckAsync(matcher, expect.Options, ct).ConfigureAwait(false);
+		if (!result.Passed)
+			throw new ExpectationException(result);
 	}
 
 	private static async Task<string> ReadAsync(ReadCommand read, Page page, CancellationToken ct)

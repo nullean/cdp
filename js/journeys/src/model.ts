@@ -58,7 +58,26 @@ export type Command =
   | { type: 'scroll'; direction: string; pixels: number; within?: Target }
   | { type: 'keyboard'; mode: string; text: string }
   | { type: 'snapshot'; compact?: true; interactive?: true; depth?: number; urls?: true; selector?: string }
-  | { type: 'read'; what: string; target?: Target; attribute?: string };
+  | { type: 'read'; what: string; target?: Target; attribute?: string }
+  | {
+      type: 'expect';
+      matcher: ExpectMatcher;
+      target?: Target;
+      /** The attribute's name, for `attribute`. */
+      name?: string;
+      expected?: string;
+      /** The number for `count`. */
+      count?: number;
+      match?: 'contains' | 'regex';
+      not?: true;
+      ignoreCase?: true;
+      innerText?: true;
+      timeoutMs?: number;
+    };
+
+export type ExpectMatcher =
+  | 'visible' | 'hidden' | 'enabled' | 'disabled' | 'checked' | 'unchecked' | 'focused' | 'editable' | 'attached' | 'empty'
+  | 'text' | 'value' | 'attribute' | 'class' | 'count' | 'title' | 'url';
 
 export interface Step {
   /** 1-based line in the journey file. */

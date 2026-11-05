@@ -87,6 +87,45 @@ public class JourneyParseTests
 	}
 
 	[Test]
+	public void ParsesExpect()
+	{
+		var css = (string selector) => new JourneyTarget(LocatorKind.Css, selector);
+		One("expect visible #a").Should().Be(new ExpectCommand(Matcher.Visible, css("#a"), new ExpectOptions()));
+		One("expect --not hidden #a").Should().Be(new ExpectCommand(Matcher.Hidden, css("#a"), new ExpectOptions { Negate = true }));
+		One("expect hidden #a --not").Should().Be(new ExpectCommand(Matcher.Hidden, css("#a"), new ExpectOptions { Negate = true }));
+		One("expect --timeout 1500 enabled #a").Should().Be(new ExpectCommand(Matcher.Enabled, css("#a"), new ExpectOptions { Timeout = TimeSpan.FromMilliseconds(1500) }));
+		One("expect text #count \"2 results\"").Should().Be(new ExpectCommand(Matcher.Text("2 results"), css("#count"), new ExpectOptions()));
+		One("expect text #count results --contains --ignore-case --inner-text").Should().Be(
+			new ExpectCommand(Matcher.Text("results", TextMatch.Contains), css("#count"), new ExpectOptions { IgnoreCase = true, UseInnerText = true }));
+		// Quoted, so the backslash is the regular expression's: unquoted, a backslash escapes the next character.
+		One("expect text #count '^\\d+' --regex").Should().Be(new ExpectCommand(Matcher.Text("^\\d+", TextMatch.Regex), css("#count"), new ExpectOptions()));
+		One("expect text #count \"^\\d+\" --regex").Should().Be(new ExpectCommand(Matcher.Text("^\\d+", TextMatch.Regex), css("#count"), new ExpectOptions()));
+		One("expect text #count ^\\d+ --regex").Should().Be(new ExpectCommand(Matcher.Text("^d+", TextMatch.Regex), css("#count"), new ExpectOptions()));
+		One("expect value #name Ada").Should().Be(new ExpectCommand(Matcher.Value("Ada"), css("#name"), new ExpectOptions()));
+		One("expect attr #name placeholder").Should().Be(new ExpectCommand(Matcher.Attribute("placeholder"), css("#name"), new ExpectOptions()));
+		One("expect attr #name placeholder Name --contains").Should().Be(new ExpectCommand(Matcher.Attribute("placeholder", "Name", TextMatch.Contains), css("#name"), new ExpectOptions()));
+		One("expect class #go \"primary big\"").Should().Be(new ExpectCommand(Matcher.Class("primary big"), css("#go"), new ExpectOptions()));
+		One("expect count li 3").Should().Be(new ExpectCommand(Matcher.Count(3), css("li"), new ExpectOptions()));
+		One("expect title Loaded").Should().Be(new ExpectCommand(Matcher.Title("Loaded"), null, new ExpectOptions()));
+		One("expect url \"**/about.html\"").Should().Be(new ExpectCommand(Matcher.Url("**/about.html"), null, new ExpectOptions()));
+		One("expect visible find role button --name Save --exact").Should().Be(
+			new ExpectCommand(Matcher.Visible, new JourneyTarget(LocatorKind.Role, "button", "Save", true), new ExpectOptions()));
+		One("expect text find label Email \"a@b.c\"").Should().Be(
+			new ExpectCommand(Matcher.Text("a@b.c"), new JourneyTarget(LocatorKind.Label, "Email"), new ExpectOptions()));
+		One("expect visible find last li").Should().Be(new ExpectCommand(Matcher.Visible, css("li") with { Index = -1 }, new ExpectOptions()));
+		One("expect text find nth 2 li Two").Should().Be(new ExpectCommand(Matcher.Text("Two"), css("li") with { Index = 2 }, new ExpectOptions()));
+		One("expect value #pw $env:PW").Should().Be(new ExpectCommand(Matcher.Value("$env:PW"), css("#pw"), new ExpectOptions()));
+	}
+
+	[Test]
+	public void AnExpectCommandIsNotACheckpoint() =>
+		One("expect visible #a").IsCheckpoint.Should().BeFalse();
+
+	[Test]
+	public void AnInvalidRegularExpressionIsAParseError() =>
+		Error("expect text #a ( --regex").Should().StartWith("x.journey:1: '(' is not a valid regular expression: ");
+
+	[Test]
 	public void ParsesFindFirstLastAndNth()
 	{
 		One("find first \"nav a\" text").Should().Be(new ReadCommand("text", new JourneyTarget(LocatorKind.Css, "nav a", Index: 0)));
@@ -127,7 +166,7 @@ public class JourneyParseTests
 	[Test]
 	public void EveryErrorIsReportedWithItsLine() =>
 		Error("open /\npdf a.pdf\nfill #q\nfind nth li\nclick \"open").Should().Be(
-			"x.journey:2: 'pdf' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, links, screenshot, a11y, timings, vitals, metrics, is.\n" +
+			"x.journey:2: 'pdf' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, links, screenshot, a11y, timings, vitals, metrics, is, expect.\n" +
 			"x.journey:3: usage: fill <selector> <text>\n" +
 			"x.journey:4: usage: find nth <n> <selector> [action] [text]\n" +
 			"x.journey:5: the double quote is not closed");
@@ -209,6 +248,11 @@ public class JourneyParseTests
 	public void ExportTranslatesOurChecks() =>
 		Journey.Parse("open https://x.test/\nlinks --strict\nnetwork requests --failed --strict\nnetwork requests --status 5xx --failed\nscreenshot #box box.png").ToAgentBrowserBatch()
 			.Should().Be("[[\"open\",\"https://x.test/\"],[\"network\",\"requests\",\"--status\",\"400-599\"],[\"network\",\"requests\",\"--status\",\"5xx\"],[\"screenshot\",\"#box\",\"box.png\"]]\n");
+
+	[Test]
+	public void ExportLeavesAssertionsOutBecauseAgentBrowserHasNone() =>
+		Journey.Parse("open https://x.test/\nexpect visible #a\nexpect title Home\nget title").ToAgentBrowserBatch()
+			.Should().Be("[[\"open\",\"https://x.test/\"],[\"get\",\"title\"]]\n");
 
 	[Test]
 	public void ExportKeepsA11yWithoutStrict() =>

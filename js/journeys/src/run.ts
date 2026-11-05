@@ -348,6 +348,9 @@ export class JourneyRun {
         return { text: (await page.locator(c.selector ?? 'body').first().ariaSnapshot()).trimEnd(), kind: 'aria' };
       }
       case 'read': return { text: await this.read(c) };
+      case 'expect':
+        // Never skipped silently: an assertion that does not run is worse than one that fails.
+        throw new StepError('expect is not supported by this version of @nullean/journeys yet.');
     }
   }
 

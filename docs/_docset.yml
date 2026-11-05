@@ -27,6 +27,7 @@ toc:
       - file: locators.md
       - file: reading.md
       - file: checks.md
+      - file: assertions.md
       - file: performance.md
       - file: network.md
   - folder: cli
