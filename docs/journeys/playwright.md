@@ -15,33 +15,36 @@ nothing from .NET.
 ## Playwright Test
 
 ```ts
-import { readFileSync } from 'node:fs';
 import { test } from '@playwright/test';
 import { journeySteps } from '@nullean/journeys/test';
 
 test('checkout', ({ page }) =>
-  journeySteps(page, readFileSync('journeys/checkout.journey', 'utf8'), {
-    baseUrl: 'http://localhost:5000/',
-    source: 'journeys/checkout.journey',
-  }));
+  journeySteps(page, `
+    open /
+    find label Search fill lamp
+    find role button click --name Search --exact
+    expect text #count "1 result"
+  `, { baseUrl: 'http://localhost:5000/', source: 'checkout.journey' }));
 ```
 
 Each journey line is a `test.step`, named as the normalised line, so the report reads like the file. A failing step
-fails the test at that step. `journeySteps` returns the checkpoints (what each read returned).
+fails the test at that step. `journeySteps` returns the checkpoints (what each read returned). The journey can as well
+come from a file: `readFileSync('journeys/checkout.journey', 'utf8')`. [`expect` lines](#assertions) use Playwright
+Test's own `expect`.
 
 ## Elastic Synthetics
 
 ```ts
 // checkout.journey.ts
-import { journey, step } from '@elastic/synthetics';
+import { expect, journey, step } from '@elastic/synthetics';
 import { journeySteps } from '@nullean/journeys/synthetics';
 
 journey('checkout', ({ page, params }) =>
-  journeySteps({ page, step, params }, `
+  journeySteps({ page, step, params, expect }, `
     open /
     find label Search fill lamp
     find role button click --name Search --exact
-    get text #count
+    expect text #count "1 result"
   `, { baseUrl: params.url }));
 ```
 
@@ -53,9 +56,36 @@ Each line is a Synthetics `step()`, so Kibana shows the journey as it was writte
 - **Secrets** (`$env:NAME`) resolve from the journey's `params`, then from the environment. `params.url` above comes
   from `--params` or `synthetics.config.ts`.
 - **`upload` does not work**: Synthetics does not support `setInputFiles` in pushed journeys.
-- Synthetics' own limits apply: bundles over 1500 KB compressed are refused, and so are native modules.
+- Synthetics' own limits apply. Elastic's documentation gives a compressed bundle limit of 800 KB on one page and 1500 KB on
+  another, and rules out native modules.
+- **`expect`** is Playwright's: Synthetics re-exports `@playwright/test`'s `expect`, so pass it in as above. It does not
+  support `toHaveScreenshot` or snapshot assertions, which `expect` lines never use.
 - The adapter is tested against Synthetics' `step` contract with a stand-in. A push to Kibana has not been exercised
   yet.
+
+## Assertions
+
+`expect` lines (see the [command reference](commands.md#expect)) run on Playwright's own assertions when the adapter has
+`expect`, which the Playwright Test adapter always does and the Synthetics adapter does when you pass it. Each matcher is
+the Playwright assertion of the same name: `expect visible #go` is `expect(locator).toBeVisible()`, `expect --not text #n
+"3"` is `.not.toHaveText("3")`, `expect class #go big --contains` is `toContainClass`. Without `expect` (a bare
+`runJourney`) a small built-in fallback checks the same things and reports in Nullean.Cdp's words, so the step fails with
+`Timed out after 5s waiting for css #count to have text "3": received "2 results".` A failure message under Playwright's
+`expect` is Playwright's own, without colour and cut to 14 lines.
+
+```ts
+await runJourney(page, journey, { expect }); // expect from @playwright/test or @elastic/synthetics
+```
+
+The two paths are tested against each other: 96 cases (every matcher, holding and not) run through both and must agree.
+That is how the rule that only `visible`, `hidden`, `attached` and `count` can be asserted about a missing element was
+settled: Playwright's other assertions need the element, even negated, and so do ours.
+
+Still the same on both: the timeout is `--timeout` on the line, else `actionTimeout`, else Playwright's own 5 s; a regular
+expression is JavaScript's here and .NET's in `cdp run`, so keep to syntax both read alike, and quote it (`'^\d+ items$'`);
+`url` takes the `wait --url` glob, turned into a regular expression because Playwright does not document its string form
+as a glob. Not supported: soft assertions, `toPass`, `toHaveScreenshot`, `toMatchAriaSnapshot` (a tree template: the two
+runners print different trees, and Synthetics supports no snapshot assertions).
 
 ## Without a framework
 
@@ -78,6 +108,7 @@ adapters do.
 | `artifactsDir` | where `screenshot` writes; without it screenshot steps are skipped |
 | `journeyDir` | the folder `upload` reads from |
 | `actionTimeout`, `navigationTimeout` | milliseconds; applied to the page when given, Playwright's own otherwise |
+| `expect` | Playwright's `expect`, for `expect` steps; the adapters pass it |
 | `axe` | `(await import('@axe-core/playwright')).AxeBuilder`, for `a11y` |
 | `warn`, `onStep` | called for skipped or different behaviour; before each step |
 

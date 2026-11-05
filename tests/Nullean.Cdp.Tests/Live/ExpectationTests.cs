@@ -67,6 +67,29 @@ public class ExpectationTests(ChromeFixture chrome)
 	}
 
 	[Test]
+	public async Task OnlyVisibilityAttachmentAndCountsCanBeAssertedAboutNothing()
+	{
+		var (context, page) = await OpenAsync();
+		await using var _ = context;
+		var missing = page.Css("#nothing");
+
+		// Playwright's rule: these hold for a missing element, negated or not...
+		await missing.ExpectAsync(Matcher.Hidden);
+		await missing.ExpectAsync(Matcher.Visible, new ExpectOptions { Negate = true });
+		await missing.ExpectAsync(Matcher.Attached, new ExpectOptions { Negate = true });
+		await missing.ExpectAsync(Matcher.Count(0));
+		await missing.ExpectAsync(Matcher.Count(1), new ExpectOptions { Negate = true });
+
+		// ...and every other matcher needs an element, even negated.
+		foreach (var matcher in new[] { Matcher.Enabled, Matcher.Disabled, Matcher.Checked, Matcher.Unchecked, Matcher.Focused, Matcher.Editable, Matcher.Empty, Matcher.Text("x"), Matcher.Value("x"), Matcher.Attribute("x"), Matcher.Class("x") })
+		{
+			var negated = await missing.CheckAsync(matcher, Quick with { Negate = true });
+			negated.Passed.Should().BeFalse($"--not {matcher.Kind} on nothing");
+			negated.Received.Should().Be("no element matches");
+		}
+	}
+
+	[Test]
 	public async Task NegationFailsWhileTheMatcherStillHolds()
 	{
 		var (context, page) = await OpenAsync();

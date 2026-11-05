@@ -29,13 +29,16 @@ by a journey line, by code and by an adapter.
 | Matcher | Holds when |
 |---|---|
 | `Visible`, `Hidden` | the first match is visible; `Hidden` also holds when nothing matches |
-| `Enabled`, `Disabled`, `Checked`, `Unchecked` | the state; `Disabled` and `Unchecked` need an element |
+| `Enabled`, `Disabled`, `Checked`, `Unchecked` | the state |
 | `Focused`, `Editable`, `Attached`, `Empty` | focus, input, in the document, no value or text |
 | `Text(text)`, `Value(text)` | the whole text (whitespace collapsed) or value; `Contains`, `Regex` |
 | `Attribute(name, [text])` | the attribute is present, or has the value |
 | `Class(classes)` | the whole `class` attribute; `Contains`: every class listed |
 | `Count(n)` | exactly `n` matches |
 | `Title(text)`, `Url(glob)` | on a `Page`: `page.ExpectAsync(...)` |
+
+Only `Visible`, `Hidden`, `Attached` and `Count` can be asserted about nothing; every other matcher needs an element, even
+negated, as in Playwright: `Enabled` with `Negate` on a missing element keeps failing (`received no element matches`).
 
 `ExpectOptions` holds the `Timeout` (the page's `ActionTimeout`, 5 s, by default), `Negate`, `IgnoreCase`, `UseInnerText`
 for `Text`, and the `PollInterval`. A negated matcher keeps checking until it stops holding.
