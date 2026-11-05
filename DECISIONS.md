@@ -350,6 +350,14 @@ and where data can go is what holds.
   anything runs) and starts the run lazily in the first step.
 - **Dev dependencies are pinned to exact versions** (`@playwright/test` 1.64.1: 1.55.0 has a high-severity advisory).
   Tests use the installed Chrome (`channel: 'chrome'`), so nothing is downloaded. Not yet published to npm.
+- **`expect` on Playwright uses Playwright's own assertions when it is handed `expect`** (the Playwright Test adapter
+  always, the Synthetics adapter when its context has `expect`, which `@elastic/synthetics` re-exports from
+  `@playwright/test`), and a built-in polling fallback otherwise. The fallback reads the same things as Nullean.Cdp's
+  engine and uses its messages, so a bare `runJourney` works and a failure reads the same as in `cdp run`. The two paths are
+  held together by `test/parity.test.ts`: every matcher, holding and not, through both, which must agree. It found the
+  missing-element rule (see "Assertions"). Under Playwright's `expect` a failure is Playwright's message, colour removed
+  and cut to 14 lines. `url` globs become regular expressions, and `--contains` becomes an escaped one where Playwright
+  takes a string or RegExp; `toMatchAriaSnapshot` is not mapped (Synthetics does not support snapshot assertions).
 
 ## Assertions
 
@@ -365,8 +373,11 @@ and where data can go is what holds.
   `--contains` every class in any order; `count` is exact. Where the docs are silent (value, title, accessible name,
   whitespace in attributes) we compare as written, and the npm package's parity test against Playwright's own `expect` is
   where a difference would show.
-- **Positive and negated forms differ for a missing element on purpose:** `disabled`, `unchecked` and `empty` need an
-  element, `--not enabled` holds when there is none, as Playwright's `toBeDisabled` and `.not.toBeEnabled` do.
+- **Only visibility, attachment and counts can be asserted about nothing:** `visible`, `hidden`, `attached` and `count`
+  (negated or not) hold or fail on a missing element by what they say; every other matcher needs an element, even negated,
+  so `--not enabled` on a missing element keeps failing with `received no element matches`. That is Playwright's rule,
+  found by the npm package's parity test: the first version of this engine let a negation hold for a missing element, and
+  Playwright's own `.not.toBeEnabled()`, `.not.toHaveText()` and the rest failed instead.
 - **`url` takes the `wait --url` glob** (`**` anything, `*` anything but `/`), or `--regex`. Playwright's string form is
   not documented as a glob, so the npm package turns the glob into a regular expression instead of relying on it.
 - **Regular expressions are .NET's here and JavaScript's on Playwright**, without flags (`--ignore-case` instead), so

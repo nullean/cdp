@@ -109,8 +109,9 @@ assertion records nothing, so it changes no verified transcript. The target is a
 | `expect url <glob>` | the URL, as `wait --url`: `**` is anything, `*` anything but `/`; `--regex` for a pattern |
 
 `--not` inverts any of them, and keeps checking until the matcher stops holding. `--contains` and `--regex` apply to
-`text`, `value`, `attr`, `class`, `title` and `url`; `--ignore-case` to `text`, `attr` and `url`. A negated matcher
-about an element (`--not enabled`) holds when nothing matches; the positive `disabled` needs an element.
+`text`, `value`, `attr`, `class`, `title` and `url`; `--ignore-case` to `text`, `attr` and `url`. Only `visible`, `hidden`,
+`attached` and `count` can be asserted about an element that is not there; every other matcher needs one, even negated
+(`--not enabled` on a missing element keeps failing), as in Playwright.
 
 ```text
 expect visible find role heading --name "Your basket"

@@ -31,13 +31,19 @@ internal static partial class Expectations
 		{
 			var observation = await observe(cancellationToken).ConfigureAwait(false);
 			var (matched, received) = Evaluate(matcher, options, observation);
-			if (matched != options.Negate)
+			// Playwright's rule: only visibility, attachment and counts can be asserted about nothing; every other matcher
+			// needs an element, even negated (`--not enabled` on a missing element keeps failing).
+			var passed = (observation.Found || !NeedsElement(matcher.Kind)) && matched != options.Negate;
+			if (passed)
 				return new ExpectationResult(true, subject, matcher.Describe(options.Negate), null, timeout, started.Elapsed);
 			if (started.Elapsed >= timeout)
 				return new ExpectationResult(false, subject, matcher.Describe(options.Negate), received, timeout, started.Elapsed);
 			await Task.Delay(options.PollInterval, cancellationToken).ConfigureAwait(false);
 		}
 	}
+
+	private static bool NeedsElement(MatcherKind kind) =>
+		kind is not (MatcherKind.Visible or MatcherKind.Hidden or MatcherKind.Attached or MatcherKind.Count or MatcherKind.Title or MatcherKind.Url);
 
 	private static void Validate(Matcher matcher)
 	{

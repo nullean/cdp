@@ -3,46 +3,30 @@
 
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createServer } from 'node:http';
-import type { AddressInfo } from 'node:net';
-import { dirname, extname, join, normalize } from 'node:path';
+import { dirname, join } from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright-core';
 import type { Browser } from 'playwright-core';
 import { parseJourney, runJourney } from '../src/index.ts';
+import { launchChrome, siteFolder as site, startSite } from './site.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const site = join(here, '..', '..', '..', 'tests', 'Nullean.Cdp.Tests', 'site');
-const types: Record<string, string> = { '.html': 'text/html', '.txt': 'text/plain', '.png': 'image/png' };
 
 let browser: Browser | undefined;
 let origin = '';
 let skip: string | false = false;
-const server = createServer((req, res) => {
-  const path = normalize(decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname));
-  try {
-    const body = readFileSync(join(site, path.endsWith('/') ? path + 'index.html' : path));
-    res.writeHead(200, { 'content-type': types[extname(path)] ?? 'application/octet-stream' }).end(body);
-  } catch {
-    res.writeHead(404).end('not found');
-  }
-});
+let stopSite = () => {};
 
 before(async () => {
-  await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
-  origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  try {
-    browser = await chromium.launch({ channel: 'chrome' });
-  } catch (e) {
-    if (process.env.CDP_BROWSER_REQUIRED === '1') throw e;
-    skip = `no Chrome for Playwright: ${(e as Error).message.split('\n')[0]}`;
-  }
+  const served = await startSite();
+  origin = served.origin;
+  stopSite = served.stop;
+  ({ browser, skip } = await launchChrome());
 });
 
 after(async () => {
   await browser?.close();
-  server.close();
+  stopSite();
 });
 
 const read = (name: string) => readFileSync(join(site, 'journeys', name), 'utf8');
@@ -119,14 +103,4 @@ test('the synthetics adapter reads secrets from params before the environment', 
 test('an unparsable journey throws when steps are registered, before anything runs', async () => {
   const { journeySteps } = await import('../src/adapters/synthetics.ts');
   assert.throws(() => journeySteps({ page: undefined as never, step: () => {} }, 'open /\nfrobnicate', { source: 'x.journey' }), /x\.journey:2: 'frobnicate' is not supported/);
-});
-
-test('an expect step fails loudly until the runner supports assertions, never silently passes', async (t) => {
-  if (skip) return t.skip(skip);
-  const page = await (await browser!.newContext()).newPage();
-  const journey = parseJourney('open actions.html\nexpect visible #hello\nget title', 'x.journey');
-  const result = await runJourney(page, journey, { baseUrl: origin + '/', warn: () => {} });
-  assert.equal(result.failure?.line, 2);
-  assert.match(result.failure?.message ?? '', /expect is not supported by this version of @nullean\/journeys yet/);
-  assert.equal(result.checkpoints.length, 0);
 });

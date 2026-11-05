@@ -4,12 +4,13 @@
 //
 //   import { journey, step } from '@elastic/synthetics';
 //   import { journeySteps } from '@nullean/journeys/synthetics';
-//   journey('checkout', ({ page, params }) => journeySteps({ page, step, params }, `open /\nclick #buy`, { baseUrl: params.url }));
+//   journey('checkout', ({ page, params }) => journeySteps({ page, step, params, expect }, `open /\nclick #buy`, { baseUrl: params.url }));
 
 import type { Page } from 'playwright-core';
 import { joinLine } from '../commandline.ts';
 import { parseJourney } from '../parse.ts';
 import { JourneyRun } from '../run.ts';
+import type { PlaywrightExpect } from '../expect.ts';
 import type { RunOptions } from '../run.ts';
 
 export interface SyntheticsContext {
@@ -17,6 +18,8 @@ export interface SyntheticsContext {
   step: (name: string, callback: () => void | Promise<void>) => void;
   /** The journey's params: `$env:NAME` resolves from here first, then the process environment. */
   params?: Record<string, unknown>;
+  /** `expect` from `@elastic/synthetics` (it is Playwright's). Without it, `expect` steps use a built-in fallback. */
+  expect?: PlaywrightExpect;
 }
 
 export interface SyntheticsJourneyOptions extends RunOptions {
@@ -31,7 +34,7 @@ export function journeySteps(context: SyntheticsContext, journeyText: string, op
   let started: Promise<JourneyRun> | undefined;
   for (const step of journey.steps) {
     context.step(joinLine(step.args), async () => {
-      started ??= JourneyRun.start(context.page, journey, { ...options, secrets });
+      started ??= JourneyRun.start(context.page, journey, { expect: context.expect, ...options, secrets });
       await (await started).step(step);
     });
   }

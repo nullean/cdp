@@ -9,6 +9,8 @@ import type { BrowserContext, Locator, Page } from 'playwright-core';
 import { joinLine } from './commandline.ts';
 import type { Command, Journey, Step, Target } from './model.ts';
 import { isSecretReference } from './parse.ts';
+import { describeTarget, runExpect } from './expect.ts';
+import type { PlaywrightExpect } from './expect.ts';
 
 export interface RunOptions {
   /** What relative `open` URLs resolve against. */
@@ -29,6 +31,11 @@ export interface RunOptions {
   warn?: (message: string) => void;
   /** Called before each step runs. */
   onStep?: (step: Step) => void;
+  /**
+   * Playwright's `expect` (from `@playwright/test`, or re-exported by `@elastic/synthetics`). `expect` steps use its
+   * assertions; without it a built-in polling fallback checks the same things with Nullean.Cdp's messages.
+   */
+  expect?: PlaywrightExpect;
   /** Accessibility checks with axe need this: `(await import('@axe-core/playwright')).AxeBuilder`. */
   axe?: new (options: { page: Page }) => AxeLike;
 }
@@ -348,10 +355,24 @@ export class JourneyRun {
         return { text: (await page.locator(c.selector ?? 'body').first().ariaSnapshot()).trimEnd(), kind: 'aria' };
       }
       case 'read': return { text: await this.read(c) };
-      case 'expect':
-        // Never skipped silently: an assertion that does not run is worse than one that fails.
-        throw new StepError('expect is not supported by this version of @nullean/journeys yet.');
+      case 'expect': return this.expectStep(c);
     }
+  }
+
+  // A passing assertion records nothing, as in the .NET runner; a failing one fails the step with its message.
+  private async expectStep(c: Extract<Command, { type: 'expect' }>): Promise<undefined> {
+    const target = c.target;
+    const locator = target ? this.locator(target) : undefined;
+    await runExpect(this.options.expect, {
+      page: this.page,
+      command: c.expected === undefined ? c : { ...c, expected: this.secrets.resolve(c.expected) },
+      locator,
+      // `count` counts every match, unless the target already picks one.
+      all: target ? (target.index === undefined ? this.rawLocator(target) : locator) : undefined,
+      subject: target ? describeTarget(target) : c.matcher === 'title' ? 'the page title' : 'the page URL',
+      timeoutMs: c.timeoutMs ?? this.options.actionTimeout,
+    });
+    return undefined;
   }
 
   private async act(c: Extract<Command, { type: 'act' }>): Promise<undefined> {
