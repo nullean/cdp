@@ -17,6 +17,36 @@ permissions:
   contents: read
 
 jobs:
+  journeys-js:
+    runs-on: ubuntu-latest
+    name: "@nullean/journeys (node)"
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: js/journeys
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: js/journeys/package-lock.json
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+
+      # The parser is checked against the .NET one (fixtures and the JSON `cdp parse` prints) and the runner against a
+      # real Chrome; the Linux runner has Chrome installed.
+      - name: Test
+        env:
+          CDP_BROWSER_REQUIRED: "1"
+        run: |
+          npm test
+          npm run test:live
+
   build:
     strategy:
       fail-fast: false
