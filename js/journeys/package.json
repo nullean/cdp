@@ -1,0 +1,35 @@
+{
+  "name": "@nullean/journeys",
+  "version": "0.1.0",
+  "description": "Parse and run Nullean.Cdp journeys (agent-browser commands, one per line) on Playwright: in Playwright Test, or pushed to Elastic Synthetics.",
+  "license": "MIT",
+  "type": "module",
+  "repository": { "type": "git", "url": "git+https://github.com/nullean/cdp.git", "directory": "js/journeys" },
+  "files": ["dist"],
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./test": { "types": "./dist/adapters/test.d.ts", "default": "./dist/adapters/test.js" },
+    "./synthetics": { "types": "./dist/adapters/synthetics.d.ts", "default": "./dist/adapters/synthetics.js" }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test test/*.test.ts",
+    "test:live": "playwright test"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.45",
+    "playwright-core": ">=1.45"
+  },
+  "peerDependenciesMeta": {
+    "@playwright/test": { "optional": true },
+    "playwright-core": { "optional": true }
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.3.0",
+    "playwright-core": "1.64.1",
+    "typescript": "5.9.2"
+  },
+  "engines": { "node": ">=20" }
+}

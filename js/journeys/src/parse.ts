@@ -1,0 +1,508 @@
+// A port of Journey.Parse in Nullean.Cdp.Journeys. It must accept and reject exactly what the .NET parser does, with
+// the same messages: test/conformance.test.ts compares it with the JSON `cdp parse` prints and with
+// tests/Nullean.Cdp.Tests/fixtures/journey-errors.json, which the .NET tests check too.
+
+import { splitLine } from './commandline.ts';
+import {
+  JourneyParseError,
+  type Command,
+  type Journey,
+  type JourneyError,
+  type Step,
+  type Target,
+  type TargetKind,
+} from './model.ts';
+
+class SyntaxError_ extends Error {}
+
+const usage = (text: string) => new SyntaxError_(`usage: ${text}`);
+const fail = (message: string) => new SyntaxError_(message);
+
+// Same order as Nullean.Cdp's Devices, sorted by UTF-16 code unit as the .NET message sorts them.
+export const DEVICES = [
+  'iPhone 12', 'iPhone 13', 'iPhone 14', 'iPhone 15', 'iPhone 15 Pro Max', 'iPhone SE', 'Pixel 5', 'Pixel 7',
+  'Galaxy S9+', 'iPad Mini', 'iPad Pro 11', 'Desktop Chrome',
+];
+
+const SUPPORTED =
+  'allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, links, screenshot, a11y, timings, vitals, metrics, is';
+
+const TIMING_NAMES = ['ttfb', 'first-paint', 'fcp', 'dom-interactive', 'dom-content-loaded', 'load'];
+const VITAL_NAMES = ['ttfb', 'fcp', 'lcp', 'cls', 'inp'];
+
+const HOST_PATTERN = /^(\*|(\*\.)?[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*)$/;
+const SECRET = /^\$env:([A-Za-z_][A-Za-z0-9_]*)$/;
+
+export const isSecretReference = (value: string) => SECRET.test(value);
+
+/** Parses journey text. Every error is reported at once, with its line. */
+export function parseJourney(text: string, source = 'journey'): Journey {
+  const steps: Step[] = [];
+  const errors: JourneyError[] = [];
+  const allow: string[] = [];
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const split = splitLine(lines[i].replace(/\r+$/, ''));
+    if ('error' in split) {
+      errors.push({ line: i + 1, message: split.error });
+      continue;
+    }
+    const args = split.args;
+    if (args.length === 0) continue;
+    if (args[0] === 'allow') {
+      if (args.length === 1) errors.push({ line: i + 1, message: 'usage: allow <host pattern...>, e.g. allow shop.test *.shop.test' });
+      for (const pattern of args.slice(1)) {
+        if (HOST_PATTERN.test(pattern)) allow.push(pattern);
+        else errors.push({ line: i + 1, message: `'${pattern}' is not a host pattern: use a host name, *.domain, or *` });
+      }
+      continue;
+    }
+    try {
+      steps.push({ line: i + 1, args, command: parseCommand(args) });
+    } catch (e) {
+      if (e instanceof SyntaxError_) errors.push({ line: i + 1, message: e.message });
+      else throw e;
+    }
+  }
+  if (errors.length > 0) throw new JourneyParseError(source, errors);
+  return { version: 1, source, allow, steps };
+}
+
+const css = (selector: string): Target => {
+  if (/^@e\d+$/.test(selector))
+    throw fail(
+      `'${selector}' is an agent-browser ref, which changes from run to run; use find role <role> --name <name>, find text, or a CSS selector.`,
+    );
+  return { kind: 'css', value: selector };
+};
+
+const value = (v: string) => {
+  if (v.startsWith('$env:') && !isSecretReference(v))
+    throw fail(`'${v}' is not a secret reference: write $env:NAME with letters, digits and _.`);
+  return v;
+};
+
+const isRooted = (p: string) => p.startsWith('/') || /^[A-Za-z]:[\\/]/.test(p);
+const leavesFolder = (p: string) => isRooted(p) || p.replace(/\\/g, '/').split('/').includes('..');
+
+const uploadPath = (p: string) => {
+  if (leavesFolder(p)) throw fail(`'${p}' must be a path inside the journey's folder, relative to it.`);
+  return p;
+};
+
+const artifactPath = (p: string) => {
+  if (leavesFolder(p)) throw fail(`'${p}' must be a path inside the artifacts folder, relative to it.`);
+  return p;
+};
+
+// int.TryParse(NumberStyles.None): digits only.
+const parseUInt = (s: string): number | undefined => {
+  if (!/^[0-9]+$/.test(s)) return undefined;
+  const n = Number(s);
+  return n <= 2147483647 ? n : undefined;
+};
+// double.TryParse(NumberStyles.Float, InvariantCulture).
+const parseFloat_ = (s: string): number | undefined =>
+  /^\s*[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?\s*$/.test(s) ? Number(s) : undefined;
+
+function parseCommand(a: string[]): Command {
+  const command = a[0];
+  const rest = a.slice(1);
+  switch (command) {
+    case 'open':
+    case 'goto':
+    case 'navigate':
+      if (rest.length !== 1) throw usage('open <url>');
+      return { type: 'open', url: rest[0] };
+    case 'back':
+    case 'forward':
+    case 'reload':
+      if (rest.length !== 0) throw usage(command);
+      return { type: 'history', direction: command };
+    case 'click':
+    case 'dblclick':
+    case 'hover':
+    case 'focus':
+    case 'check':
+    case 'uncheck':
+      if (rest.length !== 1) throw usage(`${command} <selector>`);
+      return { type: 'act', action: command, target: css(rest[0]) };
+    case 'scrollintoview':
+    case 'scrollinto':
+      if (rest.length !== 1) throw usage(`${command} <selector>`);
+      return { type: 'act', action: 'scrollintoview', target: css(rest[0]) };
+    case 'upload':
+      if (rest.length < 2) throw usage('upload <selector> <files...>');
+      return { type: 'act', action: 'upload', target: css(rest[0]), values: rest.slice(1).map(uploadPath) };
+    case 'drag':
+      if (rest.length !== 2) throw usage('drag <source> <target>');
+      return { type: 'drag', source: css(rest[0]), target: css(rest[1]) };
+    case 'scroll':
+      return parseScroll(rest);
+    case 'keyboard':
+      if (rest.length === 2 && (rest[0] === 'type' || rest[0] === 'inserttext'))
+        return { type: 'keyboard', mode: rest[0], text: value(rest[1]) };
+      throw usage('keyboard type|inserttext <text>');
+    case 'fill':
+    case 'type':
+      if (rest.length !== 2) throw usage(`${command} <selector> <text>`);
+      return { type: 'act', action: command, target: css(rest[0]), values: [value(rest[1])] };
+    case 'select':
+      if (rest.length < 2) throw usage('select <selector> <value...>');
+      return { type: 'act', action: command, target: css(rest[0]), values: rest.slice(1).map(value) };
+    case 'press':
+    case 'key':
+      if (rest.length !== 1) throw usage('press <key>');
+      return { type: 'press', keys: rest[0] };
+    case 'find':
+      return parseFind(rest);
+    case 'wait':
+      return parseWait(rest);
+    case 'set':
+      return parseSet(rest);
+    case 'snapshot':
+      return parseSnapshot(rest);
+    case 'get':
+      return parseGet(rest);
+    case 'timings':
+    case 'vitals':
+    case 'metrics':
+      return parsePerformance(command, rest);
+    case 'network':
+      return parseNetwork(rest);
+    case 'a11y':
+      return parseAudit(rest);
+    case 'links':
+      return parseLinks(rest);
+    case 'screenshot':
+      return parseScreenshot(rest);
+    case 'console':
+    case 'errors':
+      if (rest.length === 0) return { type: 'read', what: command };
+      if (rest.length === 1 && rest[0] === '--clear') return { type: 'clearLog', log: command };
+      throw usage(`${command} [--clear]`);
+    case 'is':
+      if (rest.length === 2 && (rest[0] === 'visible' || rest[0] === 'enabled' || rest[0] === 'checked'))
+        return { type: 'read', what: `is ${rest[0]}`, target: css(rest[1]) };
+      throw usage('is visible|enabled|checked <selector>');
+    default:
+      throw fail(`'${command}' is not supported in journeys. Supported: ${SUPPORTED}.`);
+  }
+}
+
+function parseScroll(rest: string[]): Command {
+  let direction = 'down';
+  let pixels = 300;
+  let within: Target | undefined;
+  let positional = 0;
+  for (let i = 0; i < rest.length; i++) {
+    if (rest[i] === '-s' || rest[i] === '--selector') {
+      if (i + 1 >= rest.length) throw fail('-s needs a selector');
+      within = css(rest[++i]);
+      continue;
+    }
+    const amount = parseUInt(rest[i]);
+    if (positional === 0 && ['up', 'down', 'left', 'right'].includes(rest[i])) direction = rest[i];
+    else if (positional <= 1 && amount !== undefined && amount > 0) {
+      pixels = amount;
+      positional = 1;
+    } else throw usage('scroll [up|down|left|right] [pixels] [-s <selector>]');
+    positional++;
+  }
+  return within ? { type: 'scroll', direction, pixels, within } : { type: 'scroll', direction, pixels };
+}
+
+const FIND_USAGE =
+  'find role|text|label|placeholder|alt|title|testid <value> | first|last <selector> | nth <n> <selector> [click|fill|check|hover|text] [text] [--name <name>] [--exact]';
+
+function parseFind(rest: string[]): Command {
+  let name: string | undefined;
+  let exact = false;
+  let positional: string[] = [];
+  for (let i = 0; i < rest.length; i++) {
+    if (rest[i] === '--name') {
+      if (i + 1 >= rest.length) throw fail('--name needs a value');
+      name = rest[++i];
+    } else if (rest[i] === '--exact') exact = true;
+    else positional.push(rest[i]);
+  }
+  if (positional.length < 2) throw usage(FIND_USAGE);
+  const kinds: Record<string, TargetKind> = {
+    role: 'role', text: 'text', label: 'label', placeholder: 'placeholder', alt: 'alt', title: 'title', testid: 'testid',
+    first: 'css', last: 'css', nth: 'css',
+  };
+  const kind = kinds[positional[0]];
+  if (!Object.hasOwn(kinds, positional[0])) throw fail(`unknown locator '${positional[0]}': ${FIND_USAGE}`);
+  if (name !== undefined && kind !== 'role') throw fail('--name only applies to find role');
+
+  let index: number | undefined;
+  if (positional[0] === 'first') index = 0;
+  else if (positional[0] === 'last') index = -1;
+  else if (positional[0] === 'nth') {
+    if (positional.length >= 3 && /^[+-]?\d+$/.test(positional[1])) index = Number(positional[1]);
+    else throw fail('usage: find nth <n> <selector> [action] [text]');
+  }
+  if (positional[0] === 'nth') positional = positional.slice(1);
+  let target: Target;
+  if (index === undefined) {
+    target = { kind, value: positional[1] };
+    if (name !== undefined) target.name = name;
+    if (exact) target.exact = true;
+  } else target = { ...css(positional[1]), index };
+
+  const action = positional.length > 2 ? positional[2] : 'click';
+  const two = positional.length === 2 || positional.length === 3;
+  if ((action === 'click' || action === 'check' || action === 'hover') && two) return { type: 'act', action, target };
+  if (action === 'fill') {
+    if (positional.length === 4) return { type: 'act', action: 'fill', target, values: [value(positional[3])] };
+    throw fail('find … fill needs the text to fill');
+  }
+  if (action === 'text' && positional.length === 3) return { type: 'read', what: 'text', target };
+  if (['click', 'check', 'hover', 'text'].includes(action)) throw usage(FIND_USAGE);
+  throw fail(`find does not support '${action}': use click, fill, check, hover or text`);
+}
+
+function parseWait(rest: string[]): Command {
+  const u = 'wait <selector>|<ms>|--text <text>|--url <glob>|--load load|domcontentloaded|networkidle';
+  if (rest.length === 2 && rest[0] === '--text') return { type: 'wait', target: { kind: 'text', value: rest[1] } };
+  if (rest.length === 2 && rest[0] === '--url') return { type: 'wait', url: rest[1] };
+  if (rest.length === 2 && rest[0] === '--load') {
+    if (['load', 'domcontentloaded', 'networkidle'].includes(rest[1])) return { type: 'wait', loadState: rest[1] };
+    throw usage(u);
+  }
+  if (rest.length >= 1 && (rest[0] === '--fn' || rest[0] === '--download'))
+    throw fail(`wait ${rest[0]} is not supported in journeys: it runs page script or saves files.`);
+  if (rest.length !== 1 || rest[0].startsWith('--')) throw usage(u);
+  const ms = parseUInt(rest[0]);
+  return ms !== undefined ? { type: 'wait', milliseconds: ms } : { type: 'wait', target: css(rest[0]) };
+}
+
+function parseSet(rest: string[]): Command {
+  const all =
+    'set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | credentials <user> <password>';
+  const viewportUsage = 'set viewport <width> <height> [scale]';
+  const [what, ...args] = rest;
+  switch (what) {
+    case 'viewport': {
+      if (rest.length >= 3 && args.length - 2 <= 1) {
+        const w = parseUInt(args[0]);
+        const h = parseUInt(args[1]);
+        if (w !== undefined && w > 0 && h !== undefined && h > 0) {
+          if (args.length === 2) return { type: 'set', setting: 'viewport', width: w, height: h };
+          const factor = parseFloat_(args[2]);
+          if (factor !== undefined && factor > 0) {
+            const set: Command = { type: 'set', setting: 'viewport', width: w, height: h };
+            if (factor !== 1) set.scale = factor;
+            return set;
+          }
+        }
+      }
+      throw usage(viewportUsage);
+    }
+    case 'media':
+      if (args.length === 1 && (args[0] === 'dark' || args[0] === 'light')) return { type: 'set', setting: 'media', scheme: args[0] };
+      throw usage('set media dark|light');
+    case 'device':
+      if (args.length === 1) {
+        if (DEVICES.includes(args[0])) return { type: 'set', setting: 'device', device: args[0] };
+        throw fail(`unknown device '${args[0]}'; known: ${[...DEVICES].sort().join(', ')}`);
+      }
+      throw usage(all);
+    case 'geo': {
+      if (args.length === 2) {
+        const lat = parseFloat_(args[0]);
+        const lng = parseFloat_(args[1]);
+        if (lat !== undefined && lat >= -90 && lat <= 90 && lng !== undefined && lng >= -180 && lng <= 180)
+          return { type: 'set', setting: 'geo', latitude: lat, longitude: lng };
+      }
+      throw usage('set geo <latitude> <longitude>');
+    }
+    case 'offline':
+      if (args.length === 0) return { type: 'set', setting: 'offline' };
+      if (args.length === 1 && (args[0] === 'on' || args[0] === 'off')) return { type: 'set', setting: 'offline', offline: args[0] === 'on' };
+      throw usage(all);
+    case 'headers':
+      if (args.length === 1) {
+        if (validHeaders(args[0])) return { type: 'set', setting: 'headers', headers: args[0] };
+        throw fail('set headers needs a JSON object of string values, e.g. \'{"x-test": "1"}\'');
+      }
+      throw usage(all);
+    case 'credentials':
+      if (args.length === 2) {
+        if (isSecretReference(args[1])) return { type: 'set', setting: 'credentials', user: value(args[0]), password: args[1] };
+        throw fail('set credentials needs a secret reference for the password ($env:NAME), not a literal');
+      }
+      throw usage(all);
+    case undefined:
+      throw usage(all);
+    default:
+      throw fail(`set ${what} is not supported in journeys: ${all}`);
+  }
+}
+
+function validHeaders(json: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(json);
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && Object.values(parsed).every((v) => typeof v === 'string');
+  } catch {
+    return false;
+  }
+}
+
+function parsePerformance(kind: string, rest: string[]): Command {
+  const u = `${kind} [--budget <name>=<limit>...]`;
+  const budgets: { name: string; limit: number }[] = [];
+  let inBudget = false;
+  for (const argument of rest) {
+    if (argument === '--budget') {
+      inBudget = true;
+      continue;
+    }
+    const eq = argument.indexOf('=');
+    const parts = eq < 0 ? [argument] : [argument.slice(0, eq), argument.slice(eq + 1)];
+    const limit = parts.length === 2 ? parseFloat_(parts[1]) : undefined;
+    if (!inBudget || parts.length !== 2 || limit === undefined || limit < 0) throw usage(u);
+    const known = kind === 'timings' ? TIMING_NAMES : kind === 'vitals' ? VITAL_NAMES : undefined;
+    if (known && !known.includes(parts[0])) throw fail(`${kind} has no '${parts[0]}'; budget one of: ${known.join(', ')}`);
+    budgets.push({ name: parts[0], limit });
+  }
+  if (inBudget && budgets.length === 0) throw usage(u);
+  return budgets.length > 0 ? { type: 'performance', kind, budgets } : { type: 'performance', kind };
+}
+
+const NETWORK_USAGE =
+  'network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>] [--failed] [--strict] | network har start | network har stop <path>';
+
+function parseNetwork(rest: string[]): Command {
+  if (rest.length === 2 && rest[0] === 'har' && rest[1] === 'start') return { type: 'har', action: 'start' };
+  if (rest.length === 3 && rest[0] === 'har' && rest[1] === 'stop') return { type: 'har', action: 'stop', path: artifactPath(rest[2]) };
+  if (rest.length === 2 && rest[0] === 'har' && rest[1] === 'stop')
+    throw fail('network har stop needs a path for the HAR file, relative to the artifacts folder');
+  if (rest[0] === 'requests') {
+    const options = rest.slice(1);
+    let clear = false, failed = false, strict = false;
+    let filter: string | undefined, method: string | undefined, status: string | undefined;
+    const types: string[] = [];
+    for (let i = 0; i < options.length; i++) {
+      const v = i + 1 < options.length ? options[i + 1] : undefined;
+      switch (options[i]) {
+        case '--clear': clear = true; continue;
+        case '--failed': failed = true; continue;
+        case '--strict': strict = true; continue;
+        case '--filter': if (v === undefined) throw usage(NETWORK_USAGE); filter = v; break;
+        case '--type':
+          if (v === undefined) throw usage(NETWORK_USAGE);
+          types.push(...v.split(',').map((t) => t.trim()).filter((t) => t.length > 0));
+          break;
+        case '--method': if (v === undefined) throw usage(NETWORK_USAGE); method = v.toUpperCase(); break;
+        case '--status':
+          if (v === undefined || !/^(\d{3}|[1-5]xx|\d{3}-\d{3})$/.test(v)) throw usage(NETWORK_USAGE);
+          status = v;
+          break;
+        default: throw usage(NETWORK_USAGE);
+      }
+      i++;
+    }
+    if (clear && (failed || strict)) throw usage(NETWORK_USAGE);
+    const command: Command = { type: 'requests' };
+    if (clear) command.clear = true;
+    if (filter !== undefined) command.filter = filter;
+    if (types.length > 0) command.types = types;
+    if (method !== undefined) command.method = method;
+    if (status !== undefined) command.status = status;
+    if (failed) command.failed = true;
+    if (strict) command.strict = true;
+    return command;
+  }
+  if (rest[0] === 'route' || rest[0] === 'unroute' || rest[0] === 'request')
+    throw fail(`network ${rest[0]} is not supported in journeys: it changes or reads what the page receives outside the page.`);
+  throw usage(NETWORK_USAGE);
+}
+
+function parseLinks(rest: string[]): Command {
+  const command: Command = { type: 'links' };
+  for (let i = 0; i < rest.length; i++) {
+    if ((rest[i] === '-s' || rest[i] === '--selector') && i + 1 < rest.length) command.selector = css(rest[++i]).value;
+    else if (rest[i] === '--external') command.external = true;
+    else if (rest[i] === '--all') command.all = true;
+    else if (rest[i] === '--strict') command.strict = true;
+    else throw fail('usage: links [-s <selector>] [--external] [--all] [--strict]');
+  }
+  return command;
+}
+
+function parseScreenshot(rest: string[]): Command {
+  const u = 'usage: screenshot [selector] <path.png> [--full]';
+  const full = rest.some((r) => r === '--full' || r === '-f');
+  const positional = rest.filter((r) => r !== '--full' && r !== '-f');
+  if (positional.some((p) => p.startsWith('--')))
+    throw fail(rest.includes('--annotate') ? 'screenshot --annotate is not supported in journeys.' : u);
+  let selector: string | undefined;
+  let path: string;
+  if (positional.length === 1) path = positional[0];
+  else if (positional.length === 2) {
+    selector = css(positional[0]).value;
+    path = positional[1];
+  } else if (positional.length === 0) throw fail('screenshot needs a path for the PNG, relative to the artifacts folder');
+  else throw fail(u);
+  if (!path.toLowerCase().endsWith('.png')) throw fail(`'${path}': screenshots are PNG files, so the path ends in .png.`);
+  if (selector !== undefined && full) throw fail('screenshot takes a selector or --full, not both.');
+  const command: Command = { type: 'screenshot', path: artifactPath(path) };
+  if (selector !== undefined) command.selector = selector;
+  if (full) command.full = true;
+  return command;
+}
+
+function parseAudit(rest: string[]): Command {
+  const command: Command = { type: 'audit' };
+  for (let i = 0; i < rest.length; i++) {
+    if ((rest[i] === '-s' || rest[i] === '--selector') && i + 1 < rest.length) command.selector = css(rest[++i]).value;
+    else if (rest[i] === '--strict') command.strict = true;
+    else
+      throw fail(
+        rest[i].startsWith('--tags')
+          ? "a11y --tags is not supported in journeys: these are our own rules, not axe-core's."
+          : 'usage: a11y [-s <selector>] [--strict]',
+      );
+  }
+  return command;
+}
+
+function parseSnapshot(rest: string[]): Command {
+  const command: Command = { type: 'snapshot' };
+  for (let i = 0; i < rest.length; i++) {
+    const hasValue = i + 1 < rest.length;
+    switch (rest[i]) {
+      case '-i': case '--interactive': command.interactive = true; break;
+      case '-c': case '--compact': command.compact = true; break;
+      case '-u': case '--urls': command.urls = true; break;
+      case '--delta': case '--full':
+        throw fail(`snapshot ${rest[i]} is not supported in journeys: a checkpoint records the whole tree, and the transcript diff shows what changed.`);
+      case '-d': case '--depth': {
+        const depth = hasValue ? parseUInt(rest[i + 1]) : undefined;
+        if (depth === undefined) throw fail('-d needs a number');
+        command.depth = depth;
+        i++;
+        break;
+      }
+      case '-s': case '--selector':
+        if (!hasValue) throw fail('-s needs a selector');
+        command.selector = css(rest[++i]).value;
+        break;
+      default:
+        throw fail(`snapshot ${rest[i]} is not supported in journeys; use -i, -c, -u, -d <n> or -s <selector>.`);
+    }
+  }
+  return command;
+}
+
+function parseGet(rest: string[]): Command {
+  const u = 'get text|html|value|count|box|styles <selector> | get attr <selector> <name> | get title | get url';
+  const [what] = rest;
+  if (rest.length === 1 && (what === 'title' || what === 'url')) return { type: 'read', what };
+  if (rest.length === 2 && ['text', 'html', 'value', 'count', 'box', 'styles'].includes(what)) return { type: 'read', what, target: css(rest[1]) };
+  if (rest.length === 3 && what === 'attr') return { type: 'read', what: 'attr', target: css(rest[1]), attribute: rest[2] };
+  if (what !== undefined && !['title', 'url', 'text', 'html', 'value', 'count', 'attr', 'box', 'styles'].includes(what))
+    throw fail(`get ${what} is not supported in journeys: ${u}`);
+  throw usage(u);
+}
