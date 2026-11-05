@@ -53,6 +53,14 @@ internal sealed class CdpCli(
 		return ExitCode.Ok;
 	}
 
+	public int Parse(string file)
+	{
+		if (Load([file]) is not [var journey])
+			return ExitCode.Usage;
+		output.Write(journey.ToJson());
+		return ExitCode.Ok;
+	}
+
 	public int Batch(string file, string? baseUrl, bool resolveSecrets)
 	{
 		var (ok, root) = ParseBase(baseUrl);

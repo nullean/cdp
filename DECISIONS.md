@@ -333,7 +333,7 @@ and where data can go is what holds.
 
 - **The command is `cdp` for now**, a working name to be settled with the owner. It is set once, as the assembly name
   and `ToolCommandName` in `src/Nullean.Cdp.Cli/Nullean.Cdp.Cli.csproj`; the smoke script and CI name it too.
-- **One-shot commands, no daemon:** `run`, `check`, `batch`, `snapshot`, `screenshot`, `chrome`. A run launches Chrome, runs every
+- **One-shot commands, no daemon:** `run`, `check`, `parse`, `batch`, `snapshot`, `screenshot`, `chrome`. A run launches Chrome, runs every
   journey given in its own context, and closes it. Built on Nullean.Argh, packed as a native AOT tool per RID like
   snap and curb, with a framework-dependent `any` fallback. There is no release job yet: publishing waits for the
   owner.
@@ -348,6 +348,12 @@ and where data can go is what holds.
   only the page's host. `--base-url` takes a folder for `file://` pages (made into a URL with its trailing slash), and
   file access stays inside it. `batch` refuses secrets unless `--resolve-secrets`, and prints the
   `--allowed-domains` to pass to agent-browser on stderr.
+- **`cdp parse` and `Journey.ToJson`** are the contract for runners outside .NET (a Playwright runner reads the
+  steps, rather than parsing the syntax a second time and drifting). Written by hand with `Utf8JsonWriter` (AOT, no
+  reflection); `version` is `Journey.JsonVersion`; empty parts are left out; secrets stay `$env:` references, never
+  values. A command with no case in `Journey.WriteCommand` throws, so a new command cannot be added without its JSON.
+  `tests/Nullean.Cdp.Tests/site/journeys/syntax.journey` holds the commands the two run journeys do not (parsed and
+  exported, never run), so the three snapshots cover every command type.
 - **Measured:** the native binary is 8.6 MB on osx-arm64 and runs `everything.journey` (40 steps) in 1.2 s including
   Chrome's start.
 

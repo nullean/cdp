@@ -1,0 +1,485 @@
+{
+  "version": 1,
+  "source": "syntax.journey",
+  "allow": [
+    "shop.test",
+    "*.shop.test"
+  ],
+  "steps": [
+    {
+      "line": 4,
+      "args": [
+        "open",
+        "https://shop.test/"
+      ],
+      "command": {
+        "type": "open",
+        "url": "https://shop.test/"
+      }
+    },
+    {
+      "line": 5,
+      "args": [
+        "set",
+        "media",
+        "dark"
+      ],
+      "command": {
+        "type": "set",
+        "setting": "media",
+        "scheme": "dark"
+      }
+    },
+    {
+      "line": 6,
+      "args": [
+        "set",
+        "headers",
+        "{\"x-test\": \"1\"}"
+      ],
+      "command": {
+        "type": "set",
+        "setting": "headers",
+        "headers": "{\"x-test\": \"1\"}"
+      }
+    },
+    {
+      "line": 7,
+      "args": [
+        "set",
+        "credentials",
+        "admin",
+        "$env:SHOP_PASSWORD"
+      ],
+      "command": {
+        "type": "set",
+        "setting": "credentials",
+        "user": "admin",
+        "password": "$env:SHOP_PASSWORD"
+      }
+    },
+    {
+      "line": 8,
+      "args": [
+        "set",
+        "offline"
+      ],
+      "command": {
+        "type": "set",
+        "setting": "offline"
+      }
+    },
+    {
+      "line": 9,
+      "args": [
+        "click",
+        "#go"
+      ],
+      "command": {
+        "type": "act",
+        "action": "click",
+        "target": {
+          "kind": "css",
+          "value": "#go"
+        }
+      }
+    },
+    {
+      "line": 10,
+      "args": [
+        "find",
+        "role",
+        "button",
+        "click",
+        "--name",
+        "Add red lamp",
+        "--exact"
+      ],
+      "command": {
+        "type": "act",
+        "action": "click",
+        "target": {
+          "kind": "role",
+          "value": "button",
+          "name": "Add red lamp",
+          "exact": true
+        }
+      }
+    },
+    {
+      "line": 11,
+      "args": [
+        "find",
+        "first",
+        "nav a",
+        "text"
+      ],
+      "command": {
+        "type": "read",
+        "what": "text",
+        "target": {
+          "kind": "css",
+          "value": "nav a",
+          "index": 0
+        }
+      }
+    },
+    {
+      "line": 12,
+      "args": [
+        "find",
+        "nth",
+        "2",
+        ".card",
+        "hover"
+      ],
+      "command": {
+        "type": "act",
+        "action": "hover",
+        "target": {
+          "kind": "css",
+          "value": ".card",
+          "index": 2
+        }
+      }
+    },
+    {
+      "line": 13,
+      "args": [
+        "upload",
+        "#file",
+        "files/note.txt",
+        "note.txt"
+      ],
+      "command": {
+        "type": "act",
+        "action": "upload",
+        "target": {
+          "kind": "css",
+          "value": "#file"
+        },
+        "values": [
+          "files/note.txt",
+          "note.txt"
+        ]
+      }
+    },
+    {
+      "line": 14,
+      "args": [
+        "press",
+        "Control+a"
+      ],
+      "command": {
+        "type": "press",
+        "keys": "Control+a"
+      }
+    },
+    {
+      "line": 15,
+      "args": [
+        "keyboard",
+        "type",
+        "hi there"
+      ],
+      "command": {
+        "type": "keyboard",
+        "mode": "type",
+        "text": "hi there"
+      }
+    },
+    {
+      "line": 16,
+      "args": [
+        "wait",
+        "--text",
+        "3 results"
+      ],
+      "command": {
+        "type": "wait",
+        "target": {
+          "kind": "text",
+          "value": "3 results"
+        }
+      }
+    },
+    {
+      "line": 17,
+      "args": [
+        "timings"
+      ],
+      "command": {
+        "type": "performance",
+        "kind": "timings"
+      }
+    },
+    {
+      "line": 18,
+      "args": [
+        "vitals",
+        "--budget",
+        "lcp=2500",
+        "cls=0.1"
+      ],
+      "command": {
+        "type": "performance",
+        "kind": "vitals",
+        "budgets": [
+          {
+            "name": "lcp",
+            "limit": 2500
+          },
+          {
+            "name": "cls",
+            "limit": 0.1
+          }
+        ]
+      }
+    },
+    {
+      "line": 19,
+      "args": [
+        "metrics",
+        "--budget",
+        "Nodes=1500"
+      ],
+      "command": {
+        "type": "performance",
+        "kind": "metrics",
+        "budgets": [
+          {
+            "name": "Nodes",
+            "limit": 1500
+          }
+        ]
+      }
+    },
+    {
+      "line": 20,
+      "args": [
+        "network",
+        "har",
+        "start"
+      ],
+      "command": {
+        "type": "har",
+        "action": "start"
+      }
+    },
+    {
+      "line": 21,
+      "args": [
+        "network",
+        "requests",
+        "--filter",
+        "api",
+        "--type",
+        "xhr,fetch",
+        "--method",
+        "post",
+        "--status",
+        "4xx"
+      ],
+      "command": {
+        "type": "requests",
+        "filter": "api",
+        "types": [
+          "xhr",
+          "fetch"
+        ],
+        "method": "POST",
+        "status": "4xx"
+      }
+    },
+    {
+      "line": 22,
+      "args": [
+        "network",
+        "requests",
+        "--failed",
+        "--strict"
+      ],
+      "command": {
+        "type": "requests",
+        "failed": true,
+        "strict": true
+      }
+    },
+    {
+      "line": 23,
+      "args": [
+        "network",
+        "requests",
+        "--clear"
+      ],
+      "command": {
+        "type": "requests",
+        "clear": true
+      }
+    },
+    {
+      "line": 24,
+      "args": [
+        "network",
+        "har",
+        "stop",
+        "out/run.har"
+      ],
+      "command": {
+        "type": "har",
+        "action": "stop",
+        "path": "out/run.har"
+      }
+    },
+    {
+      "line": 25,
+      "args": [
+        "links",
+        "-s",
+        "main",
+        "--external",
+        "--all",
+        "--strict"
+      ],
+      "command": {
+        "type": "links",
+        "selector": "main",
+        "external": true,
+        "all": true,
+        "strict": true
+      }
+    },
+    {
+      "line": 26,
+      "args": [
+        "a11y",
+        "-s",
+        "main",
+        "--strict"
+      ],
+      "command": {
+        "type": "audit",
+        "selector": "main",
+        "strict": true
+      }
+    },
+    {
+      "line": 27,
+      "args": [
+        "screenshot",
+        "#box",
+        "box.png"
+      ],
+      "command": {
+        "type": "screenshot",
+        "selector": "#box",
+        "path": "box.png"
+      }
+    },
+    {
+      "line": 28,
+      "args": [
+        "screenshot",
+        "shots/page.png",
+        "--full"
+      ],
+      "command": {
+        "type": "screenshot",
+        "path": "shots/page.png",
+        "full": true
+      }
+    },
+    {
+      "line": 29,
+      "args": [
+        "console"
+      ],
+      "command": {
+        "type": "read",
+        "what": "console"
+      }
+    },
+    {
+      "line": 30,
+      "args": [
+        "errors"
+      ],
+      "command": {
+        "type": "read",
+        "what": "errors"
+      }
+    },
+    {
+      "line": 31,
+      "args": [
+        "console",
+        "--clear"
+      ],
+      "command": {
+        "type": "clearLog",
+        "log": "console"
+      }
+    },
+    {
+      "line": 32,
+      "args": [
+        "errors",
+        "--clear"
+      ],
+      "command": {
+        "type": "clearLog",
+        "log": "errors"
+      }
+    },
+    {
+      "line": 33,
+      "args": [
+        "get",
+        "styles",
+        "#box"
+      ],
+      "command": {
+        "type": "read",
+        "what": "styles",
+        "target": {
+          "kind": "css",
+          "value": "#box"
+        }
+      }
+    },
+    {
+      "line": 34,
+      "args": [
+        "get",
+        "attr",
+        "#name",
+        "placeholder"
+      ],
+      "command": {
+        "type": "read",
+        "what": "attr",
+        "target": {
+          "kind": "css",
+          "value": "#name"
+        },
+        "attribute": "placeholder"
+      }
+    },
+    {
+      "line": 35,
+      "args": [
+        "is",
+        "visible",
+        "#hello"
+      ],
+      "command": {
+        "type": "read",
+        "what": "is visible",
+        "target": {
+          "kind": "css",
+          "value": "#hello"
+        }
+      }
+    }
+  ]
+}

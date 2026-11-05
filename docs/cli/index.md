@@ -12,6 +12,7 @@ command is one shot: it starts Chrome, does its work and closes it. There is no 
 |---|---|
 | `cdp run <files...>` | run journeys and print every checkpoint |
 | `cdp check <files...>` | parse journeys without a browser; every error with its line |
+| `cdp parse <file>` | print a journey's parsed steps as JSON, for runners in other languages |
 | `cdp batch <file>` | print a journey as agent-browser batch JSON |
 | `cdp snapshot <url>` | print one page's accessibility tree |
 | `cdp screenshot <url> -o <file.png>` | save a PNG of one page or element |
@@ -50,6 +51,17 @@ cdp screenshot http://localhost:5000/ -o basket.png --selector "#basket" --width
 
 Both reach only the page's own host unless `--allow` adds others. `screenshot` sets a 1280×720 viewport unless told
 otherwise.
+
+## parse
+
+```sh
+cdp parse checkout.journey
+```
+
+Prints the parsed journey as JSON: `version`, `source`, `allow`, and a `steps` array with each step's `line`, `args`
+and typed `command` (`type`, then its own fields; empty ones are left out; a target is `{kind, value, name, exact,
+index}`). It is the contract other runners read instead of parsing journey syntax a second time. Secret references stay
+references (`$env:NAME`); a journey that does not parse exits 2 with every error and its line, as `check` does.
 
 ## batch
 

@@ -44,6 +44,10 @@ namespace Nullean.Cdp.Cli
 		/// <param name="files">Journey files.</param>
 		public static int Check([Argument] string[] files) => Cli().Check(files);
 
+		/// <summary>Print a journey's parsed steps as JSON, for runners outside .NET (secrets stay references).</summary>
+		/// <param name="file">The journey file.</param>
+		public static int Parse([Argument] string file) => Cli().Parse(file);
+
 		/// <summary>Print a journey as agent-browser batch JSON: cdp batch x.journey | agent-browser batch --bail</summary>
 		/// <param name="file">The journey file.</param>
 		/// <param name="baseUrl">-b, --base-url, What relative 'open' URLs resolve against.</param>

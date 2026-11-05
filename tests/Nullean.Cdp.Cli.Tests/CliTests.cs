@@ -68,6 +68,39 @@ public class CliTests
 	}
 
 	[Test]
+	[Arguments("everything.journey")]
+	[Arguments("more.journey")]
+	[Arguments("syntax.journey")]
+	public void ParsePrintsTheStepsAsJson(string journey)
+	{
+		Cli().Parse(Site("journeys", journey)).Should().Be(ExitCode.Ok);
+
+		// "source" is the path as given, which differs per machine; JSON escapes a Windows path's backslashes.
+		var folder = Site("journeys") + Path.DirectorySeparatorChar;
+		_out.ToString().Replace("\r\n", "\n", StringComparison.Ordinal)
+			.Replace(folder.Replace("\\", "\\\\", StringComparison.Ordinal), "", StringComparison.Ordinal)
+			.Replace(folder, "", StringComparison.Ordinal)
+			.Should().MatchSnapshot();
+	}
+
+	[Test]
+	public void ParseReportsErrorsWithTheirLine()
+	{
+		var file = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.journey");
+		File.WriteAllText(file, "open /\nfrobnicate\n");
+		try
+		{
+			Cli().Parse(file).Should().Be(ExitCode.Usage);
+			_out.ToString().Should().BeEmpty();
+			_err.ToString().Should().Contain(":2");
+		}
+		finally
+		{
+			File.Delete(file);
+		}
+	}
+
+	[Test]
 	public void ABaseUrlThatIsNeitherUrlNorFolderIsAUsageError()
 	{
 		Cli().Batch(Site("journeys", "everything.journey"), "no/such/folder", false).Should().Be(ExitCode.Usage);
