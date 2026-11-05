@@ -19,3 +19,8 @@ artifacts/
 
 # Claude Code personal settings
 .claude/settings.local.json
+
+# js/journeys
+node_modules/
+js/journeys/dist/
+js/journeys/test-results/

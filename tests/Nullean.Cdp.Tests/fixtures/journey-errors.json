@@ -1,0 +1,671 @@
+{
+  "note": "Journey text that must not parse, with every error and its line. Checked by the .NET tests (JourneyErrorFixtureTests) and by js/journeys (conformance.test.ts): the two parsers must agree.",
+  "cases": [
+    {
+      "name": "01",
+      "text": "find role button press",
+      "errors": [
+        {
+          "line": 1,
+          "message": "find does not support 'press': use click, fill, check, hover or text"
+        }
+      ]
+    },
+    {
+      "name": "02",
+      "text": "find text Go --name x",
+      "errors": [
+        {
+          "line": 1,
+          "message": "--name only applies to find role"
+        }
+      ]
+    },
+    {
+      "name": "03",
+      "text": "find label Email fill",
+      "errors": [
+        {
+          "line": 1,
+          "message": "find … fill needs the text to fill"
+        }
+      ]
+    },
+    {
+      "name": "04",
+      "text": "find role",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: find role|text|label|placeholder|alt|title|testid <value> | first|last <selector> | nth <n> <selector> [click|fill|check|hover|text] [text] [--name <name>] [--exact]"
+        }
+      ]
+    },
+    {
+      "name": "05",
+      "text": "find nth x li",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: find nth <n> <selector> [action] [text]"
+        }
+      ]
+    },
+    {
+      "name": "06",
+      "text": "find first @e3 click",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'@e3' is an agent-browser ref, which changes from run to run; use find role <role> --name <name>, find text, or a CSS selector."
+        }
+      ]
+    },
+    {
+      "name": "07",
+      "text": "find role button --name",
+      "errors": [
+        {
+          "line": 1,
+          "message": "--name needs a value"
+        }
+      ]
+    },
+    {
+      "name": "08",
+      "text": "wait --load idle",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: wait <selector>|<ms>|--text <text>|--url <glob>|--load load|domcontentloaded|networkidle"
+        }
+      ]
+    },
+    {
+      "name": "09",
+      "text": "wait --url",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: wait <selector>|<ms>|--text <text>|--url <glob>|--load load|domcontentloaded|networkidle"
+        }
+      ]
+    },
+    {
+      "name": "10",
+      "text": "wait --fn x",
+      "errors": [
+        {
+          "line": 1,
+          "message": "wait --fn is not supported in journeys: it runs page script or saves files."
+        }
+      ]
+    },
+    {
+      "name": "11",
+      "text": "set device Nokia",
+      "errors": [
+        {
+          "line": 1,
+          "message": "unknown device 'Nokia'; known: Desktop Chrome, Galaxy S9+, Pixel 5, Pixel 7, iPad Mini, iPad Pro 11, iPhone 12, iPhone 13, iPhone 14, iPhone 15, iPhone 15 Pro Max, iPhone SE"
+        }
+      ]
+    },
+    {
+      "name": "12",
+      "text": "set viewport 0 600",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: set viewport <width> <height> [scale]"
+        }
+      ]
+    },
+    {
+      "name": "13",
+      "text": "set geo 91 0",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: set geo <latitude> <longitude>"
+        }
+      ]
+    },
+    {
+      "name": "14",
+      "text": "set headers [1]",
+      "errors": [
+        {
+          "line": 1,
+          "message": "set headers needs a JSON object of string values, e.g. '{\"x-test\": \"1\"}'"
+        }
+      ]
+    },
+    {
+      "name": "15",
+      "text": "set credentials admin hunter22",
+      "errors": [
+        {
+          "line": 1,
+          "message": "set credentials needs a secret reference for the password ($env:NAME), not a literal"
+        }
+      ]
+    },
+    {
+      "name": "16",
+      "text": "set cookie x",
+      "errors": [
+        {
+          "line": 1,
+          "message": "set cookie is not supported in journeys: set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | credentials <user> <password>"
+        }
+      ]
+    },
+    {
+      "name": "17",
+      "text": "upload #f ../secret.txt",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'../secret.txt' must be a path inside the journey's folder, relative to it."
+        }
+      ]
+    },
+    {
+      "name": "18",
+      "text": "upload #f /etc/passwd",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'/etc/passwd' must be a path inside the journey's folder, relative to it."
+        }
+      ]
+    },
+    {
+      "name": "19",
+      "text": "scroll sideways",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: scroll [up|down|left|right] [pixels] [-s <selector>]"
+        }
+      ]
+    },
+    {
+      "name": "20",
+      "text": "keyboard press a",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: keyboard type|inserttext <text>"
+        }
+      ]
+    },
+    {
+      "name": "21",
+      "text": "drag #a",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: drag <source> <target>"
+        }
+      ]
+    },
+    {
+      "name": "22",
+      "text": "set media sepia",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: set media dark|light"
+        }
+      ]
+    },
+    {
+      "name": "23",
+      "text": "snapshot --delta",
+      "errors": [
+        {
+          "line": 1,
+          "message": "snapshot --delta is not supported in journeys: a checkpoint records the whole tree, and the transcript diff shows what changed."
+        }
+      ]
+    },
+    {
+      "name": "24",
+      "text": "snapshot -x",
+      "errors": [
+        {
+          "line": 1,
+          "message": "snapshot -x is not supported in journeys; use -i, -c, -u, -d <n> or -s <selector>."
+        }
+      ]
+    },
+    {
+      "name": "25",
+      "text": "snapshot -d",
+      "errors": [
+        {
+          "line": 1,
+          "message": "-d needs a number"
+        }
+      ]
+    },
+    {
+      "name": "26",
+      "text": "snapshot -s @e3",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'@e3' is an agent-browser ref, which changes from run to run; use find role <role> --name <name>, find text, or a CSS selector."
+        }
+      ]
+    },
+    {
+      "name": "27",
+      "text": "get cdp-url",
+      "errors": [
+        {
+          "line": 1,
+          "message": "get cdp-url is not supported in journeys: get text|html|value|count|box|styles <selector> | get attr <selector> <name> | get title | get url"
+        }
+      ]
+    },
+    {
+      "name": "28",
+      "text": "get text",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: get text|html|value|count|box|styles <selector> | get attr <selector> <name> | get title | get url"
+        }
+      ]
+    },
+    {
+      "name": "29",
+      "text": "is hidden #a",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: is visible|enabled|checked <selector>"
+        }
+      ]
+    },
+    {
+      "name": "30",
+      "text": "back now",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: back"
+        }
+      ]
+    },
+    {
+      "name": "31",
+      "text": "console all",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: console [--clear]"
+        }
+      ]
+    },
+    {
+      "name": "32",
+      "text": "a11y --tags wcag2a",
+      "errors": [
+        {
+          "line": 1,
+          "message": "a11y --tags is not supported in journeys: these are our own rules, not axe-core's."
+        }
+      ]
+    },
+    {
+      "name": "33",
+      "text": "a11y main",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: a11y [-s <selector>] [--strict]"
+        }
+      ]
+    },
+    {
+      "name": "34",
+      "text": "links main",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: links [-s <selector>] [--external] [--all] [--strict]"
+        }
+      ]
+    },
+    {
+      "name": "35",
+      "text": "screenshot",
+      "errors": [
+        {
+          "line": 1,
+          "message": "screenshot needs a path for the PNG, relative to the artifacts folder"
+        }
+      ]
+    },
+    {
+      "name": "36",
+      "text": "screenshot shot.jpg",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'shot.jpg': screenshots are PNG files, so the path ends in .png."
+        }
+      ]
+    },
+    {
+      "name": "37",
+      "text": "screenshot ../shot.png",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'../shot.png' must be a path inside the artifacts folder, relative to it."
+        }
+      ]
+    },
+    {
+      "name": "38",
+      "text": "screenshot #box box.png --full",
+      "errors": [
+        {
+          "line": 1,
+          "message": "screenshot takes a selector or --full, not both."
+        }
+      ]
+    },
+    {
+      "name": "39",
+      "text": "screenshot --annotate shot.png",
+      "errors": [
+        {
+          "line": 1,
+          "message": "screenshot --annotate is not supported in journeys."
+        }
+      ]
+    },
+    {
+      "name": "40",
+      "text": "screenshot @e1 shot.png",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'@e1' is an agent-browser ref, which changes from run to run; use find role <role> --name <name>, find text, or a CSS selector."
+        }
+      ]
+    },
+    {
+      "name": "41",
+      "text": "network requests --clear --failed",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>] [--failed] [--strict] | network har start | network har stop <path>"
+        }
+      ]
+    },
+    {
+      "name": "42",
+      "text": "network har stop ../x.har",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'../x.har' must be a path inside the artifacts folder, relative to it."
+        }
+      ]
+    },
+    {
+      "name": "43",
+      "text": "network har stop",
+      "errors": [
+        {
+          "line": 1,
+          "message": "network har stop needs a path for the HAR file, relative to the artifacts folder"
+        }
+      ]
+    },
+    {
+      "name": "44",
+      "text": "network route **/api --abort",
+      "errors": [
+        {
+          "line": 1,
+          "message": "network route is not supported in journeys: it changes or reads what the page receives outside the page."
+        }
+      ]
+    },
+    {
+      "name": "45",
+      "text": "network requests --status 2x",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>] [--failed] [--strict] | network har start | network har stop <path>"
+        }
+      ]
+    },
+    {
+      "name": "46",
+      "text": "vitals --budget lcp",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: vitals [--budget <name>=<limit>...]"
+        }
+      ]
+    },
+    {
+      "name": "47",
+      "text": "vitals --budget",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: vitals [--budget <name>=<limit>...]"
+        }
+      ]
+    },
+    {
+      "name": "48",
+      "text": "vitals lcp=1",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: vitals [--budget <name>=<limit>...]"
+        }
+      ]
+    },
+    {
+      "name": "49",
+      "text": "vitals --budget speed=1",
+      "errors": [
+        {
+          "line": 1,
+          "message": "vitals has no 'speed'; budget one of: ttfb, fcp, lcp, cls, inp"
+        }
+      ]
+    },
+    {
+      "name": "50",
+      "text": "timings --budget lcp=1",
+      "errors": [
+        {
+          "line": 1,
+          "message": "timings has no 'lcp'; budget one of: ttfb, first-paint, fcp, dom-interactive, dom-content-loaded, load"
+        }
+      ]
+    },
+    {
+      "name": "51",
+      "text": "click @e12",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'@e12' is an agent-browser ref, which changes from run to run; use find role <role> --name <name>, find text, or a CSS selector."
+        }
+      ]
+    },
+    {
+      "name": "52",
+      "text": "open /\npdf a.pdf\nfill #q\nfind nth li\nclick \"open",
+      "errors": [
+        {
+          "line": 2,
+          "message": "'pdf' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, links, screenshot, a11y, timings, vitals, metrics, is."
+        },
+        {
+          "line": 3,
+          "message": "usage: fill <selector> <text>"
+        },
+        {
+          "line": 4,
+          "message": "usage: find nth <n> <selector> [action] [text]"
+        },
+        {
+          "line": 5,
+          "message": "the double quote is not closed"
+        }
+      ]
+    },
+    {
+      "name": "53",
+      "text": "allow",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: allow <host pattern...>, e.g. allow shop.test *.shop.test"
+        }
+      ]
+    },
+    {
+      "name": "54",
+      "text": "open /\nallow shop.test bad_host! -x",
+      "errors": [
+        {
+          "line": 2,
+          "message": "'bad_host!' is not a host pattern: use a host name, *.domain, or *"
+        },
+        {
+          "line": 2,
+          "message": "'-x' is not a host pattern: use a host name, *.domain, or *"
+        }
+      ]
+    },
+    {
+      "name": "55",
+      "text": "fill #a $env:1x",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'$env:1x' is not a secret reference: write $env:NAME with letters, digits and _."
+        }
+      ]
+    },
+    {
+      "name": "56",
+      "text": "click 'oops",
+      "errors": [
+        {
+          "line": 1,
+          "message": "the single quote is not closed"
+        }
+      ]
+    },
+    {
+      "name": "57",
+      "text": "open",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: open <url>"
+        }
+      ]
+    },
+    {
+      "name": "58",
+      "text": "open a b",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: open <url>"
+        }
+      ]
+    },
+    {
+      "name": "59",
+      "text": "wait main extra",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: wait <selector>|<ms>|--text <text>|--url <glob>|--load load|domcontentloaded|networkidle"
+        }
+      ]
+    },
+    {
+      "name": "60",
+      "text": "set offline maybe",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | credentials <user> <password>"
+        }
+      ]
+    },
+    {
+      "name": "61",
+      "text": "get attr #a",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: get text|html|value|count|box|styles <selector> | get attr <selector> <name> | get title | get url"
+        }
+      ]
+    },
+    {
+      "name": "62",
+      "text": "upload #f",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: upload <selector> <files...>"
+        }
+      ]
+    },
+    {
+      "name": "63",
+      "text": "press",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: press <key>"
+        }
+      ]
+    },
+    {
+      "name": "64",
+      "text": "find nth 1 li fill",
+      "errors": [
+        {
+          "line": 1,
+          "message": "find … fill needs the text to fill"
+        }
+      ]
+    },
+    {
+      "name": "65",
+      "text": "find bogus x",
+      "errors": [
+        {
+          "line": 1,
+          "message": "unknown locator 'bogus': find role|text|label|placeholder|alt|title|testid <value> | first|last <selector> | nth <n> <selector> [click|fill|check|hover|text] [text] [--name <name>] [--exact]"
+        }
+      ]
+    }
+  ]
+}

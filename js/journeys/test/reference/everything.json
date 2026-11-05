@@ -1,0 +1,75 @@
+{
+  "note": "What Nullean.Cdp itself reads for tests/Nullean.Cdp.Tests/site/journeys/everything.journey (snapshots left out). Regenerate: cdp run <journey> --base-url tests/Nullean.Cdp.Tests/site --json.",
+  "checkpoints": [
+    {
+      "line": 7,
+      "command": "get text #log",
+      "output": "clicked hello"
+    },
+    {
+      "line": 10,
+      "command": "get text #log",
+      "output": "hovered"
+    },
+    {
+      "line": 13,
+      "command": "get value #name",
+      "output": "Grace Hopper"
+    },
+    {
+      "line": 17,
+      "command": "is checked #news",
+      "output": "true"
+    },
+    {
+      "line": 21,
+      "command": "get value #colour",
+      "output": "b"
+    },
+    {
+      "line": 25,
+      "command": "find role heading text --name Actions",
+      "output": "Actions"
+    },
+    {
+      "line": 26,
+      "command": "get attr #name placeholder",
+      "output": "Ada Lovelace"
+    },
+    {
+      "line": 28,
+      "command": "get count button",
+      "output": "7"
+    },
+    {
+      "line": 29,
+      "command": "get html \"form label\"",
+      "output": "Your name"
+    },
+    {
+      "line": 30,
+      "command": "is visible #hello",
+      "output": "true"
+    },
+    {
+      "line": 31,
+      "command": "is enabled #hello",
+      "output": "true"
+    },
+    {
+      "line": 36,
+      "command": "get title",
+      "output": "About"
+    },
+    {
+      "line": 38,
+      "command": "get url",
+      "output": "{origin}/actions.html"
+    },
+    {
+      "line": 41,
+      "command": "get title",
+      "output": "About"
+    }
+  ]
+}

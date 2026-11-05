@@ -329,6 +329,28 @@ and where data can go is what holds.
 - **Not done:** confirmations before side effects (an interactive agent mode, later); a second network layer below the
   browser (`--host-resolver-rules`); dedicated and service workers' requests are not shown to be covered by the guard.
 
+## Playwright and Elastic Synthetics
+
+- **`@nullean/journeys` (js/journeys) runs journeys on Playwright**, in Playwright Test and in Elastic Synthetics, so
+  one `.journey` file is the source for the .NET snapshot test, a Playwright test and a monitor kept in sync with it.
+  Nullean.Cdp stays the reference: nothing here changes what the .NET runner does.
+- **A second parser, kept honest.** Node cannot call the .NET parser, and shelling out to `cdp parse` would need the
+  tool installed wherever a monitor is pushed, so the TypeScript parser is a port (`parse.ts` follows `Journey.Parse`
+  line by line). `cdp parse` and `fixtures/journey-errors.json` are the contract: the conformance test compares the
+  port with the JSON of every corpus journey and with the fixture's errors, which the .NET tests also check.
+- **Compared where Playwright can match, marked where it cannot.** Text reads print the .NET
+  format, and a live test compares them with Nullean.Cdp's own readings (`test/reference/everything.json`);
+  `network requests`, `links` and the performance reads use the same formats but have no browser test yet.
+  `snapshot` (Playwright's aria tree) and `a11y` (axe, not our rules) come out differently, so their checkpoints are
+  `kind: 'aria'` and are never compared with a verified transcript. The table is in the package README.
+- **Refuse rather than widen.** `set credentials` fails (an extra header goes to every host), `network har` and
+  `screenshot` without an artifacts folder are skipped with a warning (Playwright and Synthetics keep their own), and
+  timeouts are Playwright's unless given, so a monitor's own settings are not overridden.
+- **Synthetics registers steps synchronously**, so the adapter parses at registration (a bad journey fails before
+  anything runs) and starts the run lazily in the first step.
+- **Dev dependencies are pinned to exact versions** (`@playwright/test` 1.64.1: 1.55.0 has a high-severity advisory).
+  Tests use the installed Chrome (`channel: 'chrome'`), so nothing is downloaded. Not yet published to npm.
+
 ## CLI
 
 - **The command is `cdp` for now**, a working name to be settled with the owner. It is set once, as the assembly name
