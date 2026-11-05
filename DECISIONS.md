@@ -351,6 +351,46 @@ and where data can go is what holds.
 - **Dev dependencies are pinned to exact versions** (`@playwright/test` 1.64.1: 1.55.0 has a high-severity advisory).
   Tests use the installed Chrome (`channel: 'chrome'`), so nothing is downloaded. Not yet published to npm.
 
+## Assertions
+
+- **The engine is library code in `Nullean.Cdp`, framework-free, and journeys are one consumer.** So it can later back
+  AwesomeAssertions and Nullean.Snapshots without the core depending on either. A `Matcher` is data (kind, expected text
+  or number, how to compare); `Locator.CheckAsync` and `PageExpectations.CheckAsync` poll it and return an
+  `ExpectationResult` without throwing; `ExpectAsync` throws `ExpectationException` (a `TimeoutException`, so a journey
+  step fails with no special case). Adapters report the result; they do not re-implement matching.
+- **Playwright's semantics, where its docs are clear.** Retry until a timeout (the page's action timeout, 5 s);
+  `--not` keeps checking until the matcher stops holding; `hidden` holds for a missing element; a string `text` is the
+  whole text with whitespace collapsed, `--contains` a substring, both case-sensitive unless `--ignore-case`, read from
+  `textContent` (`--inner-text` for rendered text, which is what `get text` reads); `class` is the whole attribute and
+  `--contains` every class in any order; `count` is exact. Where the docs are silent (value, title, accessible name,
+  whitespace in attributes) we compare as written, and the npm package's parity test against Playwright's own `expect` is
+  where a difference would show.
+- **Positive and negated forms differ for a missing element on purpose:** `disabled`, `unchecked` and `empty` need an
+  element, `--not enabled` holds when there is none, as Playwright's `toBeDisabled` and `.not.toBeEnabled` do.
+- **`url` takes the `wait --url` glob** (`**` anything, `*` anything but `/`), or `--regex`. Playwright's string form is
+  not documented as a glob, so the npm package turns the glob into a regular expression instead of relying on it.
+- **Regular expressions are .NET's here and JavaScript's on Playwright**, without flags (`--ignore-case` instead), so
+  patterns are limited to what both read alike. Quote a pattern with backslashes: unquoted, a backslash escapes the next
+  character in a journey line. An invalid pattern is a parse error.
+- **An `expect` line is not a checkpoint.** A pass records nothing, so no verified transcript changes; a failure stops the
+  journey like any step (`Journey stopped at file:line: expect …`, then `Timed out after 5s waiting for css #count to have
+  text "3": received "2".`). The message names the locator as `Locator.ToString` writes it, as the other timeouts do.
+  `$env:NAME` works in expected values and is redacted. agent-browser has no assertions, so the export leaves them out.
+- **No soft assertions, no `toPass`/`poll`, no `toHaveScreenshot`/`toHaveJSProperty`.** A journey stops at the first
+  failure everywhere; the others need page script or a different model.
+- **`aria` (a tree template, `toMatchAriaSnapshot`) is deferred.** Cdp and Playwright print different trees, so one
+  template would not mean the same in both; Elastic Synthetics does not support snapshot assertions at all; and it overlaps
+  the whole-tree snapshot Nullean.Snapshots already compares. The accessible-name matcher (`toHaveAccessibleName`) waits
+  for the same parity check.
+- **AwesomeAssertions: proven with a test-only adapter** (`tests/Nullean.Cdp.Tests/Live/LocatorAssertions.cs`):
+  `await locator.Should().HaveTextAsync("2 results")`, with `because` and `AssertionScope`. Two things it taught. The
+  message must be an argument, never the format string (selectors and page text hold braces), and the format string must
+  contain `{reason}` or a `because` is silently dropped: `SnapshotAssertions.FailUnless` in Nullean.Snapshots passes the
+  message verbatim but has no `{reason}`, so it cannot carry a reason yet (a small change there when an adapter ships). Where
+  a real adapter lives is open: a package of its own in this repository (live-page assertions, nothing to do with
+  snapshots) or `Nullean.Snapshots.Browser.Assertions` (already AwesomeAssertions-facing). The core API does not depend on
+  the answer.
+
 ## CLI
 
 - **The command is `cdp` for now**, a working name to be settled with the owner. It is set once, as the assembly name

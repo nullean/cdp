@@ -357,6 +357,21 @@ find role button click --name "Pay"
 Error: rejected (http://localhost:5000/console.html:3:48)</pre>
       </div>
 
+      <div class="feature" style="grid-column: 1 / -1">
+        <div class="feature-head">
+          <div class="card-kicker">assertions</div>
+          <div class="card-title">Playwright-style expectations, in a journey line</div>
+          <p>Visible, enabled, text, value, attribute, class, count, title and URL, negated with <code>--not</code>.
+          Each one keeps checking until it holds or times out, and a failure says what it saw. A passing
+          assertion records nothing, so verified transcripts do not change.</p>
+          <a class="more" href="journeys/commands/#expect">Expect →</a>
+        </div>
+<pre><span class="t-hi">expect text #count "3 items"</span>
+<span class="t-hi">expect --not visible .spinner</span>
+<span class="t-dim"># the step fails with:</span>
+<span class="t-add">Timed out after 5s waiting for css #count to have text "3 items": received "2 items".</span></pre>
+      </div>
+
     </div>
     <p class="strict-note">Each check lists what it found; <code>--strict</code> (or <code>--budget</code>) turns it into a failing step.</p>
   </div>
@@ -397,6 +412,7 @@ Error: rejected (http://localhost:5000/console.html:3:48)</pre>
         <div class="card-title">Journeys as snapshot tests</div>
         <p>Nullean.Snapshots runs a journey in <code>dotnet test</code> and compares every checkpoint as a tree, so a failure names what moved.</p>
       </a>
+
     </div>
   </div>
 </section>

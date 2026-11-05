@@ -6,6 +6,7 @@ import { splitLine } from './commandline.ts';
 import {
   JourneyParseError,
   type Command,
+  type ExpectMatcher,
   type Journey,
   type JourneyError,
   type Step,
@@ -25,7 +26,7 @@ export const DEVICES = [
 ];
 
 const SUPPORTED =
-  'allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, links, screenshot, a11y, timings, vitals, metrics, is';
+  'allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, links, screenshot, a11y, timings, vitals, metrics, is, expect';
 
 const TIMING_NAMES = ['ttfb', 'first-paint', 'fcp', 'dom-interactive', 'dom-content-loaded', 'load'];
 const VITAL_NAMES = ['ttfb', 'fcp', 'lcp', 'cls', 'inp'];
@@ -181,6 +182,8 @@ function parseCommand(a: string[]): Command {
       if (rest.length === 0) return { type: 'read', what: command };
       if (rest.length === 1 && rest[0] === '--clear') return { type: 'clearLog', log: command };
       throw usage(`${command} [--clear]`);
+    case 'expect':
+      return parseExpect(rest);
     case 'is':
       if (rest.length === 2 && (rest[0] === 'visible' || rest[0] === 'enabled' || rest[0] === 'checked'))
         return { type: 'read', what: `is ${rest[0]}`, target: css(rest[1]) };
@@ -505,4 +508,140 @@ function parseGet(rest: string[]): Command {
   if (what !== undefined && !['title', 'url', 'text', 'html', 'value', 'count', 'attr', 'box', 'styles'].includes(what))
     throw fail(`get ${what} is not supported in journeys: ${u}`);
   throw usage(u);
+}
+
+const EXPECT_USAGE =
+  'expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target>' +
+  ' | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob>' +
+  ' [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]';
+
+const EXPECT_FIND_USAGE =
+  'expect <matcher> find role|text|label|placeholder|alt|title|testid <value> | first|last <selector> | nth <n> <selector>';
+
+const EXPECT_MATCHERS: Record<string, ExpectMatcher> = {
+  visible: 'visible', hidden: 'hidden', enabled: 'enabled', disabled: 'disabled', checked: 'checked', unchecked: 'unchecked',
+  focused: 'focused', editable: 'editable', attached: 'attached', empty: 'empty', text: 'text', value: 'value',
+  attr: 'attribute', class: 'class', count: 'count', title: 'title', url: 'url',
+};
+
+// The order of the checks follows ParseExpect in Journey.Expect.cs, so the same line fails with the same message.
+function parseExpect(rest: string[]): Command {
+  let negate = false, contains = false, regex = false, ignoreCase = false, innerText = false, exact = false;
+  let timeoutMs: number | undefined;
+  let name: string | undefined;
+  const positional: string[] = [];
+  for (let i = 0; i < rest.length; i++) {
+    switch (rest[i]) {
+      case '--not': negate = true; break;
+      case '--contains': contains = true; break;
+      case '--regex': regex = true; break;
+      case '--ignore-case': ignoreCase = true; break;
+      case '--inner-text': innerText = true; break;
+      case '--exact': exact = true; break;
+      case '--name':
+        if (i + 1 >= rest.length) throw fail('--name needs a value');
+        name = rest[++i];
+        break;
+      case '--timeout': {
+        const ms = i + 1 < rest.length ? parseUInt(rest[i + 1]) : undefined;
+        if (ms === undefined || ms <= 0) throw fail('--timeout needs a number of milliseconds');
+        timeoutMs = ms;
+        i++;
+        break;
+      }
+      default:
+        if (rest[i].startsWith('--')) throw fail(`expect ${rest[i]} is not supported in journeys: ${EXPECT_USAGE}`);
+        positional.push(rest[i]);
+    }
+  }
+  if (positional.length === 0) throw usage(EXPECT_USAGE);
+  if (contains && regex) throw fail('expect takes --contains or --regex, not both.');
+  if (!Object.hasOwn(EXPECT_MATCHERS, positional[0])) throw fail(`expect ${positional[0]} is not supported in journeys: ${EXPECT_USAGE}`);
+  const matcher = EXPECT_MATCHERS[positional[0]];
+  const args = positional.slice(1);
+
+  let target: Target | undefined;
+  if (matcher !== 'title' && matcher !== 'url') {
+    if (args.length === 0) throw usage(EXPECT_USAGE);
+    target = parseExpectTarget(args, name, exact);
+  } else if (name !== undefined || exact) {
+    throw fail(`--name and --exact apply to a find target, and expect ${positional[0]} is about the page.`);
+  }
+
+  const takesText = ['text', 'value', 'class', 'attribute', 'title', 'url'].includes(matcher);
+  if ((contains || regex) && !takesText) throw fail(`--contains and --regex do not apply to expect ${positional[0]}.`);
+  if (ignoreCase && !['text', 'attribute', 'url'].includes(matcher)) throw fail('--ignore-case applies to expect text, attr and url.');
+  if (innerText && matcher !== 'text') throw fail('--inner-text applies to expect text.');
+
+  const command: Extract<Command, { type: 'expect' }> = { type: 'expect', matcher };
+  if (target) command.target = target;
+  switch (matcher) {
+    case 'text': case 'value': case 'class': case 'title': case 'url':
+      if (args.length !== 1) throw usage(EXPECT_USAGE);
+      command.expected = value(args[0]);
+      break;
+    case 'attribute':
+      if (args.length !== 1 && args.length !== 2) throw usage(EXPECT_USAGE);
+      if (args.length === 1 && (contains || regex))
+        throw fail("--contains and --regex need the attribute's expected value: expect attr <target> <name> <text>.");
+      command.name = args[0];
+      if (args.length === 2) command.expected = value(args[1]);
+      break;
+    case 'count': {
+      const n = args.length === 1 ? parseUInt(args[0]) : undefined;
+      if (n === undefined) throw usage(EXPECT_USAGE);
+      command.count = n;
+      break;
+    }
+    default:
+      if (args.length !== 0) throw usage(EXPECT_USAGE);
+  }
+
+  if (regex && command.expected !== undefined) {
+    try {
+      new RegExp(command.expected);
+    } catch (e) {
+      throw fail(`'${command.expected}' is not a valid regular expression: ${(e as Error).message}`);
+    }
+  }
+  if (contains) command.match = 'contains';
+  if (regex) command.match = 'regex';
+  if (negate) command.not = true;
+  if (ignoreCase) command.ignoreCase = true;
+  if (innerText) command.innerText = true;
+  if (timeoutMs !== undefined) command.timeoutMs = timeoutMs;
+  return command;
+}
+
+// Consumes the target from the front of args; what is left are the matcher's own arguments.
+function parseExpectTarget(args: string[], name: string | undefined, exact: boolean): Target {
+  if (args[0] !== 'find') {
+    if (name !== undefined || exact) throw fail('--name and --exact apply to a find target: expect <matcher> find role button --name Save.');
+    return css(args.shift()!);
+  }
+  if (args.length < 3) throw usage(EXPECT_FIND_USAGE);
+  const kinds: Record<string, TargetKind> = {
+    role: 'role', text: 'text', label: 'label', placeholder: 'placeholder', alt: 'alt', title: 'title', testid: 'testid',
+    first: 'css', last: 'css', nth: 'css',
+  };
+  const word = args[1];
+  if (!Object.hasOwn(kinds, word)) throw fail(`unknown locator '${word}': ${EXPECT_FIND_USAGE}`);
+  const kind = kinds[word];
+  if (name !== undefined && kind !== 'role') throw fail('--name only applies to find role');
+  if (word === 'first' || word === 'last') {
+    const target = { ...css(args[2]), index: word === 'first' ? 0 : -1 };
+    args.splice(0, 3);
+    return target;
+  }
+  if (word === 'nth') {
+    if (args.length < 4 || !/^[+-]?\d+$/.test(args[2])) throw fail('usage: expect <matcher> find nth <n> <selector>');
+    const target = { ...css(args[3]), index: Number(args[2]) };
+    args.splice(0, 4);
+    return target;
+  }
+  const target: Target = { kind, value: args[2] };
+  if (name !== undefined) target.name = name;
+  if (exact) target.exact = true;
+  args.splice(0, 3);
+  return target;
 }

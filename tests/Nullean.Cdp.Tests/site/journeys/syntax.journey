@@ -33,3 +33,30 @@ errors --clear
 get styles #box
 get attr #name placeholder
 is visible #hello
+expect visible #go
+expect --not hidden find role button --name Save --exact
+expect enabled #go
+expect disabled #off
+expect checked find label Newsletter
+expect unchecked #plain
+expect focused #name
+expect editable #name
+expect attached #hidden
+expect empty #blank
+expect text #count "2 results"
+expect text #count results --contains --ignore-case --inner-text
+expect text find role heading --name Actions "Actions"
+expect text #count "^\d+ results$" --regex
+expect value #name Ada
+expect attr #name placeholder
+expect attr #name data-state ready --contains
+expect class #go "primary big"
+expect class #go big --contains
+expect count li 3
+expect --timeout 1500 visible find first li
+expect text find nth 2 li Three
+expect value #pw $env:SHOP_PASSWORD
+expect title Loaded
+expect title Load --contains
+expect url "**/about.html"
+expect --not url "**/error" --ignore-case

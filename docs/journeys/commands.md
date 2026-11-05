@@ -87,6 +87,51 @@ All checkpoints. See [checks](../library/checks.md) and [performance](../library
 | `vitals [--budget <name>=<limit>...]` | `ttfb`, `fcp`, `lcp`, `cls`, `inp` |
 | `metrics [--budget <name>=<limit>...]` | Chrome's runtime counters: `Nodes`, `JSHeapUsedSize`, `LayoutCount`, … |
 
+## Expect
+
+Assertions, after [Playwright's](https://playwright.dev/docs/test-assertions). An `expect` line checks again and again
+until it holds or the timeout passes (the action timeout, 5 s, unless `--timeout <ms>`), then fails the step. A passing
+assertion records nothing, so it changes no verified transcript. The target is a CSS selector, or `find` as above:
+`expect visible find role button --name Save --exact`. The matcher comes first.
+
+| Command | Holds when |
+|---|---|
+| `expect visible\|hidden <target>` | the first match is visible; `hidden` also holds when nothing matches |
+| `expect enabled\|disabled <target>` | a match is not disabled (`disabled` attribute, `aria-disabled`, a disabled `fieldset`) or is |
+| `expect checked\|unchecked <target>` | a checked checkbox, radio or `aria-checked` element, or a match that is not |
+| `expect focused\|editable\|attached\|empty <target>` | it has focus; takes input; is in the document; has no value or text |
+| `expect text <target> <text>` | the whole text, whitespace collapsed, case-sensitive; `--contains` for part of it; `--regex` for a pattern; `--ignore-case`; `--inner-text` reads what is rendered |
+| `expect value <target> <text>` | an input's value, as it is |
+| `expect attr <target> <name> [<text>]` | the attribute is there, or has that value |
+| `expect class <target> <classes>` | the whole `class` attribute; with `--contains`, every class listed, in any order |
+| `expect count <target> <n>` | exactly `n` matches (`0` when none) |
+| `expect title <text>` | the page title |
+| `expect url <glob>` | the URL, as `wait --url`: `**` is anything, `*` anything but `/`; `--regex` for a pattern |
+
+`--not` inverts any of them, and keeps checking until the matcher stops holding. `--contains` and `--regex` apply to
+`text`, `value`, `attr`, `class`, `title` and `url`; `--ignore-case` to `text`, `attr` and `url`. A negated matcher
+about an element (`--not enabled`) holds when nothing matches; the positive `disabled` needs an element.
+
+```text
+expect visible find role heading --name "Your basket"
+expect text #count "2 items"
+expect --not visible .spinner
+expect --timeout 10000 text "#status" "Done"
+expect url "**/checkout"
+```
+
+A failure names what was expected and what the last check saw:
+
+```text
+Journey stopped at journeys/shop.journey:9: expect text #count "3 items"
+Timed out after 5s waiting for css #count to have text "3 items": received "2 items".
+```
+
+A regular expression is .NET's in `cdp run` and JavaScript's on [Playwright](playwright.md); keep to the syntax they share,
+and quote it: unquoted, a backslash escapes the next character (`'^\d+ items$'`). There are no flags: use `--ignore-case`.
+`$env:NAME` works in an expected value and is redacted from messages. `expect` is ours: agent-browser has no
+assertions, so [the export](agent-browser.md) leaves these lines out.
+
 ## Record
 
 These write files, only inside the artifacts folder the host chose (`--artifacts`, or `JourneyOptions.ArtifactsDirectory`);

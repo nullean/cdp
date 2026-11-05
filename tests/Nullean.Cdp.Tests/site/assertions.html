@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Assertions</title></head>
+<body>
+<main>
+  <h1>Assertions</h1>
+  <p id="count">2 results</p>
+  <p id="spaced">  one   two
+     three </p>
+  <button type="button" id="go" class="primary big">Go</button>
+  <button type="button" id="off" disabled>Off</button>
+  <button type="button" id="aria-off" aria-disabled="true">Aria off</button>
+  <button type="button" id="enable-later" disabled>Soon</button>
+  <input id="name" value="Ada" placeholder="Name" data-state="ready">
+  <input id="readonly" value="fixed" readonly>
+  <input id="blank" value="">
+  <input type="checkbox" id="news" checked>
+  <input type="checkbox" id="plain">
+  <ul id="list"><li>One</li><li>Two</li><li>Three</li></ul>
+  <div id="hidden" style="display:none">secret</div>
+  <div id="empty-div"></div>
+  <div id="gone">will go</div>
+  <a href="about.html" id="link">About</a>
+</main>
+<script>
+  // What changes after a moment, so an assertion has to retry.
+  setTimeout(() => {
+    const late = document.createElement('p');
+    late.id = 'late';
+    late.textContent = 'arrived';
+    document.querySelector('main').append(late);
+    document.getElementById('gone').remove();
+    document.getElementById('enable-later').disabled = false;
+    document.getElementById('plain').checked = true;
+    document.title = 'Loaded';
+  }, 300);
+</script>
+</body>
+</html>

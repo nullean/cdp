@@ -120,3 +120,13 @@ test('an unparsable journey throws when steps are registered, before anything ru
   const { journeySteps } = await import('../src/adapters/synthetics.ts');
   assert.throws(() => journeySteps({ page: undefined as never, step: () => {} }, 'open /\nfrobnicate', { source: 'x.journey' }), /x\.journey:2: 'frobnicate' is not supported/);
 });
+
+test('an expect step fails loudly until the runner supports assertions, never silently passes', async (t) => {
+  if (skip) return t.skip(skip);
+  const page = await (await browser!.newContext()).newPage();
+  const journey = parseJourney('open actions.html\nexpect visible #hello\nget title', 'x.journey');
+  const result = await runJourney(page, journey, { baseUrl: origin + '/', warn: () => {} });
+  assert.equal(result.failure?.line, 2);
+  assert.match(result.failure?.message ?? '', /expect is not supported by this version of @nullean\/journeys yet/);
+  assert.equal(result.checkpoints.length, 0);
+});

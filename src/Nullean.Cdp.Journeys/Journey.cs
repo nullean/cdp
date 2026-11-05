@@ -296,6 +296,7 @@ public sealed partial class Journey
 		"network har start", "network har stop <path>", "a11y [-s <selector>] [--strict]",
 		"timings [--budget <name>=<ms>...]", "vitals [--budget <name>=<limit>...]", "metrics [--budget <name>=<limit>...]",
 		"is visible|enabled|checked <selector>",
+		"expect [--not] [--timeout <ms>] <matcher> <target> [<value>] [--contains] [--regex] [--ignore-case] [--inner-text]",
 	];
 
 	private sealed class JourneySyntaxException(string message) : Exception(message);
@@ -343,6 +344,7 @@ public sealed partial class Journey
 				["--clear"] => new ClearLogCommand(command),
 				_ => throw Usage($"{command} [--clear]"),
 			},
+			"expect" => ParseExpect(rest),
 			"is" => rest.Length == 2 && rest[0] is "visible" or "enabled" or "checked"
 				? new ReadCommand("is " + rest[0], Css(rest[1]))
 				: throw Usage("is visible|enabled|checked <selector>"),
@@ -791,7 +793,7 @@ public sealed partial class Journey
 			foreach (var step in Steps)
 			{
 				// timings, metrics and links are not agent-browser commands; vitals is, without our budgets.
-				if (step.Command is PerformanceCommand { Kind: not "vitals" } or LinksCommand)
+				if (step.Command is PerformanceCommand { Kind: not "vitals" } or LinksCommand or ExpectCommand)
 					continue;
 				json.WriteStartArray();
 				if (step.Command is PerformanceCommand)

@@ -19,7 +19,7 @@ are ours, not agent-browser's, are translated or left out:
 | Journey | Exported as |
 |---|---|
 | `allow …` | left out; `cdp batch` prints the `--allowed-domains` to pass to agent-browser |
-| `timings`, `metrics`, `links` | left out |
+| `timings`, `metrics`, `links`, `expect …` | left out (agent-browser has no assertions) |
 | `vitals --budget …` | `vitals` |
 | `a11y --strict` | `a11y` (agent-browser runs axe-core) |
 | `network requests --failed` | `network requests --status 400-599` |

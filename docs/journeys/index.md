@@ -49,5 +49,6 @@ matches that are not visible, or visible ones that are disabled.
 Some checks report or fail, as you choose:
 
 - `a11y`, `links` and `network requests` list what they found; with `--strict` anything found fails the step.
+- `expect` asserts on page state and fails the step when it does not hold in time; it records nothing when it passes.
 - `timings`, `vitals` and `metrics` print raw numbers; with `--budget lcp=2500 cls=0.1` they print only
   `lcp ok (<= 2500)` and fail over the limit. Raw numbers change from run to run; budgets keep a transcript stable.

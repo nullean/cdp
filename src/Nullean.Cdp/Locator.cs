@@ -59,7 +59,7 @@ public sealed class LocatorException(string message) : Exception(message);
 /// Text matching follows agent-browser and Playwright: whitespace is collapsed, and matching is a case-insensitive
 /// substring unless <c>exact</c>, which compares whole and case-sensitive. Test ids always match exactly.
 /// </remarks>
-public sealed class Locator
+public sealed partial class Locator
 {
 	private static long GroupCounter;
 

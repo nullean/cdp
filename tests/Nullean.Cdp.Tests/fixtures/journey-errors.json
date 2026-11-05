@@ -517,7 +517,7 @@
       "errors": [
         {
           "line": 2,
-          "message": "'pdf' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, links, screenshot, a11y, timings, vitals, metrics, is."
+          "message": "'pdf' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, links, screenshot, a11y, timings, vitals, metrics, is, expect."
         },
         {
           "line": 3,
@@ -664,6 +664,306 @@
         {
           "line": 1,
           "message": "unknown locator 'bogus': find role|text|label|placeholder|alt|title|testid <value> | first|last <selector> | nth <n> <selector> [click|fill|check|hover|text] [text] [--name <name>] [--exact]"
+        }
+      ]
+    },
+    {
+      "name": "66",
+      "text": "expect",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+        }
+      ]
+    },
+    {
+      "name": "67",
+      "text": "expect bogus #a",
+      "errors": [
+        {
+          "line": 1,
+          "message": "expect bogus is not supported in journeys: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+        }
+      ]
+    },
+    {
+      "name": "68",
+      "text": "expect visible",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+        }
+      ]
+    },
+    {
+      "name": "69",
+      "text": "expect visible #a extra",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+        }
+      ]
+    },
+    {
+      "name": "70",
+      "text": "expect text #a",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+        }
+      ]
+    },
+    {
+      "name": "71",
+      "text": "expect text #a b c",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+        }
+      ]
+    },
+    {
+      "name": "72",
+      "text": "expect count #a x",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+        }
+      ]
+    },
+    {
+      "name": "73",
+      "text": "expect count #a -1",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+        }
+      ]
+    },
+    {
+      "name": "74",
+      "text": "expect --timeout visible #a",
+      "errors": [
+        {
+          "line": 1,
+          "message": "--timeout needs a number of milliseconds"
+        }
+      ]
+    },
+    {
+      "name": "75",
+      "text": "expect --timeout 0 visible #a",
+      "errors": [
+        {
+          "line": 1,
+          "message": "--timeout needs a number of milliseconds"
+        }
+      ]
+    },
+    {
+      "name": "76",
+      "text": "expect --bogus visible #a",
+      "errors": [
+        {
+          "line": 1,
+          "message": "expect --bogus is not supported in journeys: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+        }
+      ]
+    },
+    {
+      "name": "77",
+      "text": "expect text #a b --contains --regex",
+      "errors": [
+        {
+          "line": 1,
+          "message": "expect takes --contains or --regex, not both."
+        }
+      ]
+    },
+    {
+      "name": "78",
+      "text": "expect visible #a --contains",
+      "errors": [
+        {
+          "line": 1,
+          "message": "--contains and --regex do not apply to expect visible."
+        }
+      ]
+    },
+    {
+      "name": "79",
+      "text": "expect visible #a --ignore-case",
+      "errors": [
+        {
+          "line": 1,
+          "message": "--ignore-case applies to expect text, attr and url."
+        }
+      ]
+    },
+    {
+      "name": "80",
+      "text": "expect value #a b --ignore-case",
+      "errors": [
+        {
+          "line": 1,
+          "message": "--ignore-case applies to expect text, attr and url."
+        }
+      ]
+    },
+    {
+      "name": "81",
+      "text": "expect visible #a --inner-text",
+      "errors": [
+        {
+          "line": 1,
+          "message": "--inner-text applies to expect text."
+        }
+      ]
+    },
+    {
+      "name": "82",
+      "text": "expect title x --name y",
+      "errors": [
+        {
+          "line": 1,
+          "message": "--name and --exact apply to a find target, and expect title is about the page."
+        }
+      ]
+    },
+    {
+      "name": "83",
+      "text": "expect visible #a --name x",
+      "errors": [
+        {
+          "line": 1,
+          "message": "--name and --exact apply to a find target: expect <matcher> find role button --name Save."
+        }
+      ]
+    },
+    {
+      "name": "84",
+      "text": "expect visible #a --exact",
+      "errors": [
+        {
+          "line": 1,
+          "message": "--name and --exact apply to a find target: expect <matcher> find role button --name Save."
+        }
+      ]
+    },
+    {
+      "name": "85",
+      "text": "expect visible find role",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: expect <matcher> find role|text|label|placeholder|alt|title|testid <value> | first|last <selector> | nth <n> <selector>"
+        }
+      ]
+    },
+    {
+      "name": "86",
+      "text": "expect visible find bogus x",
+      "errors": [
+        {
+          "line": 1,
+          "message": "unknown locator 'bogus': expect <matcher> find role|text|label|placeholder|alt|title|testid <value> | first|last <selector> | nth <n> <selector>"
+        }
+      ]
+    },
+    {
+      "name": "87",
+      "text": "expect visible find text x --name y",
+      "errors": [
+        {
+          "line": 1,
+          "message": "--name only applies to find role"
+        }
+      ]
+    },
+    {
+      "name": "88",
+      "text": "expect visible find nth x li",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: expect <matcher> find nth <n> <selector>"
+        }
+      ]
+    },
+    {
+      "name": "89",
+      "text": "expect visible @e3",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'@e3' is an agent-browser ref, which changes from run to run; use find role <role> --name <name>, find text, or a CSS selector."
+        }
+      ]
+    },
+    {
+      "name": "90",
+      "text": "expect visible find first @e3",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'@e3' is an agent-browser ref, which changes from run to run; use find role <role> --name <name>, find text, or a CSS selector."
+        }
+      ]
+    },
+    {
+      "name": "91",
+      "text": "expect attr #a",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+        }
+      ]
+    },
+    {
+      "name": "92",
+      "text": "expect attr #a n --regex",
+      "errors": [
+        {
+          "line": 1,
+          "message": "--contains and --regex need the attribute's expected value: expect attr <target> <name> <text>."
+        }
+      ]
+    },
+    {
+      "name": "93",
+      "text": "expect text #a $env:1x",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'$env:1x' is not a secret reference: write $env:NAME with letters, digits and _."
+        }
+      ]
+    },
+    {
+      "name": "94",
+      "text": "expect visible --name",
+      "errors": [
+        {
+          "line": 1,
+          "message": "--name needs a value"
+        }
+      ]
+    },
+    {
+      "name": "95",
+      "text": "open /\nexpect hidden\nclick #go",
+      "errors": [
+        {
+          "line": 2,
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
         }
       ]
     }
