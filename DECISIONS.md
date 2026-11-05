@@ -37,6 +37,12 @@ joined with the target OS's separator, not the host's.
   serializer, no reflection.
 - Tests drive the connection through an in-memory transport (`ICdpTransport`), not a socket server: the socket is a
   thin adapter, and the routing, events and close handling are what need testing.
+- **A read that fails after disposal began is the disposal, whatever it throws.** `DisposeAsync` cancels, then disposes the
+  transport, so a pending read can end with the cancellation or with the transport closing under it (a channel completing,
+  a socket disposed). Which one depends on a race inside the transport, so `ReceiveLoopAsync` treats any exception as
+  "disposed" once the connection is stopping, and reports "Reading from the browser failed" only when it was not. The
+  failure showed up as a flaky `DisposingFailsPendingCommands` on a loaded Linux runner; the tests now make the transport
+  throw each kind of exception deterministically.
 
 ## Launching Chrome
 

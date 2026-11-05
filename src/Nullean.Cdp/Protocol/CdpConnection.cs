@@ -180,8 +180,10 @@ public sealed class CdpConnection : IAsyncDisposable
 			while (await _transport.ReceiveAsync(_stopping.Token).ConfigureAwait(false) is { } message)
 				Dispatch(message);
 		}
-		catch (OperationCanceledException) when (_stopping.IsCancellationRequested)
+		catch (Exception) when (_stopping.IsCancellationRequested)
 		{
+			// DisposeAsync cancels before it disposes the transport, so once that has happened a failed read is the disposal
+			// itself, whichever way the transport reports it: the cancellation, or the channel or socket closing under it.
 			reason = "The connection to the browser was disposed.";
 		}
 		catch (Exception e)
