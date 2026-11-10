@@ -25,6 +25,8 @@ namespace Nullean.Cdp.Cli
 		/// <param name="feature">A feature flag that is on (repeatable), for 'feature' blocks.</param>
 		/// <param name="buildType">The build type, for build-type: conditions.</param>
 		/// <param name="env">The environment's name, for env: conditions.</param>
+		/// <param name="readOnly">Refuse every request that is not GET, HEAD or OPTIONS, so the run cannot change a live site.</param>
+		/// <param name="writable">URL glob a read-only run may write to anyway (repeatable): ** anything, * anything but /.</param>
 		/// <param name="headed">Show the browser window.</param>
 		/// <param name="json">Print JSON; everything under a "page" key came from the page.</param>
 		/// <param name="maxOutput">Characters per checkpoint before it is cut (0 for no limit).</param>
@@ -39,12 +41,14 @@ namespace Nullean.Cdp.Cli
 			string[]? feature = null,
 			string? buildType = null,
 			string? env = null,
+			bool readOnly = false,
+			string[]? writable = null,
 			bool headed = false,
 			bool json = false,
 			int maxOutput = CdpCli.DefaultMaxOutput,
 			double? timeout = null,
 			CancellationToken cancellationToken = default
-		) => Cli().RunAsync(files, baseUrl, allow ?? [], fileRoot, headed, json, maxOutput, timeout, cancellationToken, artifacts, feature, buildType, env);
+		) => Cli().RunAsync(files, baseUrl, allow ?? [], fileRoot, headed, json, maxOutput, timeout, cancellationToken, artifacts, feature, buildType, env, readOnly, writable);
 
 		/// <summary>Parse journeys without running them, and report every error with its line.</summary>
 		/// <param name="files">Journey files.</param>

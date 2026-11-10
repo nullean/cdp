@@ -9,7 +9,7 @@ import type { BrowserContext, Locator, Page } from 'playwright-core';
 import { joinLine } from './commandline.ts';
 import type { Command, Journey, Step, Target } from './model.ts';
 import { isSecretReference, requirementMet } from './parse.ts';
-import { describeTarget, runExpect } from './expect.ts';
+import { describeTarget, runExpect, urlGlob } from './expect.ts';
 import type { PlaywrightExpect } from './expect.ts';
 
 export interface RunOptions {
@@ -23,6 +23,13 @@ export interface RunOptions {
   buildType?: string;
   /** The environment's name (`prod`, `edge`), for `env:` conditions. */
   env?: string;
+  /**
+   * Refuse every request that is not GET, HEAD or OPTIONS, so a run against a live site cannot change it. A refused
+   * write fails the step that caused it.
+   */
+  readOnly?: boolean;
+  /** URL globs (`**` anything, `*` anything but `/`) a read-only run may write to anyway, such as a telemetry endpoint. */
+  writableUrls?: string[];
   /** Resolves `$env:NAME`; the process environment by default. */
   secrets?: (name: string) => string | undefined;
   /** Where `screenshot` writes. Without it, screenshot steps are skipped with a warning. */
@@ -160,6 +167,8 @@ export class JourneyRun {
   private actionDocuments = 0;
   private readonly blockedNavigations: string[] = [];
   private readonly skippedBlocks = new Set<number>();
+  private readonly blockedWrites: string[] = [];
+  private readonly writable: RegExp[];
   private readonly consoleLog: string[] = [];
   private readonly errorLog: string[] = [];
   private readonly warned = new Set<string>();
@@ -184,6 +193,7 @@ export class JourneyRun {
       else if (base.protocol === 'file:') fileRoot = dirname(decodeURIComponent(base.pathname.endsWith('/') ? base.pathname + 'x' : base.pathname));
     }
     this.allow = new AllowList(hosts, fileRoot);
+    this.writable = (options.writableUrls ?? []).map(urlGlob);
   }
 
   /** Starts a run: the network guard, and the recordings the journey's steps need. */
@@ -214,7 +224,13 @@ export class JourneyRun {
       } catch {
         return route.fallback();
       }
-      if (url.protocol === 'data:' || url.protocol === 'blob:' || url.protocol === 'about:' || this.allow.refusal(url) === undefined) return route.fallback();
+      if (url.protocol === 'data:' || url.protocol === 'blob:' || url.protocol === 'about:') return route.fallback();
+      if (this.allow.refusal(url) === undefined) {
+        const method = request.method().toUpperCase();
+        if (!this.options.readOnly || method === 'GET' || method === 'HEAD' || method === 'OPTIONS' || this.writable.some((g) => g.test(url.href))) return route.fallback();
+        this.blockedWrites.push(`Blocked ${method} ${request.url()}: this run is read-only, so only GET, HEAD and OPTIONS requests are sent (RunOptions.writableUrls, or --writable on the CLI, allows a URL).`);
+        return route.abort('blockedbyclient');
+      }
       if (request.isNavigationRequest()) this.blockedNavigations.push(`The page navigated to ${request.url()}, which is refused: ${this.allow.refusal(url)}.`);
       return route.abort('blockedbyclient');
     };
@@ -270,10 +286,10 @@ export class JourneyRun {
       output = await this.run(step.command, step);
       // A navigation starts from the page it lands on.
       if (step.command.type === 'open' || step.command.type === 'history') this.actionDocuments = this.documents;
-      const refused = this.blockedNavigations.splice(0);
+      const refused = [...this.blockedNavigations.splice(0), ...this.blockedWrites.splice(0)];
       if (refused.length > 0) throw new StepError(refused[0]);
     } catch (e) {
-      const refused = this.blockedNavigations.splice(0);
+      const refused = [...this.blockedNavigations.splice(0), ...this.blockedWrites.splice(0)];
       const message = refused[0] ?? (e instanceof Error ? e.message : String(e));
       throw new StepError(this.secrets.redact(message));
     }

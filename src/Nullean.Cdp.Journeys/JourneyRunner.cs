@@ -57,6 +57,24 @@ public sealed class JourneyOptions
 	/// <summary>What <c>feature</c> blocks and <c>@requires</c> conditions are judged against.</summary>
 	public JourneyContext Context => new(Features, BuildType, Env);
 
+	/// <summary>
+	/// Refuse every request that is not a read (anything but GET, HEAD and OPTIONS), so a run against a live site cannot
+	/// change it. A refused write fails the step that caused it. Not tied to <see cref="GuardNetwork"/>.
+	/// </summary>
+	public bool ReadOnly { get; init; }
+
+	/// <summary>
+	/// URL globs (<see cref="Page.UrlGlob"/>: <c>**</c> anything, <c>*</c> anything but <c>/</c>) a read-only run may write
+	/// to anyway, such as a telemetry endpoint.
+	/// </summary>
+	public IReadOnlyList<string> WritableUrls { get; init; } = [];
+
+	internal NetworkGuardOptions GuardOptions()
+	{
+		var writable = WritableUrls.Select(Page.UrlGlob).ToArray();
+		return new NetworkGuardOptions { ReadOnly = ReadOnly, AllowWrites = writable.Length == 0 ? null : uri => writable.Any(g => g.IsMatch(uri.AbsoluteUri)) };
+	}
+
 	internal JourneyAllowList AllowList(Journey journey)
 	{
 		var hosts = journey.AllowedHosts.Concat(AllowedHosts);
@@ -125,8 +143,8 @@ public static class JourneyRunner
 		var checkpoints = new List<Checkpoint>();
 		var blocked = new List<BlockedRequest>();
 		// Without the guard, a guard that allows everything is still started when a step needs one (credentials).
-		await using var guard = options.GuardNetwork || journey.Steps.Any(s => s.Command is SetCommand { Setting: "credentials" })
-			? await page.GuardNetworkAsync(options.GuardNetwork ? run.AllowList.Allows : _ => true, cancellationToken).ConfigureAwait(false)
+		await using var guard = options.GuardNetwork || options.ReadOnly || journey.Steps.Any(s => s.Command is SetCommand { Setting: "credentials" })
+			? await page.GuardNetworkAsync(options.GuardNetwork ? run.AllowList.Allows : _ => true, options.GuardOptions(), cancellationToken).ConfigureAwait(false)
 			: null;
 		run.Guard = guard;
 		// The network is recorded only for journeys that read it.
@@ -204,6 +222,12 @@ public static class JourneyRunner
 		string? failure = null;
 		foreach (var request in guard.TakeBlocked())
 		{
+			if (request.RefusedWrite is { } method)
+			{
+				failure ??= $"Blocked {method} {request.Url}: this run is read-only, so only GET, HEAD and OPTIONS requests are sent (JourneyOptions.WritableUrls, or --writable on the CLI, allows a URL).";
+				continue;
+			}
+
 			if (!request.IsNavigation)
 			{
 				blocked.Add(request);

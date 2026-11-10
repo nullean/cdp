@@ -551,3 +551,12 @@ published by hand by the owner.
   skipped, so it must refuse them; a journey without blocks still prints version 1 byte for byte as before.
 - **Not exported to agent-browser**, which runs every line.
 
+## Read-only runs
+
+- **The guard enforces it, a journey doesn't declare it.** `NetworkGuardOptions.ReadOnly` refuses on the request's
+  method in `Fetch.requestPaused`, where the page cannot get around it; a journey marked as read-only could still
+  write by mistake. The TS runner does the same in `page.route`.
+- **Writes are judged after the allow list**, so a refused third-party beacon stays a reported request and only a
+  write to an allowed host fails the step. A page that writes on its own (telemetry) needs `WritableUrls`.
+- **`BlockedRequest.RefusedWrite` is `null` for allow-list refusals**, so existing `BlockedRequest` equality is
+  unchanged.
