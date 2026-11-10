@@ -9,6 +9,7 @@ import {
   type ExpectMatcher,
   type Journey,
   type JourneyError,
+  type JourneyMetadata,
   type Step,
   type Target,
   type TargetKind,
@@ -41,8 +42,11 @@ export function parseJourney(text: string, source = 'journey'): Journey {
   const steps: Step[] = [];
   const errors: JourneyError[] = [];
   const allow: string[] = [];
+  const header = new MetadataBuilder();
+  let seenStep = false;
   const lines = text.split('\n');
   for (let i = 0; i < lines.length; i++) {
+    if (header.add(lines[i].replace(/\r+$/, ''), i + 1, seenStep, errors)) continue;
     const split = splitLine(lines[i].replace(/\r+$/, ''));
     if ('error' in split) {
       errors.push({ line: i + 1, message: split.error });
@@ -58,6 +62,7 @@ export function parseJourney(text: string, source = 'journey'): Journey {
       }
       continue;
     }
+    seenStep = true;
     try {
       steps.push({ line: i + 1, args, command: parseCommand(args) });
     } catch (e) {
@@ -66,7 +71,8 @@ export function parseJourney(text: string, source = 'journey'): Journey {
     }
   }
   if (errors.length > 0) throw new JourneyParseError(source, errors);
-  return { version: 1, source, allow, steps };
+  const metadata = header.build();
+  return metadata ? { version: 1, source, allow, metadata, steps } : { version: 1, source, allow, steps };
 }
 
 const css = (selector: string): Target => {
@@ -742,4 +748,161 @@ function parseExpectTarget(args: string[], name: string | undefined, exact: bool
   if (exact) target.exact = true;
   args.splice(0, 3);
   return target;
+}
+
+
+const DIRECTIVES = '@tags, @requires, @monitor, @alert or @mutates';
+const TAG_NAME = /^[a-z0-9][a-z0-9._-]*$/;
+const FEATURE_NAME = /^[a-z][a-z0-9-]*$/;
+const CONTEXT_VALUE = /^[a-z0-9][a-z0-9_-]*$/;
+
+/** The header's directives, collected line by line (the same grammar and messages as Journey.Metadata in Nullean.Cdp.Journeys). */
+class MetadataBuilder {
+  private readonly tags: string[] = [];
+  private readonly requires: string[] = [];
+  private readonly alerts: string[] = [];
+  private monitor: { schedule?: number; locations?: string[] } | undefined;
+  private mutates = false;
+  private any = false;
+
+  /** Whether the line is a directive (it is then not a step); a bad one adds its error. */
+  add(line: string, number: number, afterFirstStep: boolean, errors: JourneyError[]): boolean {
+    const match = /^#\s*@(\S*)\s*(.*)$/.exec(line.trim());
+    if (!match) return false;
+    const name = match[1];
+    const words = match[2].split(/[ \t]+/).filter((w) => w.length > 0);
+    if (afterFirstStep) {
+      errors.push({ line: number, message: `@${name} belongs in the header: put the directive before the first step` });
+      return true;
+    }
+    this.any = true;
+    try {
+      this.apply(name, words);
+    } catch (e) {
+      if (e instanceof SyntaxError_) errors.push({ line: number, message: e.message });
+      else throw e;
+    }
+    return true;
+  }
+
+  private apply(name: string, words: string[]) {
+    switch (name) {
+      case 'tags':
+        needsWords(name, words, '@tags <name...>, e.g. @tags navigation smoke');
+        for (const tag of words) {
+          if (!TAG_NAME.test(tag)) throw fail(`'${tag}' is not a tag name: use lower case letters, digits, '.', '_' or '-'`);
+          this.tags.push(tag);
+        }
+        break;
+      case 'requires':
+        needsWords(name, words, '@requires <condition...>, e.g. @requires navigation-preview !env:prod build-type:assembler,codex');
+        for (const word of words) this.requires.push(normalizeRequirement(word));
+        break;
+      case 'monitor':
+        if (this.monitor) throw fail('@monitor may appear once');
+        this.monitor = parseMonitor(words);
+        break;
+      case 'alert':
+        needsWords(name, words, '@alert <channel...>, e.g. @alert pagerduty');
+        for (const channel of words) {
+          if (!FEATURE_NAME.test(channel)) throw fail(`'${channel}' is not an alert channel: use lower case letters, digits and '-'`);
+          this.alerts.push(channel);
+        }
+        break;
+      case 'mutates':
+        if (words.length > 0) throw fail('usage: @mutates, with nothing after it');
+        this.mutates = true;
+        break;
+      default:
+        throw fail(`unknown directive '@${name}': use ${DIRECTIVES}`);
+    }
+  }
+
+  build(): JourneyMetadata | undefined {
+    if (!this.any) return undefined;
+    const metadata: JourneyMetadata = {};
+    const tags = [...new Set(this.tags)];
+    const alert = [...new Set(this.alerts)];
+    if (tags.length > 0) metadata.tags = tags;
+    if (this.requires.length > 0) metadata.requires = this.requires;
+    if (this.monitor) metadata.monitor = this.monitor;
+    if (alert.length > 0) metadata.alert = alert;
+    if (this.mutates) metadata.mutates = true;
+    return metadata;
+  }
+}
+
+function needsWords(name: string, words: string[], usage: string) {
+  if (words.length === 0) throw fail(`@${name} needs a value: ${usage}`);
+}
+
+/** Checks one `@requires` condition and returns it as written. */
+function normalizeRequirement(text: string): string {
+  const negated = text.startsWith('!');
+  const body = negated ? text.slice(1) : text;
+  const colon = body.indexOf(':');
+  if (colon < 0) {
+    if (FEATURE_NAME.test(body)) return text;
+    throw fail(`'${text}' is not a condition: use a feature flag (navigation-preview), build-type:<a,b> or env:<a,b>, each optionally with a leading '!'`);
+  }
+  const kind = body.slice(0, colon);
+  if (kind !== 'build-type' && kind !== 'env') throw fail(`'${text}' is not a condition: '${kind}:' is not one of build-type: or env:`);
+  if (!body.slice(colon + 1).split(',').every((v) => CONTEXT_VALUE.test(v)))
+    throw fail(`'${text}' needs one or more values of lower case letters, digits, '_' or '-', separated by commas`);
+  return text;
+}
+
+function parseMonitor(words: string[]): { schedule?: number; locations?: string[] } {
+  const monitor: { schedule?: number; locations?: string[] } = {};
+  const locations: string[] = [];
+  for (const word of words) {
+    const equals = word.indexOf('=');
+    const key = equals < 0 ? word : word.slice(0, equals);
+    const value = equals < 0 ? '' : word.slice(equals + 1);
+    if (key === 'schedule') {
+      const minutes = /^\d+$/.test(value) ? Number(value) : 0;
+      if (minutes <= 0 || minutes > 2147483647) throw fail(`'${word}' needs a number of minutes: schedule=10`);
+      monitor.schedule = minutes;
+    } else if (key === 'locations') {
+      locations.push(...value.split(',').filter((l) => l.length > 0));
+      if (locations.length === 0 || locations.some((l) => !CONTEXT_VALUE.test(l))) throw fail(`'${word}' needs location names separated by commas: locations=germany,us_east`);
+    } else {
+      throw fail(`unknown @monitor option '${word}': use schedule=<minutes> or locations=<a,b>`);
+    }
+  }
+  if (locations.length > 0) monitor.locations = locations;
+  return monitor;
+}
+
+/** What a run knows about the site under test, to decide whether a journey applies to it. */
+export interface JourneyContext {
+  /** The enabled feature flags, kebab-case (`navigation-preview`). */
+  features?: Iterable<string>;
+  /** `isolated`, `assembler` or `codex`; undefined when unknown. */
+  buildType?: string;
+  /** The environment's name, e.g. `prod` or `edge`; undefined when unknown. */
+  env?: string;
+}
+
+/**
+ * Whether one `@requires` condition holds: a feature flag, or `build-type:a,b` or `env:a,b` (any of the values), each
+ * optionally negated with `!`. Anything the context does not know about is not matched, so a negated condition holds
+ * and a plain one does not.
+ */
+export function requirementMet(requirement: string, context: JourneyContext): boolean {
+  const negated = requirement.startsWith('!');
+  const body = negated ? requirement.slice(1) : requirement;
+  const colon = body.indexOf(':');
+  let matches: boolean;
+  if (colon < 0) matches = new Set(context.features ?? []).has(body);
+  else {
+    const actual = body.startsWith('build-type:') ? context.buildType : context.env;
+    matches = actual !== undefined && body.slice(colon + 1).split(',').some((v) => v.toLowerCase() === actual.toLowerCase());
+  }
+  return matches !== negated;
+}
+
+/** The first `@requires` condition the context does not meet, or undefined when it meets all of them. */
+export function unmetRequirement(journey: Journey, context: JourneyContext): string | undefined {
+  return journey.metadata?.requires?.find((r) => !requirementMet(r, context));
 }

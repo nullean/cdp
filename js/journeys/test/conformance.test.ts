@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { JourneyParseError, joinLine, parseJourney, splitLine } from '../src/index.ts';
+import { JourneyParseError, joinLine, parseJourney, requirementMet, splitLine, unmetRequirement } from '../src/index.ts';
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const journeys = join(repo, 'tests', 'Nullean.Cdp.Tests', 'site', 'journeys');
@@ -51,4 +51,45 @@ test('splitLine and joinLine round trip', () => {
   }
   assert.deepEqual(splitLine('open  /   # home'), { args: ['open', '/'] });
   assert.deepEqual(splitLine('click #id'), { args: ['click', '#id'] });
+});
+
+const metadata = JSON.parse(readFileSync(join(repo, 'tests', 'Nullean.Cdp.Tests', 'fixtures', 'journey-metadata.json'), 'utf8')) as {
+  valid: { name: string; text: string; metadata: unknown }[];
+  invalid: { name: string; text: string; errors: { line: number; message: string }[] }[];
+  requirements: { requirement: string; features: string[]; buildType: string | null; env: string | null; met: boolean }[];
+};
+
+for (const c of metadata.valid) {
+  test(`header case "${c.name}" gives the .NET metadata`, () => {
+    const parsed = parseJourney(c.text, 'x.journey');
+    assert.deepEqual(parsed.metadata ?? null, c.metadata);
+    assert.equal(parsed.steps.length, 1);
+  });
+}
+
+for (const c of metadata.invalid) {
+  test(`rejects header case "${c.name}" with the .NET errors`, () => {
+    assert.throws(
+      () => parseJourney(c.text, 'x.journey'),
+      (e: unknown) => {
+        assert.ok(e instanceof JourneyParseError);
+        assert.deepEqual(e.errors, c.errors);
+        return true;
+      },
+    );
+  });
+}
+
+for (const c of metadata.requirements) {
+  test(`@requires ${c.requirement} with [${c.features}] ${c.buildType ?? '-'} ${c.env ?? '-'} is ${c.met}`, () => {
+    const context = { features: c.features, buildType: c.buildType ?? undefined, env: c.env ?? undefined };
+    assert.equal(requirementMet(c.requirement, context), c.met);
+    assert.equal(unmetRequirement(parseJourney(`# @requires ${c.requirement}\nopen /`), context) === undefined, c.met);
+  });
+}
+
+test('a journey without directives has no metadata key', () => {
+  const parsed = parseJourney('# a note\nallow shop.test\nopen /\n');
+  assert.equal('metadata' in parsed, false);
+  assert.equal(unmetRequirement(parsed, {}), undefined);
 });

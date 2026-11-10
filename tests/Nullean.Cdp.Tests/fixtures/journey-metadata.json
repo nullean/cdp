@@ -1,0 +1,395 @@
+{
+  "note": "Journey headers (@ directives). valid: the metadata both parsers print for the text (null: none). invalid: text that must not parse, with every error and its line. requirements: whether a @requires condition holds in a context. Checked by the .NET tests (JourneyMetadataTests) and by js/journeys (conformance.test.ts): the two parsers must agree.",
+  "valid": [
+    {
+      "name": "every directive",
+      "text": "# Landing page\n# @tags navigation smoke\n# @requires navigation-preview !env:prod build-type:assembler,codex\n# @monitor schedule=10 locations=germany,us_east\n# @alert pagerduty\n# @mutates\nallow *.example\nopen /\n",
+      "metadata": {
+        "tags": [
+          "navigation",
+          "smoke"
+        ],
+        "requires": [
+          "navigation-preview",
+          "!env:prod",
+          "build-type:assembler,codex"
+        ],
+        "monitor": {
+          "schedule": 10,
+          "locations": [
+            "germany",
+            "us_east"
+          ]
+        },
+        "alert": [
+          "pagerduty"
+        ],
+        "mutates": true
+      }
+    },
+    {
+      "name": "no directives",
+      "text": "# just a comment\nopen /\n# trailing\n",
+      "metadata": null
+    },
+    {
+      "name": "plain comments do not count",
+      "text": "# tags: a b\n# mail me @ home\nopen / # @tags later\n",
+      "metadata": null
+    },
+    {
+      "name": "monitor alone",
+      "text": "# @monitor\nopen /\n",
+      "metadata": {
+        "monitor": {}
+      }
+    },
+    {
+      "name": "repeated lines accumulate and tags dedupe",
+      "text": "# @tags a b\n# @tags b c\n# @requires one\n# @requires !two\n# @alert x\n# @alert x y\nopen /\n",
+      "metadata": {
+        "tags": [
+          "a",
+          "b",
+          "c"
+        ],
+        "requires": [
+          "one",
+          "!two"
+        ],
+        "alert": [
+          "x",
+          "y"
+        ]
+      }
+    },
+    {
+      "name": "directives before allow lines and between comments",
+      "text": "allow a.example\n# note\n  #   @tags spaced\n\n# @mutates\nopen /\n",
+      "metadata": {
+        "tags": [
+          "spaced"
+        ],
+        "mutates": true
+      }
+    },
+    {
+      "name": "crlf",
+      "text": "# @tags a\r\n# @requires !b\r\nopen /\r\n",
+      "metadata": {
+        "tags": [
+          "a"
+        ],
+        "requires": [
+          "!b"
+        ]
+      }
+    },
+    {
+      "name": "monitor locations given twice",
+      "text": "# @monitor locations=a locations=b,c schedule=1\nopen /\n",
+      "metadata": {
+        "monitor": {
+          "schedule": 1,
+          "locations": [
+            "a",
+            "b",
+            "c"
+          ]
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "unknown directive",
+      "text": "# @flag x\nopen /\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "unknown directive '@flag': use @tags, @requires, @monitor, @alert or @mutates"
+        }
+      ]
+    },
+    {
+      "name": "bare at sign",
+      "text": "# @ x\nopen /\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "unknown directive '@': use @tags, @requires, @monitor, @alert or @mutates"
+        }
+      ]
+    },
+    {
+      "name": "after the first step",
+      "text": "open /\n# @tags late\n# @mutates\n",
+      "errors": [
+        {
+          "line": 2,
+          "message": "@tags belongs in the header: put the directive before the first step"
+        },
+        {
+          "line": 3,
+          "message": "@mutates belongs in the header: put the directive before the first step"
+        }
+      ]
+    },
+    {
+      "name": "tags without a value",
+      "text": "# @tags\nopen /\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "@tags needs a value: @tags <name...>, e.g. @tags navigation smoke"
+        }
+      ]
+    },
+    {
+      "name": "bad tag",
+      "text": "# @tags ok Bad\nopen /\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'Bad' is not a tag name: use lower case letters, digits, '.', '_' or '-'"
+        }
+      ]
+    },
+    {
+      "name": "requires without a value",
+      "text": "# @requires\nopen /\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "@requires needs a value: @requires <condition...>, e.g. @requires navigation-preview !env:prod build-type:assembler,codex"
+        }
+      ]
+    },
+    {
+      "name": "bad flag",
+      "text": "# @requires Navigation_Preview\nopen /\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'Navigation_Preview' is not a condition: use a feature flag (navigation-preview), build-type:<a,b> or env:<a,b>, each optionally with a leading '!'"
+        }
+      ]
+    },
+    {
+      "name": "unknown prefix",
+      "text": "# @requires version:9\nopen /\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'version:9' is not a condition: 'version:' is not one of build-type: or env:"
+        }
+      ]
+    },
+    {
+      "name": "bad value list",
+      "text": "# @requires env:prod,\nopen /\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'env:prod,' needs one or more values of lower case letters, digits, '_' or '-', separated by commas"
+        }
+      ]
+    },
+    {
+      "name": "monitor twice",
+      "text": "# @monitor\n# @monitor schedule=5\nopen /\n",
+      "errors": [
+        {
+          "line": 2,
+          "message": "@monitor may appear once"
+        }
+      ]
+    },
+    {
+      "name": "bad schedule",
+      "text": "# @monitor schedule=0\n# @monitor schedule=x\nopen /\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'schedule=0' needs a number of minutes: schedule=10"
+        },
+        {
+          "line": 2,
+          "message": "'schedule=x' needs a number of minutes: schedule=10"
+        }
+      ]
+    },
+    {
+      "name": "unknown monitor option",
+      "text": "# @monitor every=5\nopen /\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "unknown @monitor option 'every=5': use schedule=<minutes> or locations=<a,b>"
+        }
+      ]
+    },
+    {
+      "name": "bad locations",
+      "text": "# @monitor locations=\nopen /\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'locations=' needs location names separated by commas: locations=germany,us_east"
+        }
+      ]
+    },
+    {
+      "name": "bad alert channel",
+      "text": "# @alert Pager_Duty\nopen /\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'Pager_Duty' is not an alert channel: use lower case letters, digits and '-'"
+        }
+      ]
+    },
+    {
+      "name": "alert without a value",
+      "text": "# @alert\nopen /\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "@alert needs a value: @alert <channel...>, e.g. @alert pagerduty"
+        }
+      ]
+    },
+    {
+      "name": "mutates with arguments",
+      "text": "# @mutates yes\nopen /\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: @mutates, with nothing after it"
+        }
+      ]
+    },
+    {
+      "name": "directive errors come with step errors, in line order",
+      "text": "# @tags BAD\nclick\n# @nope\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'BAD' is not a tag name: use lower case letters, digits, '.', '_' or '-'"
+        },
+        {
+          "line": 2,
+          "message": "usage: click <selector>"
+        },
+        {
+          "line": 3,
+          "message": "@nope belongs in the header: put the directive before the first step"
+        }
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "requirement": "navigation-preview",
+      "features": [
+        "navigation-preview"
+      ],
+      "buildType": null,
+      "env": null,
+      "met": true
+    },
+    {
+      "requirement": "navigation-preview",
+      "features": [],
+      "buildType": null,
+      "env": null,
+      "met": false
+    },
+    {
+      "requirement": "!navigation-preview",
+      "features": [],
+      "buildType": null,
+      "env": null,
+      "met": true
+    },
+    {
+      "requirement": "!navigation-preview",
+      "features": [
+        "navigation-preview"
+      ],
+      "buildType": null,
+      "env": null,
+      "met": false
+    },
+    {
+      "requirement": "build-type:assembler,codex",
+      "features": [],
+      "buildType": "codex",
+      "env": null,
+      "met": true
+    },
+    {
+      "requirement": "build-type:assembler,codex",
+      "features": [],
+      "buildType": "Assembler",
+      "env": null,
+      "met": true
+    },
+    {
+      "requirement": "build-type:assembler,codex",
+      "features": [],
+      "buildType": "isolated",
+      "env": null,
+      "met": false
+    },
+    {
+      "requirement": "build-type:assembler",
+      "features": [],
+      "buildType": null,
+      "env": null,
+      "met": false
+    },
+    {
+      "requirement": "!build-type:assembler",
+      "features": [],
+      "buildType": null,
+      "env": null,
+      "met": true
+    },
+    {
+      "requirement": "env:prod",
+      "features": [],
+      "buildType": null,
+      "env": "prod",
+      "met": true
+    },
+    {
+      "requirement": "!env:prod",
+      "features": [],
+      "buildType": null,
+      "env": "prod",
+      "met": false
+    },
+    {
+      "requirement": "!env:prod",
+      "features": [],
+      "buildType": null,
+      "env": "edge",
+      "met": true
+    },
+    {
+      "requirement": "!env:prod",
+      "features": [],
+      "buildType": null,
+      "env": null,
+      "met": true
+    },
+    {
+      "requirement": "env:edge,demo",
+      "features": [],
+      "buildType": null,
+      "env": "demo",
+      "met": true
+    }
+  ]
+}

@@ -514,3 +514,20 @@ published by hand by the owner.
 
 - Laid out like nullean/snapshots: central package management, MinVer from tags (`0.1` minimum, `alpha.0`
   prereleases), TUnit on Microsoft.Testing.Platform, CI on linux, windows and macos.
+
+## The journey header
+
+- **Directives are comments**, `# @name …` before the first step, so a file with them still runs in agent-browser and
+  in older versions of this library, which ignore comments.
+- **An unknown or misplaced directive is an error**, not a comment: `@requries` silently turning a condition off would
+  run a journey where it should not run. The cost is that a header comment that starts with `@` now has to be reworded.
+  Directives after the first step are errors for the same reason.
+- **`@requires` is a conjunction of simple conditions** (flag, `build-type:`, `env:`, each negatable), with a comma for
+  any-of inside `build-type:` and `env:`. There is no `or` and no nesting: a journey that needs one has two files.
+  Unknown context is not matched, so `!env:prod` still holds when the environment is not known.
+- **`ToJson` keeps `version` 1 and adds an optional `metadata` object**, left out when the header has no directives, so
+  every existing journey prints byte for byte what it printed before. Readers ignore keys they do not know. The
+  version moves when a change would make a reader do the wrong thing, which a new optional key does not.
+- **Metadata is parsed and evaluated by the library, applied by the harness.** The runner does not skip journeys:
+  deciding to is the caller's, with `JourneyContext` and `Unmet`.
+
