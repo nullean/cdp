@@ -92,7 +92,10 @@ internal sealed class CdpCli(
 		int maxOutput,
 		double? timeoutSeconds,
 		CancellationToken cancellationToken,
-		string? artifacts = null
+		string? artifacts = null,
+		IReadOnlyList<string>? features = null,
+		string? buildType = null,
+		string? env = null
 	)
 	{
 		var (ok, root) = ParseBase(baseUrl);
@@ -108,6 +111,9 @@ internal sealed class CdpCli(
 			{
 				BaseUrl = root,
 				AllowedHosts = allow,
+				Features = new HashSet<string>(features ?? [], StringComparer.Ordinal),
+				BuildType = buildType,
+				Env = env,
 				FileRoot = fileRoot is null ? null : Path.GetFullPath(fileRoot),
 				ArtifactsDirectory = artifacts is null ? null : Path.GetFullPath(artifacts),
 				Secrets = environment,

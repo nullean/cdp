@@ -98,8 +98,17 @@ export type ExpectMatcher =
 export interface Step {
   /** 1-based line in the journey file. */
   line: number;
+  /** The line of the `feature` block the step is in; absent outside blocks. */
+  block?: number;
   args: string[];
   command: Command;
+}
+
+/** A `feature` block: its steps apply only when every condition holds (`@requires` conditions, as written). */
+export interface Block {
+  /** The line of the `feature` line. */
+  line: number;
+  when: string[];
 }
 
 /** What the header's `@` directives say. Empty parts are left out, as in `cdp parse`. */
@@ -116,11 +125,14 @@ export interface JourneyMetadata {
 }
 
 export interface Journey {
-  version: 1;
+  /** 2 for a journey with `feature` blocks, which a version 1 reader would run wrongly; otherwise 1. */
+  version: 1 | 2;
   source: string;
   allow: string[];
   /** Present only when the header has directives. */
   metadata?: JourneyMetadata;
+  /** Present only when the journey has `feature` blocks. */
+  blocks?: Block[];
   steps: Step[];
 }
 

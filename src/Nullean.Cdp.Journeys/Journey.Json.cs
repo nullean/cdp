@@ -5,8 +5,18 @@ namespace Nullean.Cdp.Journeys;
 
 public sealed partial class Journey
 {
-	/// <summary>The version of the JSON <see cref="ToJson"/> writes. It changes when a reader of that JSON would break.</summary>
+	/// <summary>
+	/// The version of the JSON <see cref="ToJson"/> writes for a journey without <c>feature</c> blocks. It changes when a
+	/// reader of that JSON would break.
+	/// </summary>
 	public const int JsonVersion = 1;
+
+	/// <summary>
+	/// The version of the JSON of a journey with <c>feature</c> blocks. A reader that ignores the blocks would run steps
+	/// that should be skipped, so those journeys are version 2 and a version 1 reader refuses them; journeys without
+	/// blocks stay at <see cref="JsonVersion"/>.
+	/// </summary>
+	public const int JsonVersionWithBlocks = 2;
 
 	/// <summary>
 	/// The parsed journey as JSON, for runners outside .NET: one object per step with its line, its arguments and its
@@ -20,18 +30,34 @@ public sealed partial class Journey
 		using (var json = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
 		{
 			json.WriteStartObject();
-			json.WriteNumber("version", JsonVersion);
+			json.WriteNumber("version", Blocks.Count > 0 ? JsonVersionWithBlocks : JsonVersion);
 			json.WriteString("source", Source);
 			json.WriteStartArray("allow");
 			foreach (var host in AllowedHosts)
 				json.WriteStringValue(host);
 			json.WriteEndArray();
 			WriteMetadata(json, Metadata);
+			if (Blocks.Count > 0)
+			{
+				json.WriteStartArray("blocks");
+				foreach (var block in Blocks)
+				{
+					json.WriteStartObject();
+					json.WriteNumber("line", block.Line);
+					WriteStrings(json, "when", [.. block.Requires.Select(r => r.ToString())]);
+					json.WriteEndObject();
+				}
+
+				json.WriteEndArray();
+			}
+
 			json.WriteStartArray("steps");
 			foreach (var step in Steps)
 			{
 				json.WriteStartObject();
 				json.WriteNumber("line", step.Line);
+				if (step.Block is { } stepBlock)
+					json.WriteNumber("block", stepBlock.Line);
 				json.WriteStartArray("args");
 				foreach (var argument in step.Arguments)
 					json.WriteStringValue(argument);

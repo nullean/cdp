@@ -31,6 +31,8 @@ cdp run site/journeys/*.journey --base-url ./site --artifacts .artifacts/journey
 |---|---|
 | `-b, --base-url` | what relative `open` URLs resolve against: a URL, or a folder for `file://` pages |
 | `-a, --allow` | another host pattern the run may reach (repeatable) |
+| `--feature` | a feature flag that is on (repeatable), for `feature` blocks |
+| `--build-type`, `--env` | the build type and the environment's name, for `build-type:` and `env:` conditions |
 | `--file-root` | the folder `file://` URLs may point into, when the base URL is not a folder |
 | `--artifacts` | the folder `screenshot` and `network har stop` write into; off unless given |
 | `--timeout` | seconds an action waits for its element (default 5) |

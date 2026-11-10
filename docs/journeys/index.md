@@ -47,6 +47,32 @@ fails and a negated one holds.
 `JourneyMetadata.Unmet(JourneyContext)` (`unmetRequirement` in npm) returns the first `@requires` condition a run does
 not meet, to report as the reason for skipping.
 
+## Feature blocks
+
+Some steps apply only to some states of a site, such as a feature flag being on. A `feature` block holds them:
+
+```text
+open /docs
+feature navigation-preview
+  expect visible role navigation --name "Section navigation"
+  find role button click --name "Expand all"
+end
+feature !navigation-preview
+  expect visible role navigation --name "Primary"
+end
+```
+
+- The conditions are those of `@requires` (a flag, `build-type:<a,b>`, `env:<a,b>`, each optionally `!`), and all of
+  them must hold. The run is told what it knows with `JourneyOptions.Features`, `BuildType` and `Env` (`features`,
+  `buildType` and `env` in `@nullean/journeys`; `--feature`, `--build-type` and `--env` on `cdp run`).
+- A block the run does not meet is skipped as a whole, and shows once as a checkpoint that says why:
+  `feature !navigation-preview`, output `skipped: !navigation-preview`. Without any context, a block that needs a flag is
+  skipped.
+- Blocks are one level deep: a `feature` inside a block is an error. A flow that differs more than a few lines is better
+  as two journey files with different `@requires`, one per flag state.
+- Indentation is for people; it means nothing to the parser.
+- agent-browser has no conditions, so a journey with blocks cannot be exported to it (`ToAgentBrowserBatch` says so).
+
 ## URLs
 
 `open /shop` resolves against the base URL as a link in a page would, so a base URL for a folder needs its trailing

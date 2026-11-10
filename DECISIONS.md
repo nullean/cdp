@@ -531,3 +531,17 @@ published by hand by the owner.
 - **Metadata is parsed and evaluated by the library, applied by the harness.** The runner does not skip journeys:
   deciding to is the caller's, with `JourneyContext` and `Unmet`.
 
+## Feature blocks
+
+- **Blocks, not per-step conditions.** A condition on every step makes a journey hard to follow; a block reads as the
+  flow it belongs to, and a big difference is two files with `@requires`. Blocks are one level deep so a reader never
+  holds more than one condition. Nesting is an error naming the open block's line.
+- **The runner skips, and says so.** A skipped block is one checkpoint (`feature …`, `skipped: <unmet condition>`), so a
+  transcript or a CI log shows what did not run; a block that skips silently looks the same as one that passed.
+  Without context a block that needs a flag is skipped: unknown is not matched, as in `@requires`.
+- **Steps stay a flat list.** Each step in a block points at it (`JourneyStep.Block`, `block` in the JSON), and the blocks
+  are listed once (`Journey.Blocks`, `blocks`), so `OnStep`, line numbers and every runner that walks steps keep working.
+- **`ToJson` is version 2 only for a journey with blocks.** A reader that ignores `blocks` would run steps that should be
+  skipped, so it must refuse them; a journey without blocks still prints version 1 byte for byte as before.
+- **Not exported to agent-browser**, which runs every line.
+

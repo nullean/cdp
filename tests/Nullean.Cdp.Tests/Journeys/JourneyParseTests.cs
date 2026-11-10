@@ -174,7 +174,7 @@ public class JourneyParseTests
 	[Test]
 	public void EveryErrorIsReportedWithItsLine() =>
 		Error("open /\npdf a.pdf\nfill #q\nfind nth li\nclick \"open").Should().Be(
-			"x.journey:2: 'pdf' is not supported in journeys. Supported: allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, links, screenshot, a11y, timings, vitals, metrics, is, expect.\n" +
+			"x.journey:2: 'pdf' is not supported in journeys. Supported: allow, feature, end, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, links, screenshot, a11y, timings, vitals, metrics, is, expect.\n" +
 			"x.journey:3: usage: fill <selector> <text>\n" +
 			"x.journey:4: usage: find nth <n> <selector> [action] [text]\n" +
 			"x.journey:5: the double quote is not closed");

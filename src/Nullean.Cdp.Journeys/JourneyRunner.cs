@@ -42,6 +42,21 @@ public sealed class JourneyOptions
 	/// </summary>
 	public bool GuardNetwork { get; init; } = true;
 
+	/// <summary>
+	/// The enabled feature flags, for <c>feature</c> blocks: a block whose conditions the run does not meet is skipped, and
+	/// the result says so. Without them every <c>feature</c> block that needs a flag is skipped.
+	/// </summary>
+	public IReadOnlySet<string> Features { get; init; } = new HashSet<string>(StringComparer.Ordinal);
+
+	/// <summary>The build type (<c>isolated</c>, <c>assembler</c>, <c>codex</c>), for <c>build-type:</c> conditions.</summary>
+	public string? BuildType { get; init; }
+
+	/// <summary>The environment's name (<c>prod</c>, <c>edge</c>), for <c>env:</c> conditions.</summary>
+	public string? Env { get; init; }
+
+	/// <summary>What <c>feature</c> blocks and <c>@requires</c> conditions are judged against.</summary>
+	public JourneyContext Context => new(Features, BuildType, Env);
+
 	internal JourneyAllowList AllowList(Journey journey)
 	{
 		var hosts = journey.AllowedHosts.Concat(AllowedHosts);
@@ -122,8 +137,22 @@ public static class JourneyRunner
 		// Interactions are recorded only for journeys that read vitals.
 		if (journey.Steps.Any(s => s.Command is PerformanceCommand { Kind: "vitals" }))
 			await page.RecordInteractionsAsync(cancellationToken).ConfigureAwait(false);
+		var context = options.Context;
+		var skipped = new HashSet<int>();
 		foreach (var step in journey.Steps)
 		{
+			// A block the run does not meet is skipped as a whole, and shows once, as a checkpoint saying why.
+			if (step.Block is { } block && block.Unmet(context) is { } unmet)
+			{
+				if (skipped.Add(block.Line))
+				{
+					var skippedUrl = await page.UrlAsync(cancellationToken).ConfigureAwait(false);
+					checkpoints.Add(new Checkpoint(block.Line, block.Text, run.Secrets.Redact(skippedUrl), $"skipped: {unmet}"));
+				}
+
+				continue;
+			}
+
 			string? failure;
 			options.OnStep?.Invoke(step);
 			if (step.Command is ActCommand or KeyboardCommand or DragCommand or ScrollCommand)

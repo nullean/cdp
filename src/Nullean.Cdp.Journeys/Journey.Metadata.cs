@@ -87,8 +87,67 @@ public sealed record JourneyMetadata
 	}
 }
 
+/// <summary>
+/// A <c>feature</c> block: <c>feature navigation-preview</c>, the steps that only apply when its conditions hold, then
+/// <c>end</c>. The conditions are those of <c>@requires</c>. Blocks do not nest; a bigger difference between two
+/// flag states is two journey files with different <c>@requires</c>.
+/// </summary>
+/// <param name="Line">The line of the <c>feature</c> line.</param>
+/// <param name="Requires">The conditions, all of which must hold.</param>
+public sealed record JourneyBlock(int Line, IReadOnlyList<JourneyRequirement> Requires)
+{
+	/// <summary>The block's line as written: <c>feature navigation-preview !env:prod</c>.</summary>
+	public string Text => "feature " + string.Join(' ', Requires);
+
+	/// <summary>The first condition <paramref name="context"/> does not meet, or <c>null</c> when the block applies.</summary>
+	public JourneyRequirement? Unmet(JourneyContext context)
+	{
+		ArgumentNullException.ThrowIfNull(context);
+		return Requires.FirstOrDefault(r => !r.IsMetBy(context));
+	}
+}
+
 public sealed partial class Journey
 {
+	// Handles a feature or end line and returns the block that is open afterwards. Errors keep the structure intact
+	// (a bad feature line still opens its block) so one mistake is not reported again at every later line.
+	private static JourneyBlock? ParseBlockLine(IReadOnlyList<string> arguments, int line, JourneyBlock? open, List<JourneyBlock> blocks, List<JourneyError> errors)
+	{
+		if (arguments[0] == "end")
+		{
+			if (arguments.Count > 1)
+				errors.Add(new JourneyError(line, "usage: end, with nothing after it"));
+			if (open is null)
+				errors.Add(new JourneyError(line, "end closes a feature block, and none is open"));
+			return null;
+		}
+
+		if (open is not null)
+		{
+			errors.Add(new JourneyError(line, $"feature blocks do not nest: close the block opened on line {open.Line} with 'end' first"));
+			return open;
+		}
+
+		if (arguments.Count == 1)
+			errors.Add(new JourneyError(line, "usage: feature <condition...>, e.g. feature navigation-preview !env:prod"));
+		var requires = new List<JourneyRequirement>();
+		foreach (var word in arguments.Skip(1))
+		{
+			try
+			{
+				requires.Add(ParseRequirement(word));
+			}
+			catch (JourneySyntaxException e)
+			{
+				errors.Add(new JourneyError(line, e.Message));
+			}
+		}
+
+		var block = new JourneyBlock(line, requires);
+		blocks.Add(block);
+		return block;
+	}
+
 	/// <summary>What the header's <c>@</c> directives say; <see cref="JourneyMetadata.None"/> without any.</summary>
 	public JourneyMetadata Metadata { get; private init; } = JourneyMetadata.None;
 
