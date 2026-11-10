@@ -72,6 +72,20 @@ end
   as two journey files with different `@requires`, one per flag state.
 - Indentation is for people; it means nothing to the parser.
 - agent-browser has no conditions, so a journey with blocks cannot be exported to it (`ToAgentBrowserBatch` says so).
+## Run defaults
+
+A harness that runs journeys against a live site sets three things once for the run, so no journey repeats them:
+
+| Option | Does |
+|---|---|
+| `JourneyOptions.Viewport` (`viewport`, `--viewport 1280x800`) | the size the run starts with. Without it Chrome's default applies, and a responsive site may be in its mobile layout, where a link in a collapsed menu can be clicked with no effect and no error |
+| `JourneyOptions.UserAgent` (`userAgent`, `--user-agent`) | the user agent of every request and of `navigator.userAgent`, e.g. one that tells the site the traffic is a monitor |
+| `JourneyOptions.Headers` (`headers`, `--header "Name: value"`) | headers every page sends |
+
+They are in place before the first step. A journey's own lines build on them: `set viewport` and `set device` replace the
+viewport, `set useragent` replaces the user agent (`set device` does not: the run's identity stays), and `set headers`
+adds to the run's headers, winning for a name it repeats, instead of replacing them. The hosts a run may reach are
+`JourneyOptions.AllowedHosts` (`--allow`), as before.
 
 ## URLs
 

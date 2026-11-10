@@ -4,6 +4,12 @@ using Nullean.Cdp.Protocol;
 
 namespace Nullean.Cdp.Journeys;
 
+/// <summary>A viewport size, and its device scale factor.</summary>
+/// <param name="Width">CSS pixels.</param>
+/// <param name="Height">CSS pixels.</param>
+/// <param name="Scale">The device scale factor.</param>
+public sealed record JourneyViewport(int Width, int Height, double Scale = 1);
+
 /// <summary>How a journey runs.</summary>
 public sealed class JourneyOptions
 {
@@ -36,6 +42,24 @@ public sealed class JourneyOptions
 
 	/// <summary>Resolves <c>$env:NAME</c> references; defaults to the process environment.</summary>
 	public Func<string, string?> Secrets { get; init; } = Environment.GetEnvironmentVariable;
+
+	/// <summary>
+	/// Request headers every page of the run sends, such as one that marks the traffic as a monitor. A journey's own
+	/// <c>set headers</c> adds to them (and wins for a header it names) rather than replacing them.
+	/// </summary>
+	public IReadOnlyDictionary<string, string> Headers { get; init; } = new Dictionary<string, string>();
+
+	/// <summary>
+	/// The user agent of the run, for example one that tells the site it is a monitor. A journey's own <c>set useragent</c>
+	/// replaces it; <c>set device</c> does not.
+	/// </summary>
+	public string? UserAgent { get; init; }
+
+	/// <summary>
+	/// The viewport the run starts with. Without one the browser's default applies, which a responsive site may treat as
+	/// a phone. A journey's own <c>set viewport</c> or <c>set device</c> replaces it.
+	/// </summary>
+	public JourneyViewport? Viewport { get; init; }
 
 	/// <summary>
 	/// Refuse requests outside the allow list (on by default). Turning it off also lets <c>open</c> go anywhere.
@@ -147,6 +171,7 @@ public static class JourneyRunner
 			? await page.GuardNetworkAsync(options.GuardNetwork ? run.AllowList.Allows : _ => true, options.GuardOptions(), cancellationToken).ConfigureAwait(false)
 			: null;
 		run.Guard = guard;
+		await ApplyDefaultsAsync(page, options, cancellationToken).ConfigureAwait(false);
 		// The network is recorded only for journeys that read it.
 		await using var network = journey.Steps.Any(s => s.Command is HarCommand or RequestsCommand or ExpectRequestCommand)
 			? await page.RecordNetworkAsync(cancellationToken).ConfigureAwait(false)
@@ -198,6 +223,17 @@ public static class JourneyRunner
 		}
 
 		return new JourneyResult(journey.Source, checkpoints, null, blocked);
+	}
+
+	// The run's viewport, user agent and headers, set before the first step so the journey starts as the harness wants.
+	private static async Task ApplyDefaultsAsync(Page page, JourneyOptions options, CancellationToken cancellationToken)
+	{
+		if (options.Viewport is { } viewport)
+			await page.SetViewportAsync(viewport.Width, viewport.Height, viewport.Scale, cancellationToken).ConfigureAwait(false);
+		if (options.UserAgent is { } userAgent)
+			await page.SetUserAgentAsync(userAgent, cancellationToken).ConfigureAwait(false);
+		if (options.Headers.Count > 0)
+			await page.SetExtraHeadersAsync(options.Headers, cancellationToken).ConfigureAwait(false);
 	}
 
 	private sealed record Run(Journey Journey, Page Page, JourneyOptions Options, JourneyAllowList AllowList, JourneySecrets Secrets)
@@ -319,6 +355,9 @@ public static class JourneyRunner
 				return null;
 			case SetCommand { Setting: "device" } device:
 				await page.SetDeviceAsync(device.Device!, ct).ConfigureAwait(false);
+				// A device brings its own user agent; the run's identity stays unless the journey sets another.
+				if (run.Options.UserAgent is { } identity)
+					await page.SetUserAgentAsync(identity, ct).ConfigureAwait(false);
 				return null;
 			case SetCommand { Setting: "geo" } geo:
 				await page.SetGeolocationAsync(geo.Position.Latitude, geo.Position.Longitude, ct).ConfigureAwait(false);
@@ -328,7 +367,7 @@ public static class JourneyRunner
 				await page.SetOfflineAsync(run.Offline, ct).ConfigureAwait(false);
 				return null;
 			case SetCommand { Setting: "headers" } headers:
-				await page.SetExtraHeadersAsync(Headers(headers.Headers!), ct).ConfigureAwait(false);
+				await page.SetExtraHeadersAsync(MergeHeaders(run.Options.Headers, Headers(headers.Headers!)), ct).ConfigureAwait(false);
 				return null;
 			case SetCommand { Setting: "useragent" } userAgent:
 				await page.SetUserAgentAsync(userAgent.UserAgent!, ct).ConfigureAwait(false);
@@ -524,6 +563,15 @@ public static class JourneyRunner
 			throw new ArgumentException($"'{path}' is outside the artifacts folder.");
 		Directory.CreateDirectory(Path.GetDirectoryName(full)!);
 		return full;
+	}
+
+	// The run's headers with the journey's on top: a header the journey names wins, the others stay.
+	private static Dictionary<string, string> MergeHeaders(IReadOnlyDictionary<string, string> defaults, Dictionary<string, string> journey)
+	{
+		var merged = new Dictionary<string, string>(defaults, StringComparer.OrdinalIgnoreCase);
+		foreach (var (name, value) in journey)
+			merged[name] = value;
+		return merged;
 	}
 
 	private static Dictionary<string, string> Headers(string json)

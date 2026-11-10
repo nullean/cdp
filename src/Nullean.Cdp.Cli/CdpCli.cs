@@ -82,6 +82,43 @@ internal sealed class CdpCli(
 		return ExitCode.Ok;
 	}
 
+	// "Name: value", as curl takes it. Null, after saying why, when one is not.
+	private Dictionary<string, string>? ParseHeaders(IReadOnlyList<string> headers)
+	{
+		var parsed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+		foreach (var header in headers)
+		{
+			var colon = header.IndexOf(':', StringComparison.Ordinal);
+			var name = colon > 0 ? header[..colon].Trim() : "";
+			if (name.Length == 0 || name.Any(c => c is <= ' ' or > '~' or ':'))
+			{
+				error.WriteLine($"'{header}' is not a header: use --header \"Name: value\".");
+				return null;
+			}
+
+			parsed[name] = header[(colon + 1)..].Trim();
+		}
+
+		return parsed;
+	}
+
+	// "1280x800": the size the run starts with; none when not given. False, after saying why, when it is malformed.
+	private bool ParseViewport(string? viewport, out JourneyViewport? size)
+	{
+		size = null;
+		if (viewport is null)
+			return true;
+		var parts = viewport.Split('x');
+		if (parts.Length == 2 && int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var width) && int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var height) && width > 0 && height > 0)
+		{
+			size = new JourneyViewport(width, height);
+			return true;
+		}
+
+		error.WriteLine($"'{viewport}' is not a viewport: use --viewport <width>x<height>, e.g. 1280x800.");
+		return false;
+	}
+
 	public async Task<int> RunAsync(
 		IReadOnlyList<string> files,
 		string? baseUrl,
@@ -97,11 +134,14 @@ internal sealed class CdpCli(
 		string? buildType = null,
 		string? env = null,
 		bool readOnly = false,
-		IReadOnlyList<string>? writable = null
+		IReadOnlyList<string>? writable = null,
+		IReadOnlyList<string>? headers = null,
+		string? userAgent = null,
+		string? viewport = null
 	)
 	{
 		var (ok, root) = ParseBase(baseUrl);
-		if (!ok || !ValidAllow(allow) || Load(files) is not { } journeys)
+		if (!ok || !ValidAllow(allow) || ParseHeaders(headers ?? []) is not { } extraHeaders || !ParseViewport(viewport, out var size) || Load(files) is not { } journeys)
 			return ExitCode.Usage;
 		if (await LaunchAsync(headed, cancellationToken).ConfigureAwait(false) is not { } browser)
 			return ExitCode.Browser;
@@ -118,6 +158,9 @@ internal sealed class CdpCli(
 				Env = env,
 				ReadOnly = readOnly,
 				WritableUrls = writable ?? [],
+				Headers = extraHeaders,
+				UserAgent = userAgent,
+				Viewport = size,
 				FileRoot = fileRoot is null ? null : Path.GetFullPath(fileRoot),
 				ArtifactsDirectory = artifacts is null ? null : Path.GetFullPath(artifacts),
 				Secrets = environment,
