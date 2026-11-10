@@ -44,7 +44,7 @@ internal sealed class WriteServer : IAsyncDisposable
 			{
 				context = await _listener.GetContextAsync();
 			}
-			catch (Exception e) when (e is HttpListenerException or ObjectDisposedException or InvalidOperationException)
+			catch (Exception e) when (e is HttpListenerException or ObjectDisposedException or InvalidOperationException or ArgumentException)
 			{
 				return;
 			}
