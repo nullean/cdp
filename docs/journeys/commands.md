@@ -7,7 +7,7 @@ unless the command is `find`.
 
 | Command | |
 |---|---|
-| `open <url>` | go to a URL (also `goto`, `navigate`) and wait for `load`; relative URLs resolve against the base URL |
+| `open <url>` | go to a URL (also `goto`, `navigate`) and wait for `load`; relative URLs resolve against the base URL. Only http(s) URLs on an allowed host and `file:` URLs under the file root are allowed: `about:blank` and every other scheme are refused (`about URLs are not allowed`), so to leave a page, open another one |
 | `back`, `forward`, `reload` | history and reload, waiting for `load` |
 
 ## Act
@@ -122,13 +122,18 @@ is "every export was accepted", and it waits for the exports still on their way.
 A request that never finishes (a long poll) is never matched. A body is the request's own, as the page sent it: text is read as
 UTF-8, and a failure shows its size, never its text. Like every `expect` they record nothing.
 
+**A request the page starts while it unloads is not seen.** A `fetch` (keepalive or not) or `navigator.sendBeacon` called from
+`pagehide` or `visibilitychange` reaches the server, but Chrome's DevTools protocol reports no request for it, so neither
+`expect request` nor `network requests` lists it (Playwright does not see it either). Assert on what the page sends while it is
+open, such as a batch flushed on a timer, and give `expect request` a `--timeout` longer than that delay. Leaving the page does not
+make such a request visible, and `open about:blank` is refused anyway.
+
 ```text
 set useragent "Mozilla/5.0 (X11; Linux x86_64) Chrome/130.0.0.0 Safari/537.36 telemetry-test"
 open /
 find role link click --name "Elastic Fundamentals"
 expect url "**/get-started**"
 expect same-document
-open about:blank
 expect --timeout 20000 request "**/_api/v1/o/l" --method POST --status 2xx
 expect --not request "**/_api/v1/o/*" --larger-than 32kb
 expect request "**/_api/v1/o/l" --body-contains '"docs-frontend"'

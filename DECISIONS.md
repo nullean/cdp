@@ -196,6 +196,12 @@ Every agent-browser command that acts on or reads the page in a repeatable way i
   value when the last acting step began (an `init` lifecycle event is a new document; `pushState` and htmx swaps are not), taken
   after a navigation step instead so `open` then `expect same-document` holds. Page script (`eval`) stays out: this is what the
   `window.__noReload` marker was for.
+- **A request started during unload is not recorded, and `about:` URLs are refused.** Found while testing `expect request` against a
+  page that flushes telemetry in `pagehide`: the server got the POST, but `Network.requestWillBeSent` never arrived, and Playwright's
+  `request` event never fired either (a `fetch` with and without `keepalive`, `sendBeacon`, from `pagehide` and from
+  `visibilitychange`). It is Chrome, not the recording, so the docs say to assert on what a page sends while it is open. `open
+  about:blank` is refused by the allow list like every scheme but http(s), ws(s) and `file:` (Safety.cs); that stays, since a journey
+  that could navigate anywhere would defeat the list, and leaving a page means opening another one.
 - **`wait --load`** reads the main frame's lifecycle events for the current document (`load`, `DOMContentLoaded`,
   `networkIdle`); a new document clears them. `wait --url` takes a glob: `**` anything, `*` anything but `/`.
 - **HTML drag and drop** needs the mouse moves to report the left button held; Chrome then hands the drag over
