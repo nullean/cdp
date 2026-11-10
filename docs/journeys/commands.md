@@ -15,6 +15,18 @@ unless the command is `find`.
 Every action waits up to the action timeout (5 s) for its element: visible and enabled for input, visible for
 `hover`. An action that starts a navigation waits for the new page's `load`.
 
+An action that presses a point (`click`, `dblclick`, `hover`, `check`, `uncheck`, the source of `drag`) also waits until
+the element at that point is the target, something inside it, or the label of the control it is. A modal or banner
+that covers it, a point off the screen, or a menu that is clipped away is waited out like any other state, and when
+it stays the step fails at the click, saying what is there:
+
+```text
+Timed out after 5s waiting for role link --name "Quick reference" --exact to receive a click at (84, 412): <div#cookie-banner.banner> would receive it instead.
+```
+
+An element with `pointer-events: none` is passed through, as a real click does. The Playwright runner gets the same
+check from Playwright, whose actions wait to "receive events".
+
 | Command | |
 |---|---|
 | `click <sel>`, `dblclick <sel>` | scroll into view and press at the element's centre |
