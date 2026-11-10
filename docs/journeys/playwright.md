@@ -91,7 +91,7 @@ expect title "Elastic Docs"
 | `--base-url <url>` | embed the base URL; without it a generated file reads `params.url`, from `--params` or the Synthetics config |
 | `--root <folder>` | names are paths under this folder; by default the folder the arguments start in |
 
-- **Which journeys export.** A journey needs `@monitor`; its `@requires` must hold for the flags, build type and
+- **Which journeys export.** A journey (or `.http` file, see below) needs `@monitor`; its `@requires` must hold for the flags, build type and
   environment you give; and it must not be `@mutates`, because a monitor runs against a live site. Every journey that
   does not export is printed with the reason. A generated file also runs read-only (`readOnly: true`).
 - **What the directives become.** `schedule` and `locations` go to `monitor.use` and are checked against what
@@ -105,6 +105,52 @@ expect title "Elastic Docs"
 - **The output depends only on the inputs**: no timestamps, a stable order, so exporting twice changes nothing in git.
   The files start with a generated-file header, and a later export removes generated files whose journey is no longer
   exported, and only those. `push` replaces the project's monitors, so removing a journey removes its monitor.
+
+## Monitor an API with `.http` files
+
+An endpoint that has no page, such as an MCP server or a JSON API, is a `.http` file: the format of Visual Studio, the
+VS Code REST Client and the JetBrains HTTP Client, which [nullean/snapshots](https://github.com/nullean/snapshots)
+runs in `dotnet test`. `httpSteps` runs the same file as a Synthetics journey, one step per request:
+
+```ts
+import { journey, step } from '@elastic/synthetics';
+import { httpSteps } from '@nullean/journeys/synthetics';
+
+journey('mcp', ({ request, params }) =>
+  httpSteps({ request, step, params }, `
+    @host = ${params.url}
+    # @readonly
+    # @expect status 200
+    # @expect json $.result.tools[*].name contains "search_docs"
+    POST {{host}}/docs/_mcp
+    Content-Type: application/json
+
+    {"jsonrpc":"2.0","id":1,"method":"tools/list"}
+  `, { baseUrl: params.url }));
+```
+
+`journeys export-synthetics` exports a `.http` file with `@monitor` the same way as a journey, into
+`*.http.journey.ts`. The header directives (`@tags`, `@requires`, `@monitor`, `@alert`, `@mutates`) go in the comments
+before the first request, with the journey grammar; Nullean.HttpFileParser reads them as plain comments.
+
+- **A step is a request.** Its name is the request line as written, with `{{variables}}` unresolved, so a secret never
+  reaches Kibana. A name from `# @name` leads it. Requests run in file order, and a failed one skips the rest.
+- **A 404 or 500 is a response.** Only a request that cannot be resolved or sent, a read-only refusal, or an unmet
+  `# @expect` fails: `status 200` or `2xx`, `header content-type ~ json` (a case-insensitive substring), and
+  `json $.items[*].name equals|contains "lamp"` (`equals` needs every selected value, `contains` one). The messages are
+  Nullean.HttpFileParser's.
+- **Read-only.** With `readOnly: true`, which every exported monitor sets, only GET, HEAD and OPTIONS are sent. A
+  request that reads although it is not a GET, such as an MCP `tools/list`, says so with `# @readonly`.
+- **What is supported.** `METHOD URL`, headers, an inline body, `###` and `### name`, `# @name`, `# @no-redirect`,
+  `# @timeout`, file variables (`@host = ...`), and references: `{{host}}`, `{{login.response.body.$.token}}`,
+  `{{login.response.headers.Location}}`, `{{$guid}}`, `{{$uuid}}`, `{{$timestamp}}`, `{{$isoTimestamp}}`,
+  `{{$randomInt}}`, `{{$processEnv NAME}}`, `{{$env.NAME}}` and `{{$secret NAME}}` (from the journey's `params`, then the
+  environment).
+- **What is refused, with its line.** File bodies (`< ./file`), `http-client.env.json` environments, `$datetime` and the
+  other dynamic variables, references to a request, JetBrains scripts, `>>` redirection, `@prompt`, cURL and GraphQL.
+  A URL that starts with `/` needs `baseUrl`, or an absolute `@host`.
+- **A difference from the .NET runner.** A number a JSON expectation compares is JavaScript's reading of it, so `1.0`
+  is `1`. The two parsers are not run against shared fixtures yet.
 
 ## Assertions
 

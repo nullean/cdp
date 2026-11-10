@@ -66,19 +66,36 @@ test('journeys that are not exported say why', () => {
     { name: 'c/needs-flag', text: `${MONITOR}# @requires navigation-preview\nopen /docs\n` },
     { name: 'd/not-prod', text: `${MONITOR}# @requires !env:prod\nopen /docs\n` },
     { name: 'e/page', text: '', kind: 'http' },
+    { name: 'f/also', text: `${MONITOR}GET /health\n`, kind: 'http' },
   ];
   const off = exportSynthetics(sources, { env: 'prod' });
-  assert.deepEqual(off.files, []);
+  assert.deepEqual(off.files.map((f) => f.name), ['f/also']);
   assert.deepEqual(off.skipped, [
     { name: 'a/plain', reason: 'no @monitor' },
     { name: 'b/mutates', reason: '@mutates: a monitor runs against a live site' },
     { name: 'c/needs-flag', reason: '@requires navigation-preview does not hold' },
     { name: 'd/not-prod', reason: '@requires !env:prod does not hold' },
-    { name: 'e/page', reason: 'http files are not exported by this version' },
+    { name: 'e/page', reason: 'no @monitor' },
   ]);
 
   const on = exportSynthetics(sources, { env: 'edge', features: ['navigation-preview'] });
-  assert.deepEqual(on.files.map((f) => f.name), ['c/needs-flag', 'd/not-prod']);
+  assert.deepEqual(on.files.map((f) => f.fileName), ['c/needs-flag.journey.ts', 'd/not-prod.journey.ts', 'f/also.http.journey.ts']);
+});
+
+test('an .http monitor exports to *.http.journey.ts with httpSteps and the same run context', () => {
+  const text = `${MONITOR}# @tags mcp\n# @requires !env:prod\n@host = https://docs.example\n\n# @readonly\n# @expect status 200\n# @expect json $.result.tools[*].name contains "search_docs"\nPOST {{host}}/docs/_mcp\nContent-Type: application/json\n\n{"jsonrpc":"2.0","id":1,"method":"tools/list"}\n`;
+  const { files } = exportSynthetics([{ name: 'mcp/tools', text, kind: 'http' }], { env: 'edge', features: ['page-feedback'], paging: false });
+  assert.equal(files[0].fileName, 'mcp/tools.http.journey.ts');
+  assert.ok(!files[0].content.includes('expect,'), 'an http monitor does not import expect');
+  matchesGolden('mcp.http.journey.ts', files[0].content);
+});
+
+test('two sources that would share a monitor id are an error naming both', () => {
+  const sources: ExportSource[] = [
+    { name: 'mcp/tools', text: `${MONITOR}open /docs\n` },
+    { name: 'mcp-tools', text: `${MONITOR}GET /health\n`, kind: 'http' },
+  ];
+  assert.throws(() => exportSynthetics(sources), /mcp\/tools: its monitor id 'mcp-tools' is already taken by mcp-tools/);
 });
 
 test('a bad schedule or location is an error naming the journey', () => {

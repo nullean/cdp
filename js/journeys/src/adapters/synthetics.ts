@@ -6,10 +6,14 @@
 //   import { journeySteps } from '@nullean/journeys/synthetics';
 //   journey('checkout', ({ page, params }) => journeySteps({ page, step, params, expect }, `open /\nclick #buy`, { baseUrl: params.url }));
 
-import type { Page } from 'playwright-core';
+import type { APIRequestContext, Page } from 'playwright-core';
 import { joinLine } from '../commandline.ts';
 import { parseJourney } from '../parse.ts';
 import { JourneyRun } from '../run.ts';
+import { parseHttpFile } from '../http.ts';
+import { HttpRun } from '../http-run.ts';
+import type { HttpRunOptions } from '../http-run.ts';
+import { requirementMet } from '../parse.ts';
 import type { PlaywrightExpect } from '../expect.ts';
 import type { RunOptions } from '../run.ts';
 
@@ -36,6 +40,40 @@ export function journeySteps(context: SyntheticsContext, journeyText: string, op
     context.step(joinLine(step.args), async () => {
       started ??= JourneyRun.start(context.page, journey, { expect: context.expect, ...options, secrets });
       await (await started).step(step);
+    });
+  }
+}
+
+export interface SyntheticsHttpContext {
+  /** The journey's `request` (Playwright's APIRequestContext). */
+  request: APIRequestContext;
+  step: (name: string, callback: () => void | Promise<void>) => void;
+  /** The journey's params: `{{$secret NAME}}` and `{{$processEnv NAME}}` resolve from here first, then the process environment. */
+  params?: Record<string, unknown>;
+}
+
+export interface SyntheticsHttpOptions extends HttpRunOptions {
+  source?: string;
+}
+
+/**
+ * Registers one Synthetics step per request of a `.http` file, in file order, so Kibana shows the file as it was written.
+ * A step is named by its request line as written (variables unresolved, so no secret reaches a step name). A file whose
+ * `@requires` does not hold, or that is `@mutates` in a read-only run, registers one step that says so.
+ */
+export function httpSteps(context: SyntheticsHttpContext, httpText: string, options: SyntheticsHttpOptions = {}): void {
+  const file = parseHttpFile(httpText, options.source);
+  const params = context.params ?? {};
+  const secrets = options.secrets ?? ((name: string) => (typeof params[name] === 'string' ? (params[name] as string) : undefined));
+  const unmet = file.metadata?.requires?.find((r) => !requirementMet(r, options));
+  if (unmet !== undefined || (options.readOnly === true && file.metadata?.mutates === true)) {
+    context.step(unmet !== undefined ? `skipped: @requires ${unmet} does not hold` : 'skipped: @mutates in a read-only run', () => {});
+    return;
+  }
+  const run = new HttpRun(context.request, file, { ...options, secrets });
+  for (const request of file.requests) {
+    context.step(request.name ? `${request.name}: ${request.requestLine}` : request.requestLine, async () => {
+      await run.send(request);
     });
   }
 }

@@ -30,6 +30,10 @@ before(async () => {
   skip = chrome.skip || (existsSync(join(root, 'dist', 'adapters', 'synthetics.js')) ? false : 'run `npm run build` first: the generated files import the built package');
   rmSync(work, { recursive: true, force: true });
   mkdirSync(join(work, 'journeys', 'smoke'), { recursive: true });
+  mkdirSync(join(work, 'journeys', 'api'), { recursive: true });
+  mkdirSync(join(work, 'failing'), { recursive: true });
+  writeFileSync(join(work, 'journeys', 'api', 'page.http'), '# @monitor schedule=5\n# @expect status 200\n# @expect header content-type ~ html\nGET /index.html\n');
+  writeFileSync(join(work, 'failing', 'missing.http'), '# @monitor schedule=5\n# @expect status 200\nGET /nothing-here.html\n');
   writeFileSync(
     join(work, 'journeys', 'smoke', 'index.journey'),
     '# @tags smoke\n# @monitor schedule=5 locations=germany\nopen index.html\nget title\nfeature navigation-preview\n  expect visible #does-not-exist\nend\nexpect visible h1\n',
@@ -42,8 +46,8 @@ after(() => {
 });
 
 // Not spawnSync: the test site is served from this process, and a blocked event loop cannot answer Chrome.
-async function exportAndRun(features: string, out: string): Promise<{ status: number; stdout: string; stderr: string }> {
-  const args = ['export-synthetics', join(work, 'journeys'), '--out', join(work, out), '--base-url', origin + '/', ...(features ? ['--features', features] : [])];
+async function exportAndRun(features: string, out: string, from = 'journeys'): Promise<{ status: number; stdout: string; stderr: string }> {
+  const args = ['export-synthetics', join(work, from), '--out', join(work, out), '--base-url', origin + '/', ...(features ? ['--features', features] : [])];
   assert.equal(main(args, root, { out: () => {}, err: (l) => assert.fail(l) }), 0);
   return new Promise((done) =>
     execFile(process.execPath, [cli, join(work, out), '--playwright-options', '{"channel":"chrome"}'], { cwd: root }, (error, stdout, stderr) =>
@@ -57,7 +61,8 @@ test('a generated journey runs in Synthetics, and its feature block is skipped w
   const run = await exportAndRun('', 'off');
   assert.equal(run.status, 0, run.stdout + run.stderr);
   assert.match(run.stdout, /Journey: smoke\/index/);
-  assert.match(run.stdout, /4 passed/);
+  assert.match(run.stdout, /Journey: api\/page[\s\S]*Step: 'GET \/index.html' succeeded/);
+  assert.match(run.stdout, /5 passed/);
 });
 
 test('with the flag exported as on, the feature block runs and a failing step fails the run', async (t) => {
@@ -65,4 +70,12 @@ test('with the flag exported as on, the feature block runs and a failing step fa
   const run = await exportAndRun('navigation-preview', 'on');
   assert.notEqual(run.status, 0, run.stdout + run.stderr);
   assert.match(run.stdout, /expect visible #does-not-exist' failed/);
+});
+
+test('an .http monitor whose @expect does not hold fails the run at that request', async (t) => {
+  if (skip) return t.skip(skip);
+  const run = await exportAndRun('', 'failing', 'failing');
+  assert.notEqual(run.status, 0, run.stdout + run.stderr);
+  assert.match(run.stdout, /Step: 'GET \/nothing-here.html' failed/);
+  assert.match(run.stdout, /@expect status 200 failed: the response was 404/);
 });

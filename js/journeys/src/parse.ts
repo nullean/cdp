@@ -794,12 +794,14 @@ function parseBlockLine(args: string[], line: number, open: Block | undefined, b
 }
 
 const DIRECTIVES = '@tags, @requires, @monitor, @alert or @mutates';
+/** The directive names of a journey's header; `.http` files take the same ones in their leading comments. */
+export const HEADER_DIRECTIVES = ['tags', 'requires', 'monitor', 'alert', 'mutates'];
 const TAG_NAME = /^[a-z0-9][a-z0-9._-]*$/;
 const FEATURE_NAME = /^[a-z][a-z0-9-]*$/;
 const CONTEXT_VALUE = /^[a-z0-9][a-z0-9_-]*$/;
 
 /** The header's directives, collected line by line (the same grammar and messages as Journey.Metadata in Nullean.Cdp.Journeys). */
-class MetadataBuilder {
+export class MetadataBuilder {
   private readonly tags: string[] = [];
   private readonly requires: string[] = [];
   private readonly alerts: string[] = [];

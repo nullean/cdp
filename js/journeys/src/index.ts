@@ -6,3 +6,7 @@ export { JourneyRun, runJourney, StepError } from './run.ts';
 export type { Checkpoint, JourneyResult, RunOptions, StepFailure } from './run.ts';
 export { ExpectationError, urlGlob } from './expect.ts';
 export type { PlaywrightExpect } from './expect.ts';
+export { parseHttpFile, HttpParseError } from './http.ts';
+export type { HttpFile, HttpRequest, HttpResponse } from './http.ts';
+export { exportSynthetics, ExportError } from './export.ts';
+export type { ExportContext, ExportSource, ExportedFile, ExportSkip } from './export.ts';
