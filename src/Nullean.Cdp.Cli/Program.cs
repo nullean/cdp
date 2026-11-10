@@ -22,6 +22,9 @@ namespace Nullean.Cdp.Cli
 		/// <param name="allow">-a, --allow, Another host pattern the run may reach (repeatable): host, *.domain or *.</param>
 		/// <param name="fileRoot">The folder file:// URLs may point into, when the base URL is not a folder.</param>
 		/// <param name="artifacts">The folder journeys may write files into (screenshot, network har stop). Off unless given.</param>
+		/// <param name="feature">A feature flag that is on (repeatable), for 'feature' blocks.</param>
+		/// <param name="buildType">The build type, for build-type: conditions.</param>
+		/// <param name="env">The environment's name, for env: conditions.</param>
 		/// <param name="headed">Show the browser window.</param>
 		/// <param name="json">Print JSON; everything under a "page" key came from the page.</param>
 		/// <param name="maxOutput">Characters per checkpoint before it is cut (0 for no limit).</param>
@@ -33,12 +36,15 @@ namespace Nullean.Cdp.Cli
 			string[]? allow = null,
 			string? fileRoot = null,
 			string? artifacts = null,
+			string[]? feature = null,
+			string? buildType = null,
+			string? env = null,
 			bool headed = false,
 			bool json = false,
 			int maxOutput = CdpCli.DefaultMaxOutput,
 			double? timeout = null,
 			CancellationToken cancellationToken = default
-		) => Cli().RunAsync(files, baseUrl, allow ?? [], fileRoot, headed, json, maxOutput, timeout, cancellationToken, artifacts);
+		) => Cli().RunAsync(files, baseUrl, allow ?? [], fileRoot, headed, json, maxOutput, timeout, cancellationToken, artifacts, feature, buildType, env);
 
 		/// <summary>Parse journeys without running them, and report every error with its line.</summary>
 		/// <param name="files">Journey files.</param>

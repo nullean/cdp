@@ -93,3 +93,30 @@ test('a journey without directives has no metadata key', () => {
   assert.equal('metadata' in parsed, false);
   assert.equal(unmetRequirement(parsed, {}), undefined);
 });
+
+const blocks = JSON.parse(readFileSync(join(repo, 'tests', 'Nullean.Cdp.Tests', 'fixtures', 'journey-blocks.json'), 'utf8')) as {
+  valid: { name: string; text: string; version: number; blocks: unknown; stepBlocks: (number | null)[] }[];
+  invalid: { name: string; text: string; errors: { line: number; message: string }[] }[];
+};
+
+for (const c of blocks.valid) {
+  test(`block case "${c.name}" gives the .NET blocks`, () => {
+    const parsed = parseJourney(c.text, 'x.journey');
+    assert.equal(parsed.version, c.version);
+    assert.deepEqual(parsed.blocks ?? null, c.blocks);
+    assert.deepEqual(parsed.steps.map((s) => s.block ?? null), c.stepBlocks);
+  });
+}
+
+for (const c of blocks.invalid) {
+  test(`rejects block case "${c.name}" with the .NET errors`, () => {
+    assert.throws(
+      () => parseJourney(c.text, 'x.journey'),
+      (e: unknown) => {
+        assert.ok(e instanceof JourneyParseError);
+        assert.deepEqual(e.errors, c.errors);
+        return true;
+      },
+    );
+  });
+}

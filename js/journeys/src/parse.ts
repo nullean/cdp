@@ -6,6 +6,7 @@ import { splitLine } from './commandline.ts';
 import {
   JourneyParseError,
   type Command,
+  type Block,
   type ExpectMatcher,
   type Journey,
   type JourneyError,
@@ -27,7 +28,7 @@ export const DEVICES = [
 ];
 
 const SUPPORTED =
-  'allow, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, links, screenshot, a11y, timings, vitals, metrics, is, expect';
+  'allow, feature, end, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, links, screenshot, a11y, timings, vitals, metrics, is, expect';
 
 const TIMING_NAMES = ['ttfb', 'first-paint', 'fcp', 'dom-interactive', 'dom-content-loaded', 'load'];
 const VITAL_NAMES = ['ttfb', 'fcp', 'lcp', 'cls', 'inp'];
@@ -43,6 +44,8 @@ export function parseJourney(text: string, source = 'journey'): Journey {
   const errors: JourneyError[] = [];
   const allow: string[] = [];
   const header = new MetadataBuilder();
+  const blocks: Block[] = [];
+  let open: Block | undefined;
   let seenStep = false;
   const lines = text.split('\n');
   for (let i = 0; i < lines.length; i++) {
@@ -62,17 +65,29 @@ export function parseJourney(text: string, source = 'journey'): Journey {
       }
       continue;
     }
+    if (args[0] === 'feature' || args[0] === 'end') {
+      seenStep = true;
+      open = parseBlockLine(args, i + 1, open, blocks, errors);
+      continue;
+    }
     seenStep = true;
     try {
-      steps.push({ line: i + 1, args, command: parseCommand(args) });
+      const step: Step = { line: i + 1, args, command: parseCommand(args) };
+      if (open) step.block = open.line;
+      steps.push(step);
     } catch (e) {
       if (e instanceof SyntaxError_) errors.push({ line: i + 1, message: e.message });
       else throw e;
     }
   }
+  if (open) errors.push({ line: open.line, message: "this feature block is never closed: add 'end' after its last step" });
   if (errors.length > 0) throw new JourneyParseError(source, errors);
+  const journey: Journey = { version: blocks.length > 0 ? 2 : 1, source, allow, steps };
   const metadata = header.build();
-  return metadata ? { version: 1, source, allow, metadata, steps } : { version: 1, source, allow, steps };
+  if (metadata) journey.metadata = metadata;
+  if (blocks.length > 0) journey.blocks = blocks;
+  // Keys in the order `cdp parse` prints them.
+  return { version: journey.version, source, allow, ...(metadata ? { metadata } : {}), ...(blocks.length > 0 ? { blocks } : {}), steps };
 }
 
 const css = (selector: string): Target => {
@@ -750,6 +765,33 @@ function parseExpectTarget(args: string[], name: string | undefined, exact: bool
   return target;
 }
 
+
+// Handles a feature or end line and returns the block that is open afterwards. A bad feature line still opens its block,
+// so one mistake is not reported again at every later line (the same as Journey.ParseBlockLine in Nullean.Cdp.Journeys).
+function parseBlockLine(args: string[], line: number, open: Block | undefined, blocks: Block[], errors: JourneyError[]): Block | undefined {
+  if (args[0] === 'end') {
+    if (args.length > 1) errors.push({ line, message: 'usage: end, with nothing after it' });
+    if (!open) errors.push({ line, message: 'end closes a feature block, and none is open' });
+    return undefined;
+  }
+  if (open) {
+    errors.push({ line, message: `feature blocks do not nest: close the block opened on line ${open.line} with 'end' first` });
+    return open;
+  }
+  if (args.length === 1) errors.push({ line, message: 'usage: feature <condition...>, e.g. feature navigation-preview !env:prod' });
+  const when: string[] = [];
+  for (const word of args.slice(1)) {
+    try {
+      when.push(normalizeRequirement(word));
+    } catch (e) {
+      if (e instanceof SyntaxError_) errors.push({ line, message: e.message });
+      else throw e;
+    }
+  }
+  const block: Block = { line, when };
+  blocks.push(block);
+  return block;
+}
 
 const DIRECTIVES = '@tags, @requires, @monitor, @alert or @mutates';
 const TAG_NAME = /^[a-z0-9][a-z0-9._-]*$/;

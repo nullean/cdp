@@ -1,0 +1,188 @@
+{
+  "note": "feature blocks. valid: the version, blocks and each step's block (the line of its feature line, null outside) that both parsers produce. invalid: text that must not parse, with every error and its line. Checked by the .NET tests (JourneyBlockTests) and by js/journeys (conformance.test.ts): the two parsers must agree.",
+  "valid": [
+    {
+      "name": "one block",
+      "text": "open /\nfeature navigation-preview\n  click #a\n  get title\nend\nget url\n",
+      "version": 2,
+      "blocks": [
+        {
+          "line": 2,
+          "when": [
+            "navigation-preview"
+          ]
+        }
+      ],
+      "stepBlocks": [
+        null,
+        2,
+        2,
+        null
+      ]
+    },
+    {
+      "name": "two blocks with several conditions",
+      "text": "feature a !b\nclick #a\nend\nfeature build-type:assembler,codex env:edge\nclick #b\nend\n",
+      "version": 2,
+      "blocks": [
+        {
+          "line": 1,
+          "when": [
+            "a",
+            "!b"
+          ]
+        },
+        {
+          "line": 4,
+          "when": [
+            "build-type:assembler,codex",
+            "env:edge"
+          ]
+        }
+      ],
+      "stepBlocks": [
+        1,
+        4
+      ]
+    },
+    {
+      "name": "an empty block",
+      "text": "open /\nfeature x\nend\n",
+      "version": 2,
+      "blocks": [
+        {
+          "line": 2,
+          "when": [
+            "x"
+          ]
+        }
+      ],
+      "stepBlocks": [
+        null
+      ]
+    },
+    {
+      "name": "allow lines and comments inside a block",
+      "text": "allow a.example\nopen /\nfeature x # why\n  # note\n\n  click #a\nend # done\n",
+      "version": 2,
+      "blocks": [
+        {
+          "line": 3,
+          "when": [
+            "x"
+          ]
+        }
+      ],
+      "stepBlocks": [
+        null,
+        3
+      ]
+    },
+    {
+      "name": "no blocks stays version 1",
+      "text": "open /\nclick #a\n",
+      "version": 1,
+      "blocks": null,
+      "stepBlocks": [
+        null,
+        null
+      ]
+    }
+  ],
+  "invalid": [
+    {
+      "name": "nested",
+      "text": "feature a\nfeature b\nclick #a\nend\n",
+      "errors": [
+        {
+          "line": 2,
+          "message": "feature blocks do not nest: close the block opened on line 1 with 'end' first"
+        }
+      ]
+    },
+    {
+      "name": "nested then two ends",
+      "text": "feature a\nfeature b\nend\nend\n",
+      "errors": [
+        {
+          "line": 2,
+          "message": "feature blocks do not nest: close the block opened on line 1 with 'end' first"
+        },
+        {
+          "line": 4,
+          "message": "end closes a feature block, and none is open"
+        }
+      ]
+    },
+    {
+      "name": "end without a block",
+      "text": "open /\nend\n",
+      "errors": [
+        {
+          "line": 2,
+          "message": "end closes a feature block, and none is open"
+        }
+      ]
+    },
+    {
+      "name": "never closed",
+      "text": "open /\nfeature x\nclick #a\n",
+      "errors": [
+        {
+          "line": 2,
+          "message": "this feature block is never closed: add 'end' after its last step"
+        }
+      ]
+    },
+    {
+      "name": "feature without conditions",
+      "text": "feature\nclick #a\nend\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: feature <condition...>, e.g. feature navigation-preview !env:prod"
+        }
+      ]
+    },
+    {
+      "name": "a bad condition",
+      "text": "feature Nav_Preview\nclick #a\nend\n",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'Nav_Preview' is not a condition: use a feature flag (navigation-preview), build-type:<a,b> or env:<a,b>, each optionally with a leading '!'"
+        }
+      ]
+    },
+    {
+      "name": "end with arguments",
+      "text": "feature a\nend now\n",
+      "errors": [
+        {
+          "line": 2,
+          "message": "usage: end, with nothing after it"
+        }
+      ]
+    },
+    {
+      "name": "a directive after a feature line",
+      "text": "feature a\n# @tags late\nclick #a\nend\n",
+      "errors": [
+        {
+          "line": 2,
+          "message": "@tags belongs in the header: put the directive before the first step"
+        }
+      ]
+    },
+    {
+      "name": "a bad step inside a block is reported once",
+      "text": "feature a\nclick\nend\n",
+      "errors": [
+        {
+          "line": 2,
+          "message": "usage: click <selector>"
+        }
+      ]
+    }
+  ]
+}

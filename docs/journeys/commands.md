@@ -170,6 +170,13 @@ paths are relative to it and may not leave it. Without a folder they fail the st
 | `network har start` | start a HAR recording |
 | `network har stop <path>` | write it, with credentials redacted |
 
+## Feature blocks
+
+| Command | |
+|---|---|
+| `feature <condition...>` | start a block of steps that apply only when every condition holds; see [feature blocks](index.md#feature-blocks) |
+| `end` | close the block; blocks do not nest |
+
 ## Allow
 
 | Command | |

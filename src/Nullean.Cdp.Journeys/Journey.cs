@@ -200,6 +200,9 @@ public sealed record ReadCommand(string What, JourneyTarget? Target, string? Att
 /// <param name="Command">What it does.</param>
 public sealed record JourneyStep(int Line, IReadOnlyList<string> Arguments, JourneyCommand Command)
 {
+	/// <summary>The <c>feature</c> block the step is in, or <c>null</c> when it is not in one.</summary>
+	public JourneyBlock? Block { get; init; }
+
 	/// <summary>The command as one normalised line: no comment, single spaces, quoted only where needed.</summary>
 	public string Text => CommandLine.Join(Arguments);
 }
@@ -210,13 +213,17 @@ public sealed record JourneyStep(int Line, IReadOnlyList<string> Arguments, Jour
 /// </summary>
 public sealed partial class Journey
 {
-	private Journey(string source, IReadOnlyList<JourneyStep> steps, IReadOnlyList<string> allowedHosts, JourneyMetadata metadata)
+	private Journey(string source, IReadOnlyList<JourneyStep> steps, IReadOnlyList<string> allowedHosts, JourneyMetadata metadata, IReadOnlyList<JourneyBlock> blocks)
 	{
 		Source = source;
 		Steps = steps;
 		AllowedHosts = allowedHosts;
 		Metadata = metadata;
+		Blocks = blocks;
 	}
+
+	/// <summary>The <c>feature</c> blocks, in order. Their steps are in <see cref="Steps"/>, each pointing at its block.</summary>
+	public IReadOnlyList<JourneyBlock> Blocks { get; }
 
 	/// <summary>The host patterns from the journey's <c>allow</c> lines.</summary>
 	public IReadOnlyList<string> AllowedHosts { get; }
@@ -239,6 +246,8 @@ public sealed partial class Journey
 		var errors = new List<JourneyError>();
 		var allowed = new List<string>();
 		var metadata = new MetadataBuilder();
+		var blocks = new List<JourneyBlock>();
+		JourneyBlock? open = null;
 		var seenStep = false;
 		var lines = text.Split('\n');
 		for (var i = 0; i < lines.Length; i++)
@@ -269,10 +278,17 @@ public sealed partial class Journey
 				continue;
 			}
 
+			if (arguments[0] is "feature" or "end")
+			{
+				seenStep = true;
+				open = ParseBlockLine(arguments, i + 1, open, blocks, errors);
+				continue;
+			}
+
 			seenStep = true;
 			try
 			{
-				steps.Add(new JourneyStep(i + 1, arguments, ParseCommand(arguments)));
+				steps.Add(new JourneyStep(i + 1, arguments, ParseCommand(arguments)) { Block = open });
 			}
 			catch (JourneySyntaxException e)
 			{
@@ -280,15 +296,17 @@ public sealed partial class Journey
 			}
 		}
 
+		if (open is not null)
+			errors.Add(new JourneyError(open.Line, "this feature block is never closed: add 'end' after its last step"));
 		if (errors.Count > 0)
 			throw new JourneyParseException(source, errors);
-		return new Journey(source, steps, allowed, metadata.Build());
+		return new Journey(source, steps, allowed, metadata.Build(), blocks);
 	}
 
 	/// <summary>The commands journeys support, for error messages and docs.</summary>
 	public static IReadOnlyList<string> SupportedCommands { get; } =
 	[
-		"allow <host pattern...>", "open <url>", "back", "forward", "reload",
+		"allow <host pattern...>", "feature <condition...>", "end", "open <url>", "back", "forward", "reload",
 		"click <selector>", "dblclick <selector>", "hover <selector>", "focus <selector>", "scrollintoview <selector>",
 		"fill <selector> <text>", "type <selector> <text>", "check <selector>", "uncheck <selector>",
 		"select <selector> <value...>", "upload <selector> <files...>", "drag <source> <target>",
@@ -790,6 +808,9 @@ public sealed partial class Journey
 	/// </remarks>
 	public string ToAgentBrowserBatch(Uri? baseUrl = null, Func<string, string?>? secrets = null)
 	{
+		if (Blocks.Count > 0)
+			throw new JourneyParseException(Source, [.. Blocks.Select(b =>
+				new JourneyError(b.Line, "feature blocks are not part of agent-browser, which runs every line; use one journey file per flag state to export"))]);
 		var resolver = secrets is null ? null : new JourneySecrets(secrets);
 		var unresolved = Steps.Where(s => s.Arguments.Any(JourneySecrets.IsReference)).ToArray();
 		if (resolver is null && unresolved.Length > 0)

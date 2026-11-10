@@ -8,7 +8,7 @@ import { dirname, isAbsolute, resolve, sep } from 'node:path';
 import type { BrowserContext, Locator, Page } from 'playwright-core';
 import { joinLine } from './commandline.ts';
 import type { Command, Journey, Step, Target } from './model.ts';
-import { isSecretReference } from './parse.ts';
+import { isSecretReference, requirementMet } from './parse.ts';
 import { describeTarget, runExpect } from './expect.ts';
 import type { PlaywrightExpect } from './expect.ts';
 
@@ -17,6 +17,12 @@ export interface RunOptions {
   baseUrl?: string;
   /** Host patterns allowed on top of the journey's `allow` lines and the base URL's host. */
   allowedHosts?: string[];
+  /** The enabled feature flags, for `feature` blocks: a block whose conditions the run does not meet is skipped. */
+  features?: Iterable<string>;
+  /** The build type (`isolated`, `assembler`, `codex`), for `build-type:` conditions. */
+  buildType?: string;
+  /** The environment's name (`prod`, `edge`), for `env:` conditions. */
+  env?: string;
   /** Resolves `$env:NAME`; the process environment by default. */
   secrets?: (name: string) => string | undefined;
   /** Where `screenshot` writes. Without it, screenshot steps are skipped with a warning. */
@@ -153,6 +159,7 @@ export class JourneyRun {
   // The document count when the last action began (after a navigation, when it ended), for `expect same-document`.
   private actionDocuments = 0;
   private readonly blockedNavigations: string[] = [];
+  private readonly skippedBlocks = new Set<number>();
   private readonly consoleLog: string[] = [];
   private readonly errorLog: string[] = [];
   private readonly warned = new Set<string>();
@@ -254,6 +261,8 @@ export class JourneyRun {
 
   /** Runs one step. Throws a `StepError` (secrets redacted) when it fails. */
   async step(step: Step): Promise<Checkpoint | undefined> {
+    const skipped = this.skip(step);
+    if (skipped !== false) return skipped;
     this.options.onStep?.(step);
     let output: Output | undefined;
     try {
@@ -276,6 +285,18 @@ export class JourneyRun {
       output: this.secrets.redact(output.text),
       kind: output.kind ?? 'text',
     };
+  }
+
+  // A step in a block the run does not meet is skipped. The block shows once, as a checkpoint saying why; false means run it.
+  private skip(step: Step): Checkpoint | undefined | false {
+    const block = step.block === undefined ? undefined : this.journey.blocks?.find((b) => b.line === step.block);
+    if (!block) return false;
+    const context = { features: this.options.features, buildType: this.options.buildType, env: this.options.env };
+    const unmet = block.when.find((r) => !requirementMet(r, context));
+    if (unmet === undefined) return false;
+    if (this.skippedBlocks.has(block.line)) return undefined;
+    this.skippedBlocks.add(block.line);
+    return { line: block.line, command: `feature ${block.when.join(' ')}`, url: this.secrets.redact(this.page.url()), output: `skipped: ${unmet}`, kind: 'text' };
   }
 
   private locator(t: Target): Locator {
