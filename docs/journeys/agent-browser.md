@@ -46,5 +46,6 @@ read the values this runner reads.
 - `snapshot -c` is ours: it drops list markers, line breaks and nodes left with no name, value, state or children.
   agent-browser's `-c` also drops some named nodes; this one keeps anything with a name.
 - `set geo` grants the permission, so the page reads the position.
+- `set useragent` is ours: agent-browser sets a user agent only at launch (`--user-agent`), so [the export](agent-browser.md) leaves these lines out.
 - `errors` prints each error with its location; agent-browser's text output printed an empty `✗` per error.
 - `screenshot` writes only into the artifacts folder, and `--annotate` is not supported.

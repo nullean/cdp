@@ -57,6 +57,7 @@ find nth <n> <sel> [action] [text]
 | `set geo <lat> <lng>` | geolocation, with permission granted |
 | `set offline [on\|off]` | without on or off, it toggles |
 | `set headers <json>` | extra request headers, as a JSON object |
+| `set useragent <ua>` | the user agent, in the `User-Agent` header and `navigator.userAgent`; pages that switch features on the user agent see it from the next navigation |
 | `set credentials <user> <password>` | HTTP authentication; the password must be a `$env:` reference |
 
 ## Read

@@ -191,6 +191,16 @@ public sealed class Page
 			await SendAsync("Emulation.setUserAgentOverride", w => w.WriteString("userAgent", device.UserAgent), cancellationToken).ConfigureAwait(false);
 	}
 
+	/// <summary>
+	/// Sends this user agent with every request of the page and reports it as <c>navigator.userAgent</c>, which a page reads
+	/// to decide what to run. An empty string restores Chrome's own.
+	/// </summary>
+	public async Task SetUserAgentAsync(string userAgent, CancellationToken cancellationToken = default)
+	{
+		ArgumentNullException.ThrowIfNull(userAgent);
+		await SendAsync("Emulation.setUserAgentOverride", w => w.WriteString("userAgent", userAgent), cancellationToken).ConfigureAwait(false);
+	}
+
 	/// <summary>Reports this position to <c>navigator.geolocation</c>, and grants the page permission to read it.</summary>
 	public async Task SetGeolocationAsync(double latitude, double longitude, CancellationToken cancellationToken = default)
 	{

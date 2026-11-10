@@ -79,6 +79,25 @@ public class MoreCommandTests(ChromeFixture chrome)
 	}
 
 	[Test]
+	public async Task AUserAgentReachesTheServerAndThePage()
+	{
+		_ = chrome.Browser;
+		await using var server = new SlowServer(TimeSpan.Zero);
+		var journey = Journey.Parse("""
+			set useragent "Mozilla/5.0 (journey) docs-test-marker"
+			open /headers
+			get text #ua
+			get title
+			""");
+
+		var result = await JourneyRunner.RunAsync(journey, chrome.Browser, new JourneyOptions { BaseUrl = new Uri(server.Url) });
+
+		// The header the server saw, and navigator.userAgent, which the page copied into its title.
+		result.Failure.Should().BeNull();
+		result.Checkpoints.Select(c => c.Output).Should().Equal("Mozilla/5.0 (journey) docs-test-marker", "Mozilla/5.0 (journey) docs-test-marker");
+	}
+
+	[Test]
 	public async Task HeadersAndCredentialsReachTheServer()
 	{
 		_ = chrome.Browser; // skips without a Chrome
