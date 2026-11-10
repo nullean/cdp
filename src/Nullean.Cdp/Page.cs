@@ -136,10 +136,18 @@ public sealed class Page
 	/// <summary>
 	/// Refuses every request of this page that <paramref name="allow"/> rejects, from now until the guard is disposed.
 	/// </summary>
-	public Task<NetworkGuard> GuardNetworkAsync(Func<Uri, bool> allow, CancellationToken cancellationToken = default)
+	public Task<NetworkGuard> GuardNetworkAsync(Func<Uri, bool> allow, CancellationToken cancellationToken = default) =>
+		GuardNetworkAsync(allow, new NetworkGuardOptions(), cancellationToken);
+
+	/// <summary>
+	/// Refuses every request of this page that <paramref name="allow"/> rejects and, with
+	/// <see cref="NetworkGuardOptions.ReadOnly"/>, every request that is not a read, from now until the guard is disposed.
+	/// </summary>
+	public Task<NetworkGuard> GuardNetworkAsync(Func<Uri, bool> allow, NetworkGuardOptions options, CancellationToken cancellationToken = default)
 	{
 		ArgumentNullException.ThrowIfNull(allow);
-		return NetworkGuard.StartAsync(this, allow, cancellationToken);
+		ArgumentNullException.ThrowIfNull(options);
+		return NetworkGuard.StartAsync(this, allow, options, cancellationToken);
 	}
 
 	/// <summary>Presses a key or chord on whatever has focus, then waits for any navigation it starts.</summary>

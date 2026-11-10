@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
 using Nullean.Cdp.Protocol;
 
 namespace Nullean.Cdp;
@@ -9,8 +10,28 @@ namespace Nullean.Cdp;
 /// <param name="TopLevel">Whether it was a request of a page's top frame (the page or a popup), not of a frame in it.</param>
 public sealed record BlockedRequest(string Url, string ResourceType, bool TopLevel)
 {
+	/// <summary>
+	/// The HTTP method of a request refused only because the guard is read-only (<see cref="NetworkGuardOptions.ReadOnly"/>);
+	/// <c>null</c> for a request refused by the allow predicate.
+	/// </summary>
+	public string? RefusedWrite { get; init; }
+
 	/// <summary>Whether the request was a page loading a new document: the page or a popup navigating.</summary>
 	public bool IsNavigation => TopLevel && ResourceType == "Document";
+}
+
+/// <summary>How a <see cref="NetworkGuard"/> treats requests that change state.</summary>
+public sealed class NetworkGuardOptions
+{
+	/// <summary>
+	/// Refuse every request whose method is not <c>GET</c>, <c>HEAD</c> or <c>OPTIONS</c>, form posts and
+	/// <c>fetch</c> or <c>sendBeacon</c> calls included, unless <see cref="AllowWrites"/> allows its URL. Requests the
+	/// allow predicate refuses are refused either way.
+	/// </summary>
+	public bool ReadOnly { get; init; }
+
+	/// <summary>URLs a read-only guard lets write to, such as a telemetry endpoint; <c>null</c> for none.</summary>
+	public Func<Uri, bool>? AllowWrites { get; init; }
 }
 
 /// <summary>
@@ -24,6 +45,7 @@ public sealed class NetworkGuard : IAsyncDisposable
 {
 	private readonly Page _page;
 	private readonly Func<Uri, bool> _allow;
+	private readonly NetworkGuardOptions _options;
 	private readonly ConcurrentQueue<BlockedRequest> _blocked = new();
 	// Every guarded session and the target (top frame) it belongs to; its listener, to stop on dispose.
 	private readonly ConcurrentDictionary<string, (string TargetId, IDisposable Listening)> _sessions = new(StringComparer.Ordinal);
@@ -41,15 +63,16 @@ public sealed class NetworkGuard : IAsyncDisposable
 		_credentials = (user, password);
 	}
 
-	private NetworkGuard(Page page, Func<Uri, bool> allow)
+	private NetworkGuard(Page page, Func<Uri, bool> allow, NetworkGuardOptions options)
 	{
 		_page = page;
 		_allow = allow;
+		_options = options;
 	}
 
-	internal static async Task<NetworkGuard> StartAsync(Page page, Func<Uri, bool> allow, CancellationToken cancellationToken)
+	internal static async Task<NetworkGuard> StartAsync(Page page, Func<Uri, bool> allow, NetworkGuardOptions options, CancellationToken cancellationToken)
 	{
-		var guard = new NetworkGuard(page, allow);
+		var guard = new NetworkGuard(page, allow, options);
 		guard.Watch(page.SessionId, page.TargetId);
 		page.Browser.OnPopup(page.TargetId, guard.GuardPopupAsync);
 		await GuardSessionAsync(page.Connection, page.SessionId, cancellationToken).ConfigureAwait(false);
@@ -129,8 +152,15 @@ public sealed class NetworkGuard : IAsyncDisposable
 	{
 		var url = e.Params.TryGetProperty("request", out var request) ? request.StringOrNull("url") ?? string.Empty : string.Empty;
 		var allowed = Uri.TryCreate(url, UriKind.Absolute, out var uri) && (uri.Scheme is "data" or "blob" or "about" || _allow(uri));
+		var resourceType = e.Params.StringOrNull("resourceType") ?? string.Empty;
+		var topLevel = e.Params.StringOrNull("frameId") == targetId;
 		if (!allowed)
-			_blocked.Enqueue(new BlockedRequest(url, e.Params.StringOrNull("resourceType") ?? string.Empty, e.Params.StringOrNull("frameId") == targetId));
+			_blocked.Enqueue(new BlockedRequest(url, resourceType, topLevel));
+		else if (request.ValueKind == JsonValueKind.Object && RefusedWrite(request, uri!) is { } method)
+		{
+			allowed = false;
+			_blocked.Enqueue(new BlockedRequest(url, resourceType, topLevel) { RefusedWrite = method });
+		}
 
 		// The handler runs on the receive loop and must not wait for the reply; failures only mean the target is gone.
 		Observe(allowed
@@ -140,6 +170,15 @@ public sealed class NetworkGuard : IAsyncDisposable
 				w.WriteString("requestId", requestId);
 				w.WriteString("errorReason", "BlockedByClient");
 			}, sessionId));
+	}
+
+	// The method of a request a read-only guard refuses, or null.
+	private string? RefusedWrite(JsonElement request, Uri uri)
+	{
+		if (!_options.ReadOnly || uri.Scheme is "data" or "blob" or "about")
+			return null;
+		var method = request.StringOrNull("method")?.ToUpperInvariant() ?? "GET";
+		return method is "GET" or "HEAD" or "OPTIONS" || _options.AllowWrites?.Invoke(uri) == true ? null : method;
 	}
 
 	private void Authenticate(string sessionId, string requestId, CdpEvent e)

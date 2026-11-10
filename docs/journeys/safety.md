@@ -20,6 +20,22 @@ pixel does not break a journey.
 
 `JourneyOptions.GuardNetwork = false` turns the list off, and lets `open` go anywhere.
 
+## Read-only runs
+
+A run against a live site should not change it. With `JourneyOptions.ReadOnly` (the CLI's `--read-only`, `readOnly` in
+`@nullean/journeys`) every request whose method is not `GET`, `HEAD` or `OPTIONS` is refused before it leaves the
+browser: form posts, `fetch`, `XMLHttpRequest` and `sendBeacon` alike. The step that caused it fails:
+
+```text
+Blocked POST https://shop.test/api/basket: this run is read-only, so only GET, HEAD and OPTIONS requests are sent
+(JourneyOptions.WritableUrls, or --writable on the CLI, allows a URL).
+```
+
+A page often writes on its own, for telemetry. `WritableUrls` (`--writable`, `writableUrls`) lists URL globs a
+read-only run may write to anyway: `**` is anything, `*` anything but `/`, as in `wait --url`. Requests the allow list
+already refuses stay refused and are reported, not failed, as before. A write is judged only after the allow list lets
+it through, so a third-party beacon is a refused request and not a failed step.
+
 ## Files
 
 `file://` URLs stay inside one folder: the base URL's folder, or `JourneyOptions.FileRoot` (the CLI's `--file-root`).
