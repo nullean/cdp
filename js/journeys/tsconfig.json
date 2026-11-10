@@ -12,5 +12,6 @@
     "erasableSyntaxOnly": true,
     "types": ["node"]
   },
-  "include": ["src", "test", "playwright.config.ts"]
+  "include": ["src", "test", "playwright.config.ts"],
+  "exclude": ["test/reference/export"]
 }

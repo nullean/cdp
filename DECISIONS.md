@@ -586,3 +586,20 @@ published by hand by the owner.
   hides its input under the label). `pointer-events: none` is skipped by the browser, so the element under it counts.
 - **No `force` option.** A journey that must click a covered element is describing something a user cannot do.
 
+## Synthetics export
+
+- **The files are generated, with the journey text inside.** `push` bundles code and not data files, so the exporter
+  writes one `*.journey.ts` per journey that embeds its text and calls `journeySteps`. The alternative, reading the
+  `.journey` file at run time, would not survive the bundle. Output is deterministic (no timestamps, sorted), and a
+  later export removes only the generated files (identified by the first line) that it no longer produces, because
+  `push` replaces the whole monitor set and a leftover file would keep a deleted journey's monitor.
+- **The export decides with the context it is given, the run decides with the same context.** `@requires` is judged at
+  export time, so a journey that does not apply is not a monitor at all; `feature` blocks stay in the text and the
+  context (`features`, `buildType`, `env`) is embedded, so they skip at run time as everywhere else.
+- **`@mutates` journeys are never exported**, and generated monitors run with `readOnly: true`: a monitor repeats against
+  a live site on a schedule, and a write there is a production incident.
+- **`--paging` adds configuration, its absence removes none.** Synthetics' alert block only says whether status alerts
+  are on, not where they go. Without `--paging` the monitor keeps Kibana's default; with it, `@alert pagerduty` enables
+  status alerts and adds the tag `alert:pagerduty` for a Kibana rule to route on. Routing to PagerDuty is Kibana's job.
+- **Schedule and locations are validated at export**, against `ALLOWED_SCHEDULES` and the public locations of
+  `@elastic/synthetics`, so a failure names the journey and does not arrive as a rejected push.
