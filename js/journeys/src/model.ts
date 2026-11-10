@@ -87,10 +87,25 @@ export interface Step {
   command: Command;
 }
 
+/** What the header's `@` directives say. Empty parts are left out, as in `cdp parse`. */
+export interface JourneyMetadata {
+  tags?: string[];
+  /** `@requires` conditions as written: `flag`, `!flag`, `build-type:a,b`, `env:a,b`. All must hold. */
+  requires?: string[];
+  /** Present when the journey has an `@monitor` line. */
+  monitor?: { schedule?: number; locations?: string[] };
+  /** `@alert` channels, e.g. `pagerduty`. */
+  alert?: string[];
+  /** `@mutates`: the journey changes data on the site. */
+  mutates?: true;
+}
+
 export interface Journey {
   version: 1;
   source: string;
   allow: string[];
+  /** Present only when the header has directives. */
+  metadata?: JourneyMetadata;
   steps: Step[];
 }
 

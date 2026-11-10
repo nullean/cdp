@@ -15,6 +15,38 @@ Synthetics](playwright.md) through the `@nullean/journeys` npm package.
 - **Only the supported subset.** Anything else is an error naming the line. The [command reference](commands.md) lists
   what is supported; [agent-browser](agent-browser.md) lists what is left out and why.
 
+## The header
+
+Comments before the first step can carry `@` directives that say what the journey is for. They do not change what a
+run does; a harness reads them to choose which journeys apply and how to export them. A journey without directives
+runs exactly as before.
+
+```text
+# @tags navigation smoke
+# @requires navigation-preview !env:prod build-type:assembler,codex
+# @monitor schedule=10 locations=germany,us_east
+# @alert pagerduty
+# @mutates
+open /docs
+```
+
+| Directive | |
+|---|---|
+| `@tags <name...>` | names for selecting journeys: lower case letters, digits, `.`, `_`, `-` |
+| `@requires <condition...>` | all of them must hold for the journey to apply: a feature flag (`navigation-preview`), `build-type:<a,b>` or `env:<a,b>` (any of the values), each optionally with a leading `!` |
+| `@monitor [schedule=<minutes>] [locations=<a,b>]` | the journey is exported as a monitor |
+| `@alert <channel...>` | where a failing monitor alerts, e.g. `pagerduty`; what a channel does is up to the exporter |
+| `@mutates` | the journey changes data on the site, so a live run skips it |
+
+A line may repeat (`@tags`, `@requires` and `@alert` accumulate; `@monitor` may appear once). An unknown directive, one
+after the first step, or a bad value is an error with its line, so a typo cannot silently turn a condition off.
+A condition about something the run does not know (no build type, no environment) is not matched: a plain condition
+fails and a negated one holds.
+
+`Journey.Metadata` (`metadata` in `cdp parse`, and in `@nullean/journeys`) holds what the header said, and
+`JourneyMetadata.Unmet(JourneyContext)` (`unmetRequirement` in npm) returns the first `@requires` condition a run does
+not meet, to report as the reason for skipping.
+
 ## URLs
 
 `open /shop` resolves against the base URL as a link in a page would, so a base URL for a folder needs its trailing

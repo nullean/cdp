@@ -26,6 +26,7 @@ public sealed partial class Journey
 			foreach (var host in AllowedHosts)
 				json.WriteStringValue(host);
 			json.WriteEndArray();
+			WriteMetadata(json, Metadata);
 			json.WriteStartArray("steps");
 			foreach (var step in Steps)
 			{
@@ -46,6 +47,29 @@ public sealed partial class Journey
 		}
 
 		return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan) + "\n";
+	}
+
+	// Only what the header said, so a journey without directives prints exactly what it printed before.
+	private static void WriteMetadata(Utf8JsonWriter json, JourneyMetadata metadata)
+	{
+		if (metadata.IsEmpty)
+			return;
+		json.WriteStartObject("metadata");
+		WriteStrings(json, "tags", metadata.Tags);
+		WriteStrings(json, "requires", [.. metadata.Requires.Select(r => r.ToString())]);
+		if (metadata.Monitor is { } monitor)
+		{
+			json.WriteStartObject("monitor");
+			if (monitor.Schedule is { } schedule)
+				json.WriteNumber("schedule", schedule);
+			WriteStrings(json, "locations", monitor.Locations);
+			json.WriteEndObject();
+		}
+
+		WriteStrings(json, "alert", metadata.Alerts);
+		if (metadata.Mutates)
+			json.WriteBoolean("mutates", true);
+		json.WriteEndObject();
 	}
 
 	private static void WriteCommand(Utf8JsonWriter json, JourneyCommand command)

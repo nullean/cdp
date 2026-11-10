@@ -210,11 +210,12 @@ public sealed record JourneyStep(int Line, IReadOnlyList<string> Arguments, Jour
 /// </summary>
 public sealed partial class Journey
 {
-	private Journey(string source, IReadOnlyList<JourneyStep> steps, IReadOnlyList<string> allowedHosts)
+	private Journey(string source, IReadOnlyList<JourneyStep> steps, IReadOnlyList<string> allowedHosts, JourneyMetadata metadata)
 	{
 		Source = source;
 		Steps = steps;
 		AllowedHosts = allowedHosts;
+		Metadata = metadata;
 	}
 
 	/// <summary>The host patterns from the journey's <c>allow</c> lines.</summary>
@@ -237,9 +238,13 @@ public sealed partial class Journey
 		var steps = new List<JourneyStep>();
 		var errors = new List<JourneyError>();
 		var allowed = new List<string>();
+		var metadata = new MetadataBuilder();
+		var seenStep = false;
 		var lines = text.Split('\n');
 		for (var i = 0; i < lines.Length; i++)
 		{
+			if (metadata.Add(lines[i].TrimEnd('\r'), i + 1, seenStep, errors))
+				continue;
 			var arguments = CommandLine.Split(lines[i].TrimEnd('\r'), out var splitError);
 			if (arguments is null)
 			{
@@ -264,6 +269,7 @@ public sealed partial class Journey
 				continue;
 			}
 
+			seenStep = true;
 			try
 			{
 				steps.Add(new JourneyStep(i + 1, arguments, ParseCommand(arguments)));
@@ -276,7 +282,7 @@ public sealed partial class Journey
 
 		if (errors.Count > 0)
 			throw new JourneyParseException(source, errors);
-		return new Journey(source, steps, allowed);
+		return new Journey(source, steps, allowed, metadata.Build());
 	}
 
 	/// <summary>The commands journeys support, for error messages and docs.</summary>
