@@ -3,8 +3,9 @@
 // it with journeySteps from ./adapters/synthetics.ts. The output depends on nothing but the inputs: no timestamps, a
 // stable order, so a second export changes nothing in git.
 
-import { parseJourney, unmetRequirement } from './parse.ts';
-import type { Journey } from './model.ts';
+import { parseHttpFile } from './http.ts';
+import { parseJourney, requirementMet } from './parse.ts';
+import type { JourneyMetadata } from './model.ts';
 
 /** What the exported monitors are for: judged against each journey's `@requires`, and embedded for its `feature` blocks. */
 export interface ExportContext {
@@ -62,15 +63,11 @@ export class ExportError extends Error {
 export function exportSynthetics(sources: ExportSource[], context: ExportContext = {}): { files: ExportedFile[]; skipped: ExportSkip[] } {
   const files: ExportedFile[] = [];
   const skipped: ExportSkip[] = [];
+  const ids = new Map<string, string>();
   for (const source of [...sources].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
     const kind = source.kind ?? 'journey';
-    if (kind !== 'journey') {
-      skipped.push({ name: source.name, reason: `${kind} files are not exported by this version` });
-      continue;
-    }
     const text = source.text.replace(/\r\n/g, '\n');
-    const journey = parseJourney(text, source.name);
-    const metadata = journey.metadata;
+    const metadata: JourneyMetadata | undefined = kind === 'http' ? parseHttpFile(text, source.name).metadata : parseJourney(text, source.name).metadata;
     if (!metadata?.monitor) {
       skipped.push({ name: source.name, reason: 'no @monitor' });
       continue;
@@ -79,22 +76,32 @@ export function exportSynthetics(sources: ExportSource[], context: ExportContext
       skipped.push({ name: source.name, reason: '@mutates: a monitor runs against a live site' });
       continue;
     }
-    const unmet = unmetRequirement(journey, context);
+    const unmet = metadata.requires?.find((r) => !requirementMet(r, context));
     if (unmet !== undefined) {
       skipped.push({ name: source.name, reason: `@requires ${unmet} does not hold` });
       continue;
     }
-    files.push({ name: source.name, fileName: `${source.name}.journey.ts`, content: render(source.name, text, journey, context) });
+    const id = monitorId(source.name);
+    const other = ids.get(id);
+    if (other !== undefined) throw new ExportError(source.name, `its monitor id '${id}' is already taken by ${other}: rename one of them`);
+    ids.set(id, source.name);
+    files.push({
+      name: source.name,
+      fileName: `${source.name}.${kind === 'http' ? 'http.' : ''}journey.ts`,
+      content: render(source.name, kind, text, metadata, context),
+    });
   }
   return { files, skipped };
 }
 
-function render(name: string, text: string, journey: Journey, context: ExportContext): string {
-  const monitor = journey.metadata!.monitor!;
-  const paging = context.paging === true && journey.metadata!.alert?.includes('pagerduty') === true;
-  const tags = [...(journey.metadata!.tags ?? [])];
+const monitorId = (name: string) => name.replace(/[^A-Za-z0-9_-]+/g, '-');
+
+function render(name: string, kind: 'journey' | 'http', text: string, metadata: JourneyMetadata, context: ExportContext): string {
+  const monitor = metadata.monitor!;
+  const paging = context.paging === true && metadata.alert?.includes('pagerduty') === true;
+  const tags = [...(metadata.tags ?? [])];
   if (paging) tags.push('alert:pagerduty');
-  const id = name.replace(/[^A-Za-z0-9_-]+/g, '-');
+  const id = monitorId(name);
 
   if (monitor.schedule !== undefined && !SCHEDULES.includes(monitor.schedule))
     throw new ExportError(name, `@monitor schedule=${monitor.schedule} is not one Synthetics accepts: ${SCHEDULES.join(', ')}`);
@@ -114,14 +121,17 @@ function render(name: string, text: string, journey: Journey, context: ExportCon
   if (context.env !== undefined) options.push(`env: ${literal(context.env)}`);
   options.push('readOnly: true');
 
+  const http = kind === 'http';
   return [
-    `${GENERATED_MARKER} from ${name}.journey. Do not edit: change the journey and export again.`,
-    `import { expect, journey, monitor, step } from '@elastic/synthetics';`,
-    `import { journeySteps } from '@nullean/journeys/synthetics';`,
+    `${GENERATED_MARKER} from ${name}.${http ? 'http' : 'journey'}. Do not edit: change the ${http ? 'file' : 'journey'} and export again.`,
+    `import { ${http ? '' : 'expect, '}journey, monitor, step } from '@elastic/synthetics';`,
+    `import { ${http ? 'httpSteps' : 'journeySteps'} } from '@nullean/journeys/synthetics';`,
     '',
-    `journey({ id: ${literal(id)}, name: ${literal(name)} }, ({ page, params }) => {`,
+    `journey({ id: ${literal(id)}, name: ${literal(name)} }, ({ ${http ? 'request' : 'page'}, params }) => {`,
     `  monitor.use({ ${use.join(', ')} });`,
-    `  journeySteps({ page, step, params, expect }, ${template(text)}, { ${options.join(', ')} });`,
+    http
+      ? `  httpSteps({ request, step, params }, ${template(text)}, { ${options.join(', ')} });`
+      : `  journeySteps({ page, step, params, expect }, ${template(text)}, { ${options.join(', ')} });`,
     '});',
     '',
   ].join('\n');

@@ -603,3 +603,22 @@ published by hand by the owner.
   status alerts and adds the tag `alert:pagerduty` for a Kibana rule to route on. Routing to PagerDuty is Kibana's job.
 - **Schedule and locations are validated at export**, against `ALLOWED_SCHEDULES` and the public locations of
   `@elastic/synthetics`, so a failure names the journey and does not arrive as a rejected push.
+
+## `.http` monitors
+
+- **A TypeScript subset of the parser, not the .NET tool at export time.** The plan allowed exporting JSON produced by
+  Nullean.HttpFileParser. That would make a Node package need a .NET tool to export, and the monitor would still need a
+  runner. Nullean.HttpFileParser is about 3,000 lines (environments, secrets, templates, files, scripts refusal); a
+  monitor needs requests, headers, bodies, variables, response references, `@readonly` and `@expect`. The subset is about
+  600 lines, refuses everything else with a reason and a line, and reuses the journey header grammar.
+- **Messages and semantics are copied from Nullean.HttpFileParser**, so a file that passes `dotnet test` and a monitor
+  say the same things. The parsers are not tested against shared fixtures yet; the TS tests restate the .NET messages.
+  Known difference: JSON numbers compare as JavaScript reads them.
+- **Header directives in comments before the first request.** Nullean.HttpFileParser treats unknown `@` comments as plain
+  comments, so a file with `# @monitor` still runs there. After the first request they are an error, as after the first
+  step of a journey: a directive that silently did nothing would be worse.
+- **Step names are the request line as written.** Variables stay unresolved, so a header or URL secret never reaches a
+  step name in Kibana. Failure messages name `file:line` and what the response held, never a resolved request.
+- **Read-only by default in exports.** The generated file sets `readOnly: true`; only GET, HEAD, OPTIONS and requests
+  marked `# @readonly` are sent. MCP `tools/list` and `search_docs` are POSTs that read, which is what `@readonly` is for.
+
