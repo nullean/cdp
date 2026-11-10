@@ -51,8 +51,8 @@ journey('checkout', ({ page, params }) =>
 Each line is a Synthetics `step()`, so Kibana shows the journey as it was written. Things to know:
 
 - **The journey text lives in the file.** `npx @elastic/synthetics push` bundles code, not data files, so paste the
-  journey into the template literal (or generate the file). The text is parsed when the journey registers, so a bad
-  line fails before anything runs.
+  journey into the template literal, or [generate the files](#export-the-monitors). The text is parsed when the
+  journey registers, so a bad line fails before anything runs.
 - **Secrets** (`$env:NAME`) resolve from the journey's `params`, then from the environment. `params.url` above comes
   from `--params` or `synthetics.config.ts`.
 - **`upload` does not work**: Synthetics does not support `setInputFiles` in pushed journeys.
@@ -60,8 +60,51 @@ Each line is a Synthetics `step()`, so Kibana shows the journey as it was writte
   another, and rules out native modules.
 - **`expect`** is Playwright's: Synthetics re-exports `@playwright/test`'s `expect`, so pass it in as above. It does not
   support `toHaveScreenshot` or snapshot assertions, which `expect` lines never use.
-- The adapter is tested against Synthetics' `step` contract with a stand-in. A push to Kibana has not been exercised
-  yet.
+- The adapter is tested against Synthetics' `step` contract with a stand-in, and generated files run under the real
+  `@elastic/synthetics` CLI in the tests. A push to Kibana has not been exercised yet.
+
+## Export the monitors
+
+Journeys that are marked `@monitor` become Synthetics files with one command:
+
+```sh
+npx journeys export-synthetics journeys --out synthetics/generated --features navigation-preview --env edge
+npx @elastic/synthetics push synthetics/generated --id my-project
+```
+
+```text
+# journeys/landing/home.journey
+# @tags navigation smoke
+# @monitor schedule=10 locations=germany,us_east
+# @alert pagerduty
+open /docs
+expect title "Elastic Docs"
+```
+
+| Option | |
+|---|---|
+| `<file, folder or glob>...` | what to export; a folder means every `.journey` file under it |
+| `--out <folder>` | where the generated `*.journey.ts` files go, one per exported journey, named by its path below the arguments (`landing/home.journey.ts`) |
+| `--features <a,b>` | the feature flags that are on: judged against each `@requires`, and embedded so `feature` blocks skip the way they do in any other run |
+| `--build-type`, `--env` | the same for `build-type:` and `env:` conditions |
+| `--paging` | turn `@alert pagerduty` into alert configuration (below) |
+| `--base-url <url>` | embed the base URL; without it a generated file reads `params.url`, from `--params` or the Synthetics config |
+| `--root <folder>` | names are paths under this folder; by default the folder the arguments start in |
+
+- **Which journeys export.** A journey needs `@monitor`; its `@requires` must hold for the flags, build type and
+  environment you give; and it must not be `@mutates`, because a monitor runs against a live site. Every journey that
+  does not export is printed with the reason. A generated file also runs read-only (`readOnly: true`).
+- **What the directives become.** `schedule` and `locations` go to `monitor.use` and are checked against what
+  Synthetics accepts, so a schedule of 7 minutes fails the export, naming the journey, and not the push. `@tags` become
+  the monitor's tags.
+- **Alerting.** Kibana routes alerts. Without `--paging` every monitor keeps Kibana's default status alerting. With
+  `--paging`, a journey that says `@alert pagerduty` gets `alert: { status: { enabled: true } }` and the tag
+  `alert:pagerduty`, which a Kibana rule can route to PagerDuty. The export never talks to Kibana or PagerDuty.
+- **A skipped feature block shows as passed.** Synthetics has no skipped steps for a step that ran as a no-op, so a
+  block the run does not meet looks like a passing step in Kibana.
+- **The output depends only on the inputs**: no timestamps, a stable order, so exporting twice changes nothing in git.
+  The files start with a generated-file header, and a later export removes generated files whose journey is no longer
+  exported, and only those. `push` replaces the project's monitors, so removing a journey removes its monitor.
 
 ## Assertions
 
