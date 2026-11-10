@@ -62,7 +62,7 @@ internal sealed class SlowServer : IAsyncDisposable
 							+ "const post = (path, body) => fetch(path, { method: 'POST', body });"
 							+ "post('/collect/l', JSON.stringify({ resourceLogs: [{ resource: { attributes: [{ key: 'service.name', value: { stringValue: 'docs-frontend' } }] },"
 							+ " scopeLogs: [{ logRecords: [{ eventName: 'browser.navigation_timing' }] }] }] }));"
-							+ "post('/collect/big', 'x'.repeat(100000)); post('/collect/deny', '{}'); post('/collect/slow', '{}');</script>"));
+							+ "post('/collect/big', 'x'.repeat(100000)); post('/collect/deny', '{}'); post('/collect/slow', '{}'); post('/collect/blob', new Blob(['blob-body-text']));</script>"));
 					}
 					else if (context.Request.Url.AbsolutePath == "/spa")
 					{

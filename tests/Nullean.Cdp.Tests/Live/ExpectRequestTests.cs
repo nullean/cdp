@@ -37,6 +37,18 @@ public class ExpectRequestTests(ChromeFixture chrome)
 	}
 
 	[Test]
+	public async Task ABlobBodyIsReadToo()
+	{
+		var result = await RunAsync("""
+			open /telemetry
+			expect --timeout 5000 request "**/collect/blob" --body-contains blob-body-text
+			expect request "**/collect/blob" --larger-than 10
+			""");
+
+		result.Failure.Should().BeNull();
+	}
+
+	[Test]
 	public async Task ABodyFilterThatDoesNotHoldFailsWithTheRequestsTheUrlMatched()
 	{
 		var result = await RunAsync("""
