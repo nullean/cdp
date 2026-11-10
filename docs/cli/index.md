@@ -40,7 +40,7 @@ cdp run site/journeys/*.journey --base-url ./site --artifacts .artifacts/journey
 | `--header` | a request header every page sends (repeatable), `"Name: value"` |
 | `--file-root` | the folder `file://` URLs may point into, when the base URL is not a folder |
 | `--artifacts` | the folder `screenshot` and `network har stop` write into, and where `failure.png` goes with `--screenshot-on-failure`; off unless given |
-| `--screenshot-on-failure` | take a screenshot of the page when a step fails; it is written to `failure.png` in the artifacts folder |
+| `--screenshot-on-failure` | take a screenshot of the page when a step fails and write it to `failure.png` in the artifacts folder; needs `--artifacts` |
 | `--timeout` | seconds an action waits for its element (default 5) |
 | `--json` | JSON output; everything from the page is under a `page` key |
 | `--max-output` | characters per checkpoint before it is cut (default 20,000; 0 for no limit) |

@@ -164,6 +164,15 @@ public class CliTests
 	}
 
 	[Test]
+	public async Task ScreenshotOnFailureWithoutAnArtifactsFolderIsAUsageError()
+	{
+		var code = await Cli().RunAsync([Site("journeys", "everything.journey")], Site(), [], null, false, false, 0, null, default, screenshotOnFailure: true);
+
+		code.Should().Be(ExitCode.Usage);
+		_err.ToString().Should().Contain("--screenshot-on-failure needs --artifacts");
+	}
+
+	[Test]
 	public async Task AFailureNamesItsScreenshotWhenAskedForWithAnArtifactsFolder()
 	{
 		var file = Path.Combine(Site("journeys"), $"shot-{Guid.NewGuid():N}.journey");

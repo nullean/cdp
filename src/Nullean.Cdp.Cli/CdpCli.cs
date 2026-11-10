@@ -141,6 +141,13 @@ internal sealed class CdpCli(
 		bool screenshotOnFailure = false
 	)
 	{
+		if (screenshotOnFailure && artifacts is null)
+		{
+			// The CLI prints no image, so a capture with nowhere to go would be taken and thrown away.
+			error.WriteLine("--screenshot-on-failure needs --artifacts <folder> to write failure.png into.");
+			return ExitCode.Usage;
+		}
+
 		var (ok, root) = ParseBase(baseUrl);
 		if (!ok || !ValidAllow(allow) || ParseHeaders(headers ?? []) is not { } extraHeaders || !ParseViewport(viewport, out var size) || Load(files) is not { } journeys)
 			return ExitCode.Usage;
