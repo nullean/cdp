@@ -22,7 +22,7 @@ public class SafetyLiveTests(ChromeFixture chrome)
 	{
 		var result = await Run("open safety.html\nfind role link click --name \"Leave the site\"\nget title");
 
-		result.Failure.Should().Be(new JourneyFailure(2, "find role link click --name \"Leave the site\"",
+		(result.Failure!.Line, result.Failure.Command, result.Failure.Message).Should().Be((2, "find role link click --name \"Leave the site\"",
 			"The page navigated to https://leave.example/, which is refused: leave.example is not in the journey's allow list (add: allow leave.example)."));
 	}
 
@@ -97,7 +97,7 @@ public class SafetyLiveTests(ChromeFixture chrome)
 	{
 		var result = await Run("open safety.html\nfill #pw hunter22");
 
-		result.Failure.Should().Be(new JourneyFailure(2, "fill #pw hunter22",
+		(result.Failure!.Line, result.Failure.Command, result.Failure.Message).Should().Be((2, "fill #pw hunter22",
 			"css #pw is a password field: fill it with a secret reference ($env:NAME), not a literal."));
 	}
 

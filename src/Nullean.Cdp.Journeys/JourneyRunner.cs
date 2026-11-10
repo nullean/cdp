@@ -37,6 +37,9 @@ public sealed class JourneyOptions
 	/// </summary>
 	public string? ArtifactsDirectory { get; init; }
 
+	/// <summary>Take a screenshot of the viewport when a step fails, into <see cref="JourneyFailure.Screenshot"/> and, with an <see cref="ArtifactsDirectory"/>, <c>failure.png</c> there. Default: <c>true</c>.</summary>
+	public bool ScreenshotOnFailure { get; init; } = true;
+
 	/// <summary>Called before each step runs, e.g. to show progress.</summary>
 	public Action<JourneyStep>? OnStep { get; init; }
 
@@ -115,7 +118,11 @@ public sealed class JourneyOptions
 /// <param name="Command">The command as one normalised line (<see cref="JourneyStep.Text"/>).</param>
 /// <param name="Url">The page's URL when the checkpoint ran.</param>
 /// <param name="Output">What it read: an accessibility tree, a value, <c>true</c> or <c>false</c>.</param>
-public sealed record Checkpoint(int Line, string Command, string Url, string Output);
+public sealed record Checkpoint(int Line, string Command, string Url, string Output)
+{
+	/// <summary>True for a <c>feature</c> block the run did not meet: <see cref="Output"/> then says why, and nothing came from the page.</summary>
+	public bool IsSkip { get; init; }
+}
 
 /// <summary>The step a journey stopped at, and why.</summary>
 /// <param name="Line">The journey line.</param>
@@ -123,8 +130,25 @@ public sealed record Checkpoint(int Line, string Command, string Url, string Out
 /// <param name="Message">The error, in plain text.</param>
 public sealed record JourneyFailure(int Line, string Command, string Message)
 {
-	/// <summary><c>file:line: command</c>, then the error.</summary>
-	public string Describe(string source) => $"{source}:{Line}: {Command}\n{Message}";
+	/// <summary>The page's URL when the step failed, with secrets redacted. <c>null</c> when it could not be read.</summary>
+	public string? Url { get; init; }
+
+	/// <summary>A PNG of the viewport when the step failed (<see cref="JourneyOptions.ScreenshotOnFailure"/>). <c>null</c> when it could not be taken.</summary>
+	public byte[]? Screenshot { get; init; }
+
+	/// <summary>Where <see cref="Screenshot"/> was written, when the run has an artifacts folder.</summary>
+	public string? ScreenshotPath { get; init; }
+
+	/// <summary><c>file:line: command</c>, then the error, then the page and the screenshot as labelled lines.</summary>
+	public string Describe(string source)
+	{
+		var text = new System.Text.StringBuilder($"{source}:{Line}: {Command}\n{Message}");
+		if (Url is { Length: > 0 })
+			text.Append("\nPage:       ").Append(Url);
+		if (ScreenshotPath is { Length: > 0 })
+			text.Append("\nScreenshot: ").Append(ScreenshotPath);
+		return text.ToString();
+	}
 }
 
 /// <summary>
@@ -190,7 +214,7 @@ public static class JourneyRunner
 				if (skipped.Add(block.Line))
 				{
 					var skippedUrl = await page.UrlAsync(cancellationToken).ConfigureAwait(false);
-					checkpoints.Add(new Checkpoint(block.Line, block.Text, run.Secrets.Redact(skippedUrl), $"skipped: {unmet}"));
+					checkpoints.Add(new Checkpoint(block.Line, block.Text, run.Secrets.Redact(skippedUrl), $"skipped: {unmet}") { IsSkip = true });
 				}
 
 				continue;
@@ -219,10 +243,39 @@ public static class JourneyRunner
 			}
 
 			if (failure is not null)
-				return new JourneyResult(journey.Source, checkpoints, new JourneyFailure(step.Line, step.Text, run.Secrets.Redact(failure)), blocked);
+				return new JourneyResult(journey.Source, checkpoints, await FailureAsync(run, step, failure, cancellationToken).ConfigureAwait(false), blocked);
 		}
 
 		return new JourneyResult(journey.Source, checkpoints, null, blocked);
+	}
+
+	// The failure with what the page looked like: its URL, and a screenshot when asked for. Neither can fail the run again,
+	// so a page that is gone (closed tab, lost connection) just leaves them out.
+	private static async Task<JourneyFailure> FailureAsync(Run run, JourneyStep step, string message, CancellationToken cancellationToken)
+	{
+		var failure = new JourneyFailure(step.Line, step.Text, run.Secrets.Redact(message));
+		using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+		limit.CancelAfter(TimeSpan.FromSeconds(5));
+		try
+		{
+			failure = failure with { Url = run.Secrets.Redact(await run.Page.UrlAsync(limit.Token).ConfigureAwait(false)) };
+			if (!run.Options.ScreenshotOnFailure)
+				return failure;
+			var png = await run.Page.ScreenshotAsync(false, limit.Token).ConfigureAwait(false);
+			failure = failure with { Screenshot = png };
+			if (run.Options.ArtifactsDirectory is not null)
+			{
+				var file = ArtifactFile(run, "failure.png", "failure screenshot");
+				await File.WriteAllBytesAsync(file, png, cancellationToken).ConfigureAwait(false);
+				failure = failure with { ScreenshotPath = file };
+			}
+		}
+		catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+		{
+			// The page could not be read or drawn: the failure stands without it.
+		}
+
+		return failure;
 	}
 
 	// The run's viewport, user agent and headers, set before the first step so the journey starts as the harness wants.

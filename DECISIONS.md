@@ -157,6 +157,21 @@ selected]: value`, two spaces per level. Checked against agent-browser 0.41.0 on
   command, was exported and run with `agent-browser batch --bail`: all 40 steps succeeded, and its reads are the
   values `JourneyRunnerTests` expects from this runner.
 
+### Failures show the page they stopped on
+
+- **A failure records the URL and a viewport PNG by default.** Without them a failure from a live site says which step
+  broke and nothing about what the page was. `JourneyOptions.ScreenshotOnFailure` turns the capture off. Both are taken
+  before the context is disposed, with a 5 second limit, and a page that is gone (closed tab, lost connection) leaves them
+  out: a failure never fails a second time.
+- **The screenshot is bytes on the failure, and a file only with an artifacts folder.** A test host that has no folder
+  (TUnit with `Nullean.Snapshots`) still gets the image to render or attach; the CLI names the file it wrote.
+- **The CLI keeps fencing everything from the page, also on a terminal.** A pty is no proof that a person is reading:
+  agents run under one too. The failure's address goes inside the fence with the message. What is not page content stays
+  out of it: an unmet `feature` block is one structural line (`Checkpoint.IsSkip` marks it, so a page cannot imitate it
+  with its own text), and the screenshot path is printed outside, since the host chose it.
+- **Refused requests are grouped.** A page that repeats a refused request tens of times printed it tens of times; the
+  list shows each once with `(xN)`.
+
 ## agent-browser parity
 
 Every agent-browser command that acts on or reads the page in a repeatable way is a journey command:

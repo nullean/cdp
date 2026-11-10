@@ -128,6 +128,63 @@ public class CliTests
 	}
 
 	[Test]
+	public async Task AFeatureBlockTheRunDoesNotMeetIsOneLineWithNoFence()
+	{
+		var file = Path.Combine(Site("journeys"), $"skip-{Guid.NewGuid():N}.journey");
+		await File.WriteAllTextAsync(file, "open index.html\nfeature preview\n  get title\nend\nget title\n");
+		try
+		{
+			var code = await Cli().RunAsync([file], Site(), [], null, false, false, 0, null, default);
+
+			code.Should().Be(ExitCode.Ok);
+			Out.Should().Contain($"-- {file}:2: feature preview (skipped: preview)\n-- {file}:5: get title\n");
+		}
+		finally
+		{
+			File.Delete(file);
+		}
+	}
+
+	[Test]
+	public async Task ARefusedRequestThatRepeatsIsListedOnceWithItsCount()
+	{
+		var file = Path.Combine(Site("journeys"), $"repeat-{Guid.NewGuid():N}.journey");
+		await File.WriteAllTextAsync(file, "open safety.html\nopen safety.html\nget title\n");
+		try
+		{
+			await Cli().RunAsync([file], Site(), [], null, false, false, 0, null, default);
+
+			Out.Should().Contain("(x2)").And.Contain("distinct)");
+			Out.Split("Image https://tracker.example/pixel.png").Length.Should().Be(2, "the request is named once");
+		}
+		finally
+		{
+			File.Delete(file);
+		}
+	}
+
+	[Test]
+	public async Task AFailureNamesItsScreenshotWhenThereIsAnArtifactsFolder()
+	{
+		var file = Path.Combine(Site("journeys"), $"shot-{Guid.NewGuid():N}.journey");
+		var artifacts = Directory.CreateTempSubdirectory("cdp-cli-").FullName;
+		await File.WriteAllTextAsync(file, "open index.html\nclick #missing\n");
+		try
+		{
+			var code = await Cli().RunAsync([file], Site(), [], null, false, false, 0, 0.2, default, artifacts: artifacts);
+
+			code.Should().Be(ExitCode.Failed);
+			Out.Should().Contain($"-- screenshot: {Path.Combine(artifacts, "failure.png")}\n");
+			File.Exists(Path.Combine(artifacts, "failure.png")).Should().BeTrue();
+		}
+		finally
+		{
+			File.Delete(file);
+			Directory.Delete(artifacts, recursive: true);
+		}
+	}
+
+	[Test]
 	public async Task AFailureIsFencedAndExitsOne()
 	{
 		var file = Path.Combine(Site("journeys"), $"fail-{Guid.NewGuid():N}.journey");
@@ -137,7 +194,8 @@ public class CliTests
 			var code = await Cli().RunAsync([file], Site(), [], null, false, false, 0, null, default);
 
 			code.Should().Be(ExitCode.Failed);
-			Out.Should().Contain($"FAILED {file}:2: find role link click --name \"Leave the site\"\n--- PAGE_CONTENT nonce={Nonce} ---\n" +
+			Out.Should().Contain($"FAILED {file}:2: find role link click --name \"Leave the site\"\n--- PAGE_CONTENT nonce={Nonce} origin=chrome-error: ---\n" +
+				"url: chrome-error://chromewebdata/\n" +
 				"The page navigated to https://leave.example/, which is refused: leave.example is not in the journey's allow list (add: allow leave.example).\n" +
 				$"--- END_PAGE_CONTENT nonce={Nonce} ---\n");
 			Out.Should().Contain("request(s) outside the allow list were refused").And.Contain("Image https://tracker.example/pixel.png");

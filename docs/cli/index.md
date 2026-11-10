@@ -39,7 +39,7 @@ cdp run site/journeys/*.journey --base-url ./site --artifacts .artifacts/journey
 | `--user-agent` | the user agent of the run |
 | `--header` | a request header every page sends (repeatable), `"Name: value"` |
 | `--file-root` | the folder `file://` URLs may point into, when the base URL is not a folder |
-| `--artifacts` | the folder `screenshot` and `network har stop` write into; off unless given |
+| `--artifacts` | the folder `screenshot` and `network har stop` write into, and where a failing journey's `failure.png` goes; off unless given |
 | `--timeout` | seconds an action waits for its element (default 5) |
 | `--json` | JSON output; everything from the page is under a `page` key |
 | `--max-output` | characters per checkpoint before it is cut (default 20,000; 0 for no limit) |
@@ -84,6 +84,10 @@ The `--allowed-domains` to pass to agent-browser are printed on stderr. Secret r
 Everything that came from the page is fenced between `--- PAGE_CONTENT nonce=… ---` markers, with one random nonce per
 run announced on the first line, so an agent reading the output can tell the page's words from the tool's. See
 [safety](../journeys/safety.md#output-for-agents).
+
+A failing journey prints the page's address and the error inside the fence, and, with `--artifacts`, a `-- screenshot:` line
+with the path of `failure.png`. A `feature` block the run does not meet is one line with the reason and no fence, because
+nothing in it came from the page. A refused request that repeats is listed once with its count.
 
 ## Exit codes
 
