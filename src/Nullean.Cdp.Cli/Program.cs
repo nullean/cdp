@@ -27,6 +27,9 @@ namespace Nullean.Cdp.Cli
 		/// <param name="env">The environment's name, for env: conditions.</param>
 		/// <param name="readOnly">Refuse every request that is not GET, HEAD or OPTIONS, so the run cannot change a live site.</param>
 		/// <param name="writable">URL glob a read-only run may write to anyway (repeatable): ** anything, * anything but /.</param>
+		/// <param name="header">A request header every page sends (repeatable): "Name: value".</param>
+		/// <param name="userAgent">The user agent of the run.</param>
+		/// <param name="viewport">The viewport the run starts with: 1280x800. Without it Chrome's default applies, which a responsive site may treat as a phone.</param>
 		/// <param name="headed">Show the browser window.</param>
 		/// <param name="json">Print JSON; everything under a "page" key came from the page.</param>
 		/// <param name="maxOutput">Characters per checkpoint before it is cut (0 for no limit).</param>
@@ -43,12 +46,15 @@ namespace Nullean.Cdp.Cli
 			string? env = null,
 			bool readOnly = false,
 			string[]? writable = null,
+			string[]? header = null,
+			string? userAgent = null,
+			string? viewport = null,
 			bool headed = false,
 			bool json = false,
 			int maxOutput = CdpCli.DefaultMaxOutput,
 			double? timeout = null,
 			CancellationToken cancellationToken = default
-		) => Cli().RunAsync(files, baseUrl, allow ?? [], fileRoot, headed, json, maxOutput, timeout, cancellationToken, artifacts, feature, buildType, env, readOnly, writable);
+		) => Cli().RunAsync(files, baseUrl, allow ?? [], fileRoot, headed, json, maxOutput, timeout, cancellationToken, artifacts, feature, buildType, env, readOnly, writable, header, userAgent, viewport);
 
 		/// <summary>Parse journeys without running them, and report every error with its line.</summary>
 		/// <param name="files">Journey files.</param>

@@ -30,6 +30,15 @@ export interface RunOptions {
   readOnly?: boolean;
   /** URL globs (`**` anything, `*` anything but `/`) a read-only run may write to anyway, such as a telemetry endpoint. */
   writableUrls?: string[];
+  /**
+   * Request headers every page of the run sends, such as one that marks the traffic as a monitor. A journey's own
+   * `set headers` adds to them (and wins for a header it names) rather than replacing them.
+   */
+  headers?: Record<string, string>;
+  /** The user agent of the run. A journey's own `set useragent` replaces it; `set device` does not. Needs Chromium. */
+  userAgent?: string;
+  /** The viewport the run starts with; without it the context's applies. A journey's `set viewport` or `set device` replaces it. */
+  viewport?: { width: number; height: number };
   /** Resolves `$env:NAME`; the process environment by default. */
   secrets?: (name: string) => string | undefined;
   /** Where `screenshot` writes. Without it, screenshot steps are skipped with a warning. */
@@ -236,6 +245,10 @@ export class JourneyRun {
     };
     await page.route('**/*', guard);
     this.disposers.push(() => page.unroute('**/*', guard));
+    // The run's viewport, user agent and headers, set before the first step so the journey starts as the harness wants.
+    if (this.options.viewport) await page.setViewportSize(this.options.viewport);
+    if (this.options.userAgent !== undefined) await this.setUserAgent(this.options.userAgent);
+    if (this.options.headers && Object.keys(this.options.headers).length > 0) await page.context().setExtraHTTPHeaders(this.options.headers);
 
     const commands = journey.steps.map((s) => s.command);
     if (commands.some((c) => c.type === 'har' || c.type === 'requests' || c.type === 'expectRequest')) {
@@ -541,6 +554,8 @@ export class JourneyRun {
         if (!device) throw new StepError(`Playwright has no device called '${c.device}'.`);
         await this.page.setViewportSize(device.viewport);
         this.warn('set device changes only the viewport: user agent and touch are fixed when the context is created (use a Playwright project).');
+        // The run's identity stays: only the journey's own `set useragent` replaces it.
+        if (this.options.userAgent !== undefined) await this.setUserAgent(this.options.userAgent);
         break;
       }
       case 'geo':
@@ -551,22 +566,26 @@ export class JourneyRun {
         this.offline = c.offline ?? !this.offline;
         await context.setOffline(this.offline);
         break;
-      case 'headers': await context.setExtraHTTPHeaders(JSON.parse(c.headers!) as Record<string, string>); break;
+      case 'headers': await context.setExtraHTTPHeaders(mergeHeaders(this.options.headers, JSON.parse(c.headers!) as Record<string, string>)); break;
       case 'useragent':
-        // Playwright fixes the user agent when the context is created; Chromium's own override changes it for the page,
-        // header and navigator.userAgent both.
-        try {
-          const session = await context.newCDPSession(this.page);
-          await session.send('Emulation.setUserAgentOverride', { userAgent: c.userAgent! });
-        } catch {
-          throw new StepError('set useragent needs Chromium: set userAgent in the Playwright config for other browsers.');
-        }
+        await this.setUserAgent(c.userAgent!);
         break;
       case 'credentials':
         throw new StepError('set credentials is not supported by the Playwright runner: set httpCredentials in the Playwright config (an extra header would be sent to every host).');
       default: await this.page.emulateMedia({ colorScheme: c.scheme as 'dark' | 'light' });
     }
     return undefined;
+  }
+
+  // Playwright fixes the user agent when the context is created; Chromium's own override changes it for the page,
+  // header and navigator.userAgent both.
+  private async setUserAgent(userAgent: string) {
+    try {
+      const session = await this.page.context().newCDPSession(this.page);
+      await session.send('Emulation.setUserAgentOverride', { userAgent });
+    } catch {
+      throw new StepError('set useragent needs Chromium: set userAgent in the Playwright config for other browsers.');
+    }
   }
 
   private async audit(c: Extract<Command, { type: 'audit' }>): Promise<Output> {
@@ -778,6 +797,12 @@ function describeRequestExpectation(c: Extract<Command, { type: 'expectRequest' 
   if (c.bodyContains !== undefined) parts.push(`--body-contains "${c.bodyContains}"`);
   if (c.bodyRegex !== undefined) parts.push(`--body-regex "${c.bodyRegex}"`);
   return parts.join(' ');
+}
+
+// The run's headers with the journey's on top: a header the journey names wins (whatever its case), the others stay.
+function mergeHeaders(defaults: Record<string, string> | undefined, journey: Record<string, string>): Record<string, string> {
+  const named = new Set(Object.keys(journey).map((n) => n.toLowerCase()));
+  return { ...Object.fromEntries(Object.entries(defaults ?? {}).filter(([n]) => !named.has(n.toLowerCase()))), ...journey };
 }
 
 const globToRegExp = (glob: string) =>

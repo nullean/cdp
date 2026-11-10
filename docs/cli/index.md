@@ -35,6 +35,9 @@ cdp run site/journeys/*.journey --base-url ./site --artifacts .artifacts/journey
 | `--build-type`, `--env` | the build type and the environment's name, for `build-type:` and `env:` conditions |
 | `--read-only` | refuse every request that is not GET, HEAD or OPTIONS, so the run cannot change a live site; see [safety](../journeys/safety.md#read-only-runs) |
 | `--writable` | a URL glob a read-only run may write to anyway (repeatable), such as a telemetry endpoint |
+| `--viewport` | the viewport the run starts with, `1280x800`; without it Chrome's default applies, which a responsive site may treat as a phone |
+| `--user-agent` | the user agent of the run |
+| `--header` | a request header every page sends (repeatable), `"Name: value"` |
 | `--file-root` | the folder `file://` URLs may point into, when the base URL is not a folder |
 | `--artifacts` | the folder `screenshot` and `network har stop` write into; off unless given |
 | `--timeout` | seconds an action waits for its element (default 5) |

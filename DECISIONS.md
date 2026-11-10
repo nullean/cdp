@@ -560,3 +560,17 @@ published by hand by the owner.
   write to an allowed host fails the step. A page that writes on its own (telemetry) needs `WritableUrls`.
 - **`BlockedRequest.RefusedWrite` is `null` for allow-list refusals**, so existing `BlockedRequest` equality is
   unchanged.
+## Run defaults
+
+- **A harness sets the viewport, user agent and headers once per run.** A live site tells monitors from people by user
+  agent and headers (the docs site turns its telemetry off for a monitor), and a responsive site is in its phone layout
+  at Chrome's default viewport. Repeating `set viewport`, `set useragent` and `set headers` in every journey is how one
+  gets forgotten.
+- **The journey builds on the run, it does not undo it.** `set headers` merges (a header it repeats wins) because
+  Chrome's own call replaces the whole set and a journey adding one header should not drop the monitor header;
+  `set device` leaves the run's user agent in place for the same reason. `set viewport`, `set device` and `set useragent`
+  still replace what they name.
+- **No allow-list option was added**: `AllowedHosts` already is the run-level default.
+- **A click that hits nothing is not this change**: at the phone viewport `find role link click` completed with no effect.
+  The default viewport is the fix for that site; a click that reports it missed its target is separate.
+

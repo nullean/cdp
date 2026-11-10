@@ -104,6 +104,7 @@ adapters do.
 |---|---|
 | `baseUrl` | what relative `open` URLs resolve against; its host is allowed |
 | `allowedHosts` | host patterns allowed beyond the base URL's host and the journey's `allow` lines |
+| `viewport`, `userAgent`, `headers` | the run's defaults, in place before the first step (see [run defaults](index.md#run-defaults)); `userAgent` needs Chromium |
 | `secrets` | resolves `$env:NAME`; the process environment by default |
 | `artifactsDir` | where `screenshot` writes; without it screenshot steps are skipped |
 | `journeyDir` | the folder `upload` reads from |
