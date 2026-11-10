@@ -159,8 +159,9 @@ selected]: value`, two spaces per level. Checked against agent-browser 0.41.0 on
 
 ### Failures show the page they stopped on
 
-- **A failure records the URL and a viewport PNG by default.** Without them a failure from a live site says which step
-  broke and nothing about what the page was. `JourneyOptions.ScreenshotOnFailure` turns the capture off. Both are taken
+- **A failure records the URL always, and a viewport PNG only when asked.** Without the URL a failure from a live site
+  says which step broke and nothing about where. A screenshot can show private data on a page and costs a capture, so
+  `JourneyOptions.ScreenshotOnFailure` (`--screenshot-on-failure`) is off by default. Both are taken
   before the context is disposed, with a 5 second limit, and a page that is gone (closed tab, lost connection) leaves them
   out: a failure never fails a second time.
 - **The screenshot is bytes on the failure, and a file only with an artifacts folder.** A test host that has no folder

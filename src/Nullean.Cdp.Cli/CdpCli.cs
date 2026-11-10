@@ -137,7 +137,8 @@ internal sealed class CdpCli(
 		IReadOnlyList<string>? writable = null,
 		IReadOnlyList<string>? headers = null,
 		string? userAgent = null,
-		string? viewport = null
+		string? viewport = null,
+		bool screenshotOnFailure = false
 	)
 	{
 		var (ok, root) = ParseBase(baseUrl);
@@ -161,6 +162,7 @@ internal sealed class CdpCli(
 				Headers = extraHeaders,
 				UserAgent = userAgent,
 				Viewport = size,
+				ScreenshotOnFailure = screenshotOnFailure,
 				FileRoot = fileRoot is null ? null : Path.GetFullPath(fileRoot),
 				ArtifactsDirectory = artifacts is null ? null : Path.GetFullPath(artifacts),
 				Secrets = environment,

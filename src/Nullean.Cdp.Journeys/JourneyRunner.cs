@@ -37,8 +37,8 @@ public sealed class JourneyOptions
 	/// </summary>
 	public string? ArtifactsDirectory { get; init; }
 
-	/// <summary>Take a screenshot of the viewport when a step fails, into <see cref="JourneyFailure.Screenshot"/> and, with an <see cref="ArtifactsDirectory"/>, <c>failure.png</c> there. Default: <c>true</c>.</summary>
-	public bool ScreenshotOnFailure { get; init; } = true;
+	/// <summary>Take a screenshot of the viewport when a step fails, into <see cref="JourneyFailure.Screenshot"/> and, with an <see cref="ArtifactsDirectory"/>, <c>failure.png</c> there. Off unless asked for, because a run against a site that shows private data would otherwise write it to disk.</summary>
+	public bool ScreenshotOnFailure { get; init; }
 
 	/// <summary>Called before each step runs, e.g. to show progress.</summary>
 	public Action<JourneyStep>? OnStep { get; init; }
@@ -133,7 +133,7 @@ public sealed record JourneyFailure(int Line, string Command, string Message)
 	/// <summary>The page's URL when the step failed, with secrets redacted. <c>null</c> when it could not be read.</summary>
 	public string? Url { get; init; }
 
-	/// <summary>A PNG of the viewport when the step failed (<see cref="JourneyOptions.ScreenshotOnFailure"/>). <c>null</c> when it could not be taken.</summary>
+	/// <summary>A PNG of the viewport when the step failed, when <see cref="JourneyOptions.ScreenshotOnFailure"/> asked for it. <c>null</c> otherwise, or when it could not be taken.</summary>
 	public byte[]? Screenshot { get; init; }
 
 	/// <summary>Where <see cref="Screenshot"/> was written, when the run has an artifacts folder.</summary>

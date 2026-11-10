@@ -66,9 +66,9 @@ if (result.Failure is { } failure)
 ```
 
 A failing step is a result, not an exception: the run stops there and keeps the checkpoints that ran. The failure also
-carries the page's address (`failure.Url`) and a PNG of the viewport (`failure.Screenshot`, written to `failure.png` in
-the artifacts folder when `JourneyOptions.ArtifactsDirectory` is set). `Describe` adds both as `Page:` and `Screenshot:`
-lines. Set `ScreenshotOnFailure = false` to skip the capture.
+carries the page's address (`failure.Url`). With `ScreenshotOnFailure = true` it also carries a PNG of the viewport
+(`failure.Screenshot`, written to `failure.png` in the artifacts folder when `JourneyOptions.ArtifactsDirectory` is set).
+`Describe` adds them as `Page:` and `Screenshot:` lines.
 
 ## Replay it in agent-browser
 

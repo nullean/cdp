@@ -164,14 +164,14 @@ public class CliTests
 	}
 
 	[Test]
-	public async Task AFailureNamesItsScreenshotWhenThereIsAnArtifactsFolder()
+	public async Task AFailureNamesItsScreenshotWhenAskedForWithAnArtifactsFolder()
 	{
 		var file = Path.Combine(Site("journeys"), $"shot-{Guid.NewGuid():N}.journey");
 		var artifacts = Directory.CreateTempSubdirectory("cdp-cli-").FullName;
 		await File.WriteAllTextAsync(file, "open index.html\nclick #missing\n");
 		try
 		{
-			var code = await Cli().RunAsync([file], Site(), [], null, false, false, 0, 0.2, default, artifacts: artifacts);
+			var code = await Cli().RunAsync([file], Site(), [], null, false, false, 0, 0.2, default, artifacts: artifacts, screenshotOnFailure: true);
 
 			code.Should().Be(ExitCode.Failed);
 			Out.Should().Contain($"-- screenshot: {Path.Combine(artifacts, "failure.png")}\n");
