@@ -45,6 +45,7 @@ read the values this runner reads.
 
 - `snapshot -c` is ours: it drops list markers, line breaks and nodes left with no name, value, state or children.
   agent-browser's `-c` also drops some named nodes; this one keeps anything with a name.
+- `expect request` and `expect same-document` are ours, like every `expect`: the export leaves them out.
 - `set geo` grants the permission, so the page reads the position.
 - `errors` prints each error with its location; agent-browser's text output printed an empty `✗` per error.
 - `screenshot` writes only into the artifacts folder, and `--annotate` is not supported.

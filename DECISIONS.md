@@ -182,6 +182,15 @@ Every agent-browser command that acts on or reads the page in a repeatable way i
 - **`set offline`** without on|off toggles, as agent-browser's does; the runner tracks the state from a journey's start.
 - **`set device`** knows twelve devices by their Playwright names, with representative sizes and user agents, not
   Playwright's full catalogue.
+- **`expect request` and `expect same-document`** (assertions about the page, not an element) are their own commands, since they
+  read the network recording and a document counter, not a locator. A request is matched only once it is over (a response or a
+  failure), so `--status`, `--failed` and body filters judge the whole exchange; a negated assertion also waits while a request
+  that could still match the URL is in flight, or an export that fails late would be missed. Bodies are captured when the request
+  starts (from the event, else `Network.getRequestPostData` right away), because a navigation drops them; a failure prints a body's
+  size, never its text, so a payload with secrets does not reach a log. `same-document` compares `Page.DocumentLoads` with its
+  value when the last acting step began (an `init` lifecycle event is a new document; `pushState` and htmx swaps are not), taken
+  after a navigation step instead so `open` then `expect same-document` holds. Page script (`eval`) stays out: this is what the
+  `window.__noReload` marker was for.
 - **`wait --load`** reads the main frame's lifecycle events for the current document (`load`, `DOMContentLoaded`,
   `networkIdle`); a new document clears them. `wait --url` takes a glob: `**` anything, `*` anything but `/`.
 - **HTML drag and drop** needs the mouse moves to report the left button held; Chrome then hands the drag over

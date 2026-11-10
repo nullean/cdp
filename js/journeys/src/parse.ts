@@ -513,7 +513,98 @@ function parseGet(rest: string[]): Command {
 const EXPECT_USAGE =
   'expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target>' +
   ' | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob>' +
-  ' [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]';
+  ' [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact];' +
+  ' about the page: request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>] | same-document';
+
+const EXPECT_REQUEST_USAGE =
+  'expect [--not] [--timeout <ms>] request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>]';
+
+// The matcher word: the first argument that is not --not or --timeout and its number.
+function expectWord(rest: string[]): string | undefined {
+  for (let i = 0; i < rest.length; i++) {
+    if (rest[i] === '--timeout') i++;
+    else if (rest[i] !== '--not') return rest[i];
+  }
+  return undefined;
+}
+
+// A size in bytes: 2048, 32kb, 1.5mb (1 kb is 1024 bytes).
+function parseSize(text: string): number {
+  const m = /^(\d+(?:\.\d+)?)\s*(b|kb|mb)?$/i.exec(text);
+  if (!m) throw fail(`'${text}' is not a size: write a number of bytes, or 32kb, 1.5mb.`);
+  const unit = ({ kb: 1024, mb: 1024 * 1024 } as Record<string, number>)[(m[2] ?? '').toLowerCase()] ?? 1;
+  return Math.round(Number(m[1]) * unit);
+}
+
+function parseExpectRequest(rest: string[]): Command {
+  let negate = false, failed = false;
+  let timeoutMs: number | undefined;
+  let method: string | undefined, status: string | undefined, contains: string | undefined, regex: string | undefined, url: string | undefined;
+  let larger: number | undefined;
+  const types: string[] = [];
+  let seenWord = false;
+  for (let i = 0; i < rest.length; i++) {
+    const v = i + 1 < rest.length ? rest[i + 1] : undefined;
+    const arg = rest[i];
+    if (arg === '--not') { negate = true; continue; }
+    if (arg === '--failed') { failed = true; continue; }
+    if (arg === '--timeout') {
+      const ms = v !== undefined ? parseUInt(v) : undefined;
+      if (ms === undefined || ms <= 0) throw fail('--timeout needs a number of milliseconds');
+      timeoutMs = ms;
+    } else if (arg === '--method' && v !== undefined) method = v.toUpperCase();
+    else if (arg === '--type' && v !== undefined) types.push(...v.split(',').map((t) => t.trim()).filter((t) => t.length > 0));
+    else if (arg === '--status' && v !== undefined && /^(\d{3}|[1-5]xx|\d{3}-\d{3})$/.test(v)) status = v;
+    else if (arg === '--larger-than' && v !== undefined) larger = parseSize(v);
+    else if (arg === '--body-contains' && v !== undefined) contains = value(v);
+    else if (arg === '--body-regex' && v !== undefined) regex = value(v);
+    else if (arg.startsWith('--')) throw usage(EXPECT_REQUEST_USAGE);
+    else if (!seenWord && arg === 'request') { seenWord = true; continue; }
+    else if (url === undefined) { url = arg; continue; }
+    else throw usage(EXPECT_REQUEST_USAGE);
+    i++;
+  }
+  if (url === undefined) throw usage(EXPECT_REQUEST_USAGE);
+  if (contains !== undefined && regex !== undefined) throw fail('expect request takes --body-contains or --body-regex, not both.');
+  if (regex !== undefined && !isSecretReference(regex)) {
+    try {
+      new RegExp(regex);
+    } catch (e) {
+      throw fail(`'${regex}' is not a valid regular expression: ${(e as Error).message}`);
+    }
+  }
+  const command: Extract<Command, { type: 'expectRequest' }> = { type: 'expectRequest', url };
+  if (method !== undefined) command.method = method;
+  if (types.length > 0) command.types = types;
+  if (status !== undefined) command.status = status;
+  if (failed) command.failed = true;
+  if (larger !== undefined) command.largerThan = larger;
+  if (contains !== undefined) command.bodyContains = contains;
+  if (regex !== undefined) command.bodyRegex = regex;
+  if (negate) command.not = true;
+  if (timeoutMs !== undefined) command.timeoutMs = timeoutMs;
+  return command;
+}
+
+function parseExpectSameDocument(rest: string[]): Command {
+  let negate = false;
+  let timeoutMs: number | undefined;
+  let seenWord = false;
+  for (let i = 0; i < rest.length; i++) {
+    if (rest[i] === '--not') negate = true;
+    else if (rest[i] === '--timeout') {
+      const ms = i + 1 < rest.length ? parseUInt(rest[i + 1]) : undefined;
+      if (ms === undefined || ms <= 0) throw fail('--timeout needs a number of milliseconds');
+      timeoutMs = ms;
+      i++;
+    } else if (rest[i] === 'same-document' && !seenWord) seenWord = true;
+    else throw usage('expect [--not] [--timeout <ms>] same-document');
+  }
+  const command: Extract<Command, { type: 'expectSameDocument' }> = { type: 'expectSameDocument' };
+  if (negate) command.not = true;
+  if (timeoutMs !== undefined) command.timeoutMs = timeoutMs;
+  return command;
+}
 
 const EXPECT_FIND_USAGE =
   'expect <matcher> find role|text|label|placeholder|alt|title|testid <value> | first|last <selector> | nth <n> <selector>';
@@ -526,6 +617,10 @@ const EXPECT_MATCHERS: Record<string, ExpectMatcher> = {
 
 // The order of the checks follows ParseExpect in Journey.Expect.cs, so the same line fails with the same message.
 function parseExpect(rest: string[]): Command {
+  // The page's network and document are not an element: request and same-document read their own arguments.
+  const word = expectWord(rest);
+  if (word === 'request') return parseExpectRequest(rest);
+  if (word === 'same-document') return parseExpectSameDocument(rest);
   let negate = false, contains = false, regex = false, ignoreCase = false, innerText = false, exact = false;
   let timeoutMs: number | undefined;
   let name: string | undefined;

@@ -673,7 +673,7 @@
       "errors": [
         {
           "line": 1,
-          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]; about the page: request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>] | same-document"
         }
       ]
     },
@@ -683,7 +683,7 @@
       "errors": [
         {
           "line": 1,
-          "message": "expect bogus is not supported in journeys: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+          "message": "expect bogus is not supported in journeys: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]; about the page: request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>] | same-document"
         }
       ]
     },
@@ -693,7 +693,7 @@
       "errors": [
         {
           "line": 1,
-          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]; about the page: request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>] | same-document"
         }
       ]
     },
@@ -703,7 +703,7 @@
       "errors": [
         {
           "line": 1,
-          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]; about the page: request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>] | same-document"
         }
       ]
     },
@@ -713,7 +713,7 @@
       "errors": [
         {
           "line": 1,
-          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]; about the page: request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>] | same-document"
         }
       ]
     },
@@ -723,7 +723,7 @@
       "errors": [
         {
           "line": 1,
-          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]; about the page: request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>] | same-document"
         }
       ]
     },
@@ -733,7 +733,7 @@
       "errors": [
         {
           "line": 1,
-          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]; about the page: request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>] | same-document"
         }
       ]
     },
@@ -743,7 +743,7 @@
       "errors": [
         {
           "line": 1,
-          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]; about the page: request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>] | same-document"
         }
       ]
     },
@@ -773,7 +773,7 @@
       "errors": [
         {
           "line": 1,
-          "message": "expect --bogus is not supported in journeys: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+          "message": "expect --bogus is not supported in journeys: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]; about the page: request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>] | same-document"
         }
       ]
     },
@@ -923,7 +923,7 @@
       "errors": [
         {
           "line": 1,
-          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]; about the page: request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>] | same-document"
         }
       ]
     },
@@ -963,7 +963,97 @@
       "errors": [
         {
           "line": 2,
-          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]"
+          "message": "usage: expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target> | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob> [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact]; about the page: request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>] | same-document"
+        }
+      ]
+    },
+    {
+      "name": "96",
+      "text": "expect request",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: expect [--not] [--timeout <ms>] request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>]"
+        }
+      ]
+    },
+    {
+      "name": "97",
+      "text": "expect request \"**/a\" --bogus",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: expect [--not] [--timeout <ms>] request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>]"
+        }
+      ]
+    },
+    {
+      "name": "98",
+      "text": "expect request \"**/a\" \"**/b\"",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: expect [--not] [--timeout <ms>] request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>]"
+        }
+      ]
+    },
+    {
+      "name": "99",
+      "text": "expect request \"**/a\" --status 99",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: expect [--not] [--timeout <ms>] request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>]"
+        }
+      ]
+    },
+    {
+      "name": "100",
+      "text": "expect request \"**/a\" --larger-than big",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'big' is not a size: write a number of bytes, or 32kb, 1.5mb."
+        }
+      ]
+    },
+    {
+      "name": "101",
+      "text": "expect request \"**/a\" --body-contains x --body-regex y",
+      "errors": [
+        {
+          "line": 1,
+          "message": "expect request takes --body-contains or --body-regex, not both."
+        }
+      ]
+    },
+    {
+      "name": "102",
+      "text": "expect request \"**/a\" --body-contains $env:1x",
+      "errors": [
+        {
+          "line": 1,
+          "message": "'$env:1x' is not a secret reference: write $env:NAME with letters, digits and _."
+        }
+      ]
+    },
+    {
+      "name": "103",
+      "text": "expect same-document extra",
+      "errors": [
+        {
+          "line": 1,
+          "message": "usage: expect [--not] [--timeout <ms>] same-document"
+        }
+      ]
+    },
+    {
+      "name": "104",
+      "text": "expect --timeout 0 same-document",
+      "errors": [
+        {
+          "line": 1,
+          "message": "--timeout needs a number of milliseconds"
         }
       ]
     }

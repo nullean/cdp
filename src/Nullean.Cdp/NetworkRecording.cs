@@ -61,6 +61,23 @@ public sealed class NetworkRequest
 
 	internal JsonElement RequestHeaders { get; }
 
+	/// <summary>Whether the request is over: it was answered completely or it failed.</summary>
+	public bool IsFinished => FinishedSeconds is not null;
+
+	internal byte[]? PostBytes { get; set; }
+
+	/// <summary>The body's size in bytes when it came with the request; <c>null</c> without a body, or while it is still being asked for.</summary>
+	public long? PostDataLength => PostBytes?.LongLength;
+
+	internal Task<byte[]?>? PostFetch { get; set; }
+
+	/// <summary>
+	/// The request body, or <c>null</c> when there is none or Chrome no longer has it. It is read when the request starts, so a
+	/// page that has since navigated away still has it.
+	/// </summary>
+	public async Task<byte[]?> GetPostDataAsync(CancellationToken cancellationToken = default) =>
+		PostBytes ?? (PostFetch is { } fetch ? await fetch.WaitAsync(cancellationToken).ConfigureAwait(false) : null);
+
 	internal JsonElement ResponseHeaders { get; set; }
 
 	internal JsonElement Timing { get; set; }
@@ -119,6 +136,7 @@ public sealed class NetworkRecording : IAsyncDisposable
 					p.StringOrNull("type") ?? "Other", p.GetProperty("timestamp").GetDouble(),
 					p.TryGetProperty("wallTime", out var wall) ? wall.GetDouble() : 0,
 					request.TryGetProperty("headers", out var headers) ? headers.Clone() : default);
+				CapturePostData(started, request);
 				_open[id] = started;
 				Volatile.Read(ref _requests).Enqueue(started);
 				break;
@@ -134,6 +152,45 @@ public sealed class NetworkRecording : IAsyncDisposable
 				failed.FinishedSeconds = p.GetProperty("timestamp").GetDouble();
 				failed.Error = p.StringOrNull("errorText");
 				break;
+		}
+	}
+
+	// The body comes with the event when Chrome inlines it (as entries of bytes, or as text); otherwise it is asked for now,
+	// before a navigation can drop it.
+	private void CapturePostData(NetworkRequest started, JsonElement request)
+	{
+		if (!request.TryGetProperty("hasPostData", out var has) || has.ValueKind != JsonValueKind.True)
+			return;
+		if (request.TryGetProperty("postDataEntries", out var entries) && entries.ValueKind == JsonValueKind.Array
+			&& entries.EnumerateArray().All(e => e.TryGetProperty("bytes", out _)))
+		{
+			started.PostBytes = [.. entries.EnumerateArray().SelectMany(e => Convert.FromBase64String(e.GetProperty("bytes").GetString() ?? string.Empty))];
+			return;
+		}
+
+		if (request.StringOrNull("postData") is { } text && !request.TryGetProperty("postDataEntries", out _))
+		{
+			started.PostBytes = Encoding.UTF8.GetBytes(text);
+			return;
+		}
+
+		started.PostFetch = FetchPostDataAsync(started.Id);
+	}
+
+	private async Task<byte[]?> FetchPostDataAsync(string requestId)
+	{
+		try
+		{
+			var reply = await _page.SendAsync("Network.getRequestPostData", w => w.WriteString("requestId", requestId)).ConfigureAwait(false);
+			var data = reply.StringOrNull("postData") ?? string.Empty;
+			return reply.TryGetProperty("base64Encoded", out var encoded) && encoded.ValueKind == JsonValueKind.True
+				? Convert.FromBase64String(data)
+				: Encoding.UTF8.GetBytes(data);
+		}
+		catch (Exception e) when (e is not OutOfMemoryException)
+		{
+			// Chrome no longer has it, or the page is gone.
+			return null;
 		}
 	}
 

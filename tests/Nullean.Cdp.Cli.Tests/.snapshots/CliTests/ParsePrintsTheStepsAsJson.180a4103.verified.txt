@@ -970,6 +970,133 @@
         "not": true,
         "ignoreCase": true
       }
+    },
+    {
+      "line": 63,
+      "args": [
+        "expect",
+        "request",
+        "**/chunk-*.js"
+      ],
+      "command": {
+        "type": "expectRequest",
+        "url": "**/chunk-*.js"
+      }
+    },
+    {
+      "line": 64,
+      "args": [
+        "expect",
+        "--timeout",
+        "20000",
+        "request",
+        "**/_api/v1/o/l",
+        "--method",
+        "post",
+        "--type",
+        "fetch,xhr",
+        "--status",
+        "2xx"
+      ],
+      "command": {
+        "type": "expectRequest",
+        "url": "**/_api/v1/o/l",
+        "method": "POST",
+        "types": [
+          "fetch",
+          "xhr"
+        ],
+        "status": "2xx",
+        "timeoutMs": 20000
+      }
+    },
+    {
+      "line": 65,
+      "args": [
+        "expect",
+        "--not",
+        "request",
+        "**/_api/v1/o/*",
+        "--failed"
+      ],
+      "command": {
+        "type": "expectRequest",
+        "url": "**/_api/v1/o/*",
+        "failed": true,
+        "not": true
+      }
+    },
+    {
+      "line": 66,
+      "args": [
+        "expect",
+        "--not",
+        "request",
+        "**/_api/v1/o/*",
+        "--larger-than",
+        "32kb"
+      ],
+      "command": {
+        "type": "expectRequest",
+        "url": "**/_api/v1/o/*",
+        "largerThan": 32768,
+        "not": true
+      }
+    },
+    {
+      "line": 67,
+      "args": [
+        "expect",
+        "request",
+        "**/_api/v1/o/l",
+        "--body-contains",
+        "\"docs-frontend\""
+      ],
+      "command": {
+        "type": "expectRequest",
+        "url": "**/_api/v1/o/l",
+        "bodyContains": "\"docs-frontend\""
+      }
+    },
+    {
+      "line": 68,
+      "args": [
+        "expect",
+        "request",
+        "**/_api/v1/o/l",
+        "--body-regex",
+        "\"session\\.id\""
+      ],
+      "command": {
+        "type": "expectRequest",
+        "url": "**/_api/v1/o/l",
+        "bodyRegex": "\"session\\.id\""
+      }
+    },
+    {
+      "line": 69,
+      "args": [
+        "expect",
+        "same-document"
+      ],
+      "command": {
+        "type": "expectSameDocument"
+      }
+    },
+    {
+      "line": 70,
+      "args": [
+        "expect",
+        "--not",
+        "--timeout",
+        "3000",
+        "same-document"
+      ],
+      "command": {
+        "type": "expectSameDocument",
+        "not": true,
+        "timeoutMs": 3000
+      }
     }
   ]
 }

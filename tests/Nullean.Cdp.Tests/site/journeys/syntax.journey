@@ -60,3 +60,11 @@ expect title Loaded
 expect title Load --contains
 expect url "**/about.html"
 expect --not url "**/error" --ignore-case
+expect request "**/chunk-*.js"
+expect --timeout 20000 request "**/_api/v1/o/l" --method post --type fetch,xhr --status 2xx
+expect --not request "**/_api/v1/o/*" --failed
+expect --not request "**/_api/v1/o/*" --larger-than 32kb
+expect request "**/_api/v1/o/l" --body-contains '"docs-frontend"'
+expect request "**/_api/v1/o/l" --body-regex '"session\.id"'
+expect same-document
+expect --not --timeout 3000 same-document

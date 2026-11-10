@@ -138,6 +138,8 @@ These differ on purpose, because Playwright produces them differently or owns th
 | `a11y` | axe-core, not Nullean.Cdp's own rules, so counts differ. Without `axe` the step fails and says how to pass it. |
 | `network har start`, `stop` | skipped with a warning: use `recordHar` in the Playwright configuration. |
 | `screenshot` | written only when `artifactsDir` is given; Playwright and Synthetics keep their own screenshots. |
+| `expect request` | from Playwright's `request`, `response` and `requestfinished` events; the body is `request.postDataBuffer()`. The same rules as in `cdp run`. |
+| `expect same-document` | counts `domcontentloaded`, which a new document fires and `pushState` does not. |
 | `set viewport … <scale>`, `set device` | the viewport only. Scale, user agent and touch are fixed when the context is created: use a Playwright project. |
 | `set credentials` | refused. Set `httpCredentials` in the Playwright configuration: an extra header would go to every host. |
 | `console` | `type: text`, one per line. |

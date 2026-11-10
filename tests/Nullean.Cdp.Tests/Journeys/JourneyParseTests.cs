@@ -102,6 +102,13 @@ public class JourneyParseTests
 		One("expect text #count \"^\\d+\" --regex").Should().Be(new ExpectCommand(Matcher.Text("^\\d+", TextMatch.Regex), css("#count"), new ExpectOptions()));
 		One("expect text #count ^\\d+ --regex").Should().Be(new ExpectCommand(Matcher.Text("^d+", TextMatch.Regex), css("#count"), new ExpectOptions()));
 		One("expect value #name Ada").Should().Be(new ExpectCommand(Matcher.Value("Ada"), css("#name"), new ExpectOptions()));
+		One("expect request \"**/o/l\"").Should().Be(new ExpectRequestCommand("**/o/l", new ExpectOptions()));
+		One("expect --not --timeout 20000 request \"**/o/*\" --method post --type fetch,xhr --status 2xx --failed --larger-than 32kb --body-contains x")
+			.Should().Be(new ExpectRequestCommand("**/o/*", new ExpectOptions { Negate = true, Timeout = TimeSpan.FromSeconds(20) }, "POST", ["fetch", "xhr"], "2xx", true, 32768, "x"));
+		One("expect request /a --larger-than 1.5mb --body-regex '\"id\"'").Should().Be(new ExpectRequestCommand("/a", new ExpectOptions(), LargerThan: 1572864, BodyRegex: "\"id\""));
+		One("expect request /a --larger-than 2048").Should().Be(new ExpectRequestCommand("/a", new ExpectOptions(), LargerThan: 2048));
+		One("expect same-document").Should().Be(new ExpectSameDocumentCommand(new ExpectOptions()));
+		One("expect --not --timeout 300 same-document").Should().Be(new ExpectSameDocumentCommand(new ExpectOptions { Negate = true, Timeout = TimeSpan.FromMilliseconds(300) }));
 		One("expect attr #name placeholder").Should().Be(new ExpectCommand(Matcher.Attribute("placeholder"), css("#name"), new ExpectOptions()));
 		One("expect attr #name placeholder Name --contains").Should().Be(new ExpectCommand(Matcher.Attribute("placeholder", "Name", TextMatch.Contains), css("#name"), new ExpectOptions()));
 		One("expect class #go \"primary big\"").Should().Be(new ExpectCommand(Matcher.Class("primary big"), css("#go"), new ExpectOptions()));
@@ -253,6 +260,11 @@ public class JourneyParseTests
 	public void ExportLeavesAssertionsOutBecauseAgentBrowserHasNone() =>
 		Journey.Parse("open https://x.test/\nexpect visible #a\nexpect title Home\nget title").ToAgentBrowserBatch()
 			.Should().Be("[[\"open\",\"https://x.test/\"],[\"get\",\"title\"]]\n");
+
+	[Test]
+	public void ExportLeavesNetworkAndDocumentAssertionsOutToo() =>
+		Journey.Parse("open https://x.test/\nexpect request \"**/a\" --larger-than 1kb\nclick #go\nexpect same-document\nget title").ToAgentBrowserBatch()
+			.Should().Be("[[\"open\",\"https://x.test/\"],[\"click\",\"#go\"],[\"get\",\"title\"]]\n");
 
 	[Test]
 	public void ExportKeepsA11yWithoutStrict() =>
