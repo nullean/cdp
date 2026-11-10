@@ -40,10 +40,61 @@ public class JourneyRunnerTests(ChromeFixture chrome)
 
 		result.Passed.Should().BeFalse();
 		result.Checkpoints.Select(c => c.Output).Should().Equal("Actions");
-		result.Failure.Should().Be(new JourneyFailure(3, "click #missing",
+		var failure = result.Failure!;
+		(failure.Line, failure.Command, failure.Message).Should().Be((3, "click #missing",
 			"Timed out after 0.2s waiting for css #missing to be visible and enabled: no element matches."));
-		result.Failure!.Describe(result.Source).Should().Be(
-			"fail.journey:3: click #missing\nTimed out after 0.2s waiting for css #missing to be visible and enabled: no element matches.");
+		failure.Url.Should().Be(Site + "actions.html");
+		failure.Screenshot.Should().BeNull("a screenshot is opt-in");
+		failure.Describe(result.Source).Should().Be(
+			"fail.journey:3: click #missing\nTimed out after 0.2s waiting for css #missing to be visible and enabled: no element matches.\n" +
+			$"Page:       {Site}actions.html");
+	}
+
+	[Test]
+	public async Task AFailureCarriesAScreenshotOfThePageItStoppedOn()
+	{
+		var journey = Journey.Parse("open actions.html\nclick #missing", "fail.journey");
+
+		var result = await JourneyRunner.RunAsync(journey, chrome.Browser,
+			new JourneyOptions { BaseUrl = Site, ActionTimeout = TimeSpan.FromMilliseconds(200), ScreenshotOnFailure = true });
+
+		result.Failure!.Screenshot.Should().NotBeNull().And.StartWith(new byte[] { 0x89, 0x50, 0x4E, 0x47 }, "a PNG");
+		result.Failure.ScreenshotPath.Should().BeNull("there is no artifacts folder to write into");
+	}
+
+	[Test]
+	public async Task AScreenshotIsWrittenToTheArtifactsFolderAndNamedInTheDescription()
+	{
+		var folder = Directory.CreateTempSubdirectory("cdp-failure-").FullName;
+		try
+		{
+			var journey = Journey.Parse("open actions.html\nclick #missing", "fail.journey");
+
+			var result = await JourneyRunner.RunAsync(journey, chrome.Browser,
+				new JourneyOptions { BaseUrl = Site, ActionTimeout = TimeSpan.FromMilliseconds(200), ArtifactsDirectory = folder, ScreenshotOnFailure = true });
+
+			var path = Path.Combine(folder, "failure.png");
+			result.Failure!.ScreenshotPath.Should().Be(path);
+			File.ReadAllBytes(path).Should().Equal(result.Failure.Screenshot);
+			result.Failure.Describe(result.Source).Should().EndWith($"\nScreenshot: {path}");
+		}
+		finally
+		{
+			Directory.Delete(folder, recursive: true);
+		}
+	}
+
+	[Test]
+	public async Task ThereIsNoScreenshotUnlessAskedFor()
+	{
+		var journey = Journey.Parse("open actions.html\nclick #missing", "fail.journey");
+
+		var result = await JourneyRunner.RunAsync(journey, chrome.Browser,
+			new JourneyOptions { BaseUrl = Site, ActionTimeout = TimeSpan.FromMilliseconds(200), ArtifactsDirectory = Path.GetTempPath() });
+
+		result.Failure!.Screenshot.Should().BeNull();
+		result.Failure.Url.Should().Be(Site + "actions.html", "the page's address is still recorded");
+		result.Failure.ScreenshotPath.Should().BeNull("an artifacts folder alone writes no failure.png");
 	}
 
 	[Test]
@@ -51,7 +102,8 @@ public class JourneyRunnerTests(ChromeFixture chrome)
 	{
 		var result = await JourneyRunner.RunAsync(Journey.Parse("open /x", "rel.journey"), chrome.Browser);
 
-		result.Failure.Should().Be(new JourneyFailure(1, "open /x", "rel.journey:1: '/x' is relative: give a base URL"));
+		var failure = result.Failure!;
+		(failure.Line, failure.Command, failure.Message).Should().Be((1, "open /x", "rel.journey:1: '/x' is relative: give a base URL"));
 	}
 
 	[Test]

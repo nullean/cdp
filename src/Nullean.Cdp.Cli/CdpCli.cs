@@ -137,9 +137,17 @@ internal sealed class CdpCli(
 		IReadOnlyList<string>? writable = null,
 		IReadOnlyList<string>? headers = null,
 		string? userAgent = null,
-		string? viewport = null
+		string? viewport = null,
+		bool screenshotOnFailure = false
 	)
 	{
+		if (screenshotOnFailure && artifacts is null)
+		{
+			// The CLI prints no image, so a capture with nowhere to go would be taken and thrown away.
+			error.WriteLine("--screenshot-on-failure needs --artifacts <folder> to write failure.png into.");
+			return ExitCode.Usage;
+		}
+
 		var (ok, root) = ParseBase(baseUrl);
 		if (!ok || !ValidAllow(allow) || ParseHeaders(headers ?? []) is not { } extraHeaders || !ParseViewport(viewport, out var size) || Load(files) is not { } journeys)
 			return ExitCode.Usage;
@@ -161,6 +169,7 @@ internal sealed class CdpCli(
 				Headers = extraHeaders,
 				UserAgent = userAgent,
 				Viewport = size,
+				ScreenshotOnFailure = screenshotOnFailure,
 				FileRoot = fileRoot is null ? null : Path.GetFullPath(fileRoot),
 				ArtifactsDirectory = artifacts is null ? null : Path.GetFullPath(artifacts),
 				Secrets = environment,
@@ -283,20 +292,32 @@ internal sealed class CdpCli(
 			output.WriteLine($"== {journey.Source}");
 			foreach (var checkpoint in result.Checkpoints)
 			{
+				// A feature block the run did not meet holds nothing from the page: one line says why, with no fence.
+				if (checkpoint.IsSkip)
+				{
+					output.WriteLine($"-- {journey.Source}:{checkpoint.Line}: {checkpoint.Command} ({checkpoint.Output})");
+					continue;
+				}
+
 				output.WriteLine($"-- {journey.Source}:{checkpoint.Line}: {checkpoint.Command}");
 				output.Write(PageContent.Fence($"url: {checkpoint.Url}\n{checkpoint.Output}", _nonce, Origin(checkpoint.Url), Cap(maxOutput)));
 			}
 
 			if (result.Blocked.Count > 0)
 			{
-				output.WriteLine($"-- {result.Blocked.Count} request(s) outside the allow list were refused");
-				output.Write(PageContent.Fence(string.Join('\n', result.Blocked.Select(b => $"{b.ResourceType} {b.Url}")), _nonce, maxCharacters: Cap(maxOutput)));
+				var requests = result.Blocked.GroupBy(b => $"{b.ResourceType} {b.Url}").ToList();
+				output.WriteLine($"-- {result.Blocked.Count} request(s) outside the allow list were refused ({requests.Count} distinct)");
+				output.Write(PageContent.Fence(string.Join('\n', requests.Select(g => g.Count() == 1 ? g.Key : $"{g.Key} (x{g.Count()})")), _nonce, maxCharacters: Cap(maxOutput)));
 			}
 
 			if (result.Failure is { } failure)
 			{
 				output.WriteLine($"FAILED {journey.Source}:{failure.Line}: {failure.Command}");
-				output.Write(PageContent.Fence(failure.Message, _nonce, maxCharacters: Cap(maxOutput)));
+				// The page's address came from the page, so it goes inside the fence with the message.
+				var detail = failure.Url is { Length: > 0 } url ? $"url: {url}\n{failure.Message}" : failure.Message;
+				output.Write(PageContent.Fence(detail, _nonce, failure.Url is null ? null : Origin(failure.Url), Cap(maxOutput)));
+				if (failure.ScreenshotPath is { } screenshot)
+					output.WriteLine($"-- screenshot: {screenshot}");
 			}
 			else
 				output.WriteLine($"ok {journey.Source}: {journey.Steps.Count} steps, {result.Checkpoints.Count} checkpoints");
@@ -349,8 +370,12 @@ internal sealed class CdpCli(
 					json.WriteNumber("line", failure.Line);
 					json.WriteString("command", failure.Command);
 					json.WriteStartObject("page");
+					if (failure.Url is not null)
+						json.WriteString("url", failure.Url);
 					WriteCapped(json, "message", failure.Message, maxOutput);
 					json.WriteEndObject();
+					if (failure.ScreenshotPath is not null)
+						json.WriteString("screenshot", failure.ScreenshotPath);
 					json.WriteEndObject();
 				}
 

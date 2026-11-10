@@ -30,6 +30,7 @@ namespace Nullean.Cdp.Cli
 		/// <param name="header">A request header every page sends (repeatable): "Name: value".</param>
 		/// <param name="userAgent">The user agent of the run.</param>
 		/// <param name="viewport">The viewport the run starts with: 1280x800. Without it Chrome's default applies, which a responsive site may treat as a phone.</param>
+		/// <param name="screenshotOnFailure">Take a screenshot of the page when a step fails. With --artifacts it is written to failure.png there.</param>
 		/// <param name="headed">Show the browser window.</param>
 		/// <param name="json">Print JSON; everything under a "page" key came from the page.</param>
 		/// <param name="maxOutput">Characters per checkpoint before it is cut (0 for no limit).</param>
@@ -49,12 +50,13 @@ namespace Nullean.Cdp.Cli
 			string[]? header = null,
 			string? userAgent = null,
 			string? viewport = null,
+			bool screenshotOnFailure = false,
 			bool headed = false,
 			bool json = false,
 			int maxOutput = CdpCli.DefaultMaxOutput,
 			double? timeout = null,
 			CancellationToken cancellationToken = default
-		) => Cli().RunAsync(files, baseUrl, allow ?? [], fileRoot, headed, json, maxOutput, timeout, cancellationToken, artifacts, feature, buildType, env, readOnly, writable, header, userAgent, viewport);
+		) => Cli().RunAsync(files, baseUrl, allow ?? [], fileRoot, headed, json, maxOutput, timeout, cancellationToken, artifacts, feature, buildType, env, readOnly, writable, header, userAgent, viewport, screenshotOnFailure);
 
 		/// <summary>Parse journeys without running them, and report every error with its line.</summary>
 		/// <param name="files">Journey files.</param>
