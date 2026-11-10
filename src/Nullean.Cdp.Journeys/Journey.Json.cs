@@ -201,6 +201,27 @@ public sealed partial class Journey
 				if (c.Options.Timeout is { } timeout)
 					json.WriteNumber("timeoutMs", (int)timeout.TotalMilliseconds);
 				break;
+			case ExpectRequestCommand c:
+				json.WriteString("type", "expectRequest");
+				json.WriteString("url", c.Url);
+				WriteOptional(json, "method", c.Method);
+				WriteStrings(json, "types", c.Types ?? []);
+				WriteOptional(json, "status", c.Status);
+				WriteFlag(json, "failed", c.Failed);
+				if (c.LargerThan is { } larger)
+					json.WriteNumber("largerThan", larger);
+				WriteOptional(json, "bodyContains", c.BodyContains);
+				WriteOptional(json, "bodyRegex", c.BodyRegex);
+				WriteFlag(json, "not", c.Options.Negate);
+				if (c.Options.Timeout is { } requestTimeout)
+					json.WriteNumber("timeoutMs", (int)requestTimeout.TotalMilliseconds);
+				break;
+			case ExpectSameDocumentCommand c:
+				json.WriteString("type", "expectSameDocument");
+				WriteFlag(json, "not", c.Options.Negate);
+				if (c.Options.Timeout is { } documentTimeout)
+					json.WriteNumber("timeoutMs", (int)documentTimeout.TotalMilliseconds);
+				break;
 			case ReadCommand c:
 				json.WriteString("type", "read");
 				json.WriteString("what", c.What);

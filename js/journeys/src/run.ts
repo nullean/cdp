@@ -135,6 +135,10 @@ interface Recorded {
   status?: number;
   error?: string;
   navigation: boolean;
+  /** Over: answered completely, or failed. */
+  finished?: boolean;
+  /** The request body, read when the request started. */
+  body?: Buffer;
 }
 
 const RESOURCE_TYPES: Record<string, string> = { xhr: 'XHR', websocket: 'WebSocket', eventsource: 'EventSource', texttrack: 'TextTrack' };
@@ -145,6 +149,9 @@ export class JourneyRun {
   private readonly secrets: Secrets;
   private readonly allow: AllowList;
   private readonly requests: Recorded[] = [];
+  private documents = 0;
+  // The document count when the last action began (after a navigation, when it ended), for `expect same-document`.
+  private actionDocuments = 0;
   private readonly blockedNavigations: string[] = [];
   private readonly consoleLog: string[] = [];
   private readonly errorLog: string[] = [];
@@ -208,12 +215,18 @@ export class JourneyRun {
     this.disposers.push(() => page.unroute('**/*', guard));
 
     const commands = journey.steps.map((s) => s.command);
-    if (commands.some((c) => c.type === 'har' || c.type === 'requests')) {
+    if (commands.some((c) => c.type === 'har' || c.type === 'requests' || c.type === 'expectRequest')) {
       const byRequest = new Map<import('playwright-core').Request, Recorded>();
       page.on('request', (r) => {
-        const entry = { method: r.method(), url: r.url(), type: resourceType(r.resourceType()), navigation: r.isNavigationRequest() };
+        const entry: Recorded = { method: r.method(), url: r.url(), type: resourceType(r.resourceType()), navigation: r.isNavigationRequest() };
+        const body = r.postDataBuffer();
+        if (body) entry.body = body;
         byRequest.set(r, entry);
         this.requests.push(entry);
+      });
+      page.on('requestfinished', (r) => {
+        const entry = byRequest.get(r);
+        if (entry) entry.finished = true;
       });
       page.on('response', (r) => {
         const entry = byRequest.get(r.request());
@@ -221,9 +234,14 @@ export class JourneyRun {
       });
       page.on('requestfailed', (r) => {
         const entry = byRequest.get(r);
-        if (entry) entry.error = r.failure()?.errorText ?? 'failed';
+        if (entry) {
+          entry.error = r.failure()?.errorText ?? 'failed';
+          entry.finished = true;
+        }
       });
     }
+    // A new document fires domcontentloaded; pushState and a boosted htmx swap do not.
+    if (commands.some((c) => c.type === 'expectSameDocument')) page.on('domcontentloaded', () => this.documents++);
     if (commands.some((c) => c.type === 'performance' && c.kind === 'vitals'))
       await page.addInitScript(VITALS_SCRIPT);
   }
@@ -239,7 +257,10 @@ export class JourneyRun {
     this.options.onStep?.(step);
     let output: Output | undefined;
     try {
+      if (['act', 'press', 'keyboard', 'drag', 'scroll'].includes(step.command.type)) this.actionDocuments = this.documents;
       output = await this.run(step.command, step);
+      // A navigation starts from the page it lands on.
+      if (step.command.type === 'open' || step.command.type === 'history') this.actionDocuments = this.documents;
       const refused = this.blockedNavigations.splice(0);
       if (refused.length > 0) throw new StepError(refused[0]);
     } catch (e) {
@@ -356,6 +377,67 @@ export class JourneyRun {
       }
       case 'read': return { text: await this.read(c) };
       case 'expect': return this.expectStep(c);
+      case 'expectRequest': return this.expectRequestStep(c);
+      case 'expectSameDocument': return this.expectSameDocumentStep(c);
+    }
+  }
+
+  // `expect request`: holds when a finished request matches the URL glob and every filter. Negated, it holds when none does and
+  // none that could still match the URL is in flight, so a late failure is not missed. A passing assertion records nothing.
+  private async expectRequestStep(c: Extract<Command, { type: 'expectRequest' }>): Promise<undefined> {
+    const timeout = c.timeoutMs ?? this.options.actionTimeout ?? 5000;
+    const glob = globToRegExp(c.url);
+    const contains = c.bodyContains === undefined ? undefined : this.secrets.resolve(c.bodyContains);
+    const regex = c.bodyRegex === undefined ? undefined : new RegExp(this.secrets.resolve(c.bodyRegex));
+    const types = c.types ?? [];
+    const started = Date.now();
+    for (;;) {
+      const scoped = this.requests.filter(
+        (r) =>
+          glob.test(r.url) &&
+          (types.length === 0 || types.some((t) => t.toLowerCase() === r.type.toLowerCase())) &&
+          (c.method === undefined || r.method === c.method),
+      );
+      const pending = scoped.filter((r) => !r.finished);
+      const matching = scoped.filter(
+        (r) =>
+          r.finished &&
+          (c.status === undefined || statusMatches(r.status, c.status)) &&
+          (!c.failed || failed(r)) &&
+          bodyMatches(r, c.largerThan, contains, regex),
+      );
+      const holds = c.not ? matching.length === 0 && pending.length === 0 : matching.length > 0;
+      if (holds) return undefined;
+      const elapsed = Date.now() - started;
+      if (elapsed >= timeout) {
+        const list = (rs: Recorded[]) =>
+          rs.slice(0, 5).map((r) => (c.largerThan !== undefined && r.body ? `${formatRequest(r)} [${r.body.length} bytes]` : formatRequest(r))).join('; ') +
+          (rs.length > 5 ? `; and ${rs.length - 5} more` : '');
+        const received = c.not
+          ? matching.length > 0 ? 'found ' + list(matching) : `${pending.length} still in flight: ` + list(pending)
+          : scoped.length === 0
+            ? `no request with that URL among the ${this.requests.length} so far`
+            : `${scoped.length} with that URL, none matching the other filters` + (pending.length > 0 ? ` (${pending.length} still in flight)` : '') + ': ' + list(scoped);
+        throw new StepError(
+          `Timed out after ${seconds(timeout)}s waiting for the requests to ${c.not ? 'include no request ' : 'include a request '}${describeRequestExpectation(c)}: received ${received}.`,
+        );
+      }
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+
+  // `expect same-document`: no new document since the last action began. Negated, it waits for one.
+  private async expectSameDocumentStep(c: Extract<Command, { type: 'expectSameDocument' }>): Promise<undefined> {
+    const timeout = c.timeoutMs ?? this.options.actionTimeout ?? 5000;
+    const started = Date.now();
+    for (;;) {
+      const replaced = this.documents - this.actionDocuments;
+      if ((replaced === 0) !== (c.not === true)) return undefined;
+      if (Date.now() - started >= timeout)
+        throw new StepError(
+          `Timed out after ${seconds(timeout)}s waiting for the page to ${c.not ? 'have been replaced by a new document since the last action' : 'still be the document the last action began on'}: received ${replaced === 0 ? 'the same document' : `${replaced} new document(s) since the last action`}.`,
+        );
+      await new Promise((r) => setTimeout(r, 50));
     }
   }
 
@@ -634,6 +716,31 @@ function statusMatches(status: number | undefined, pattern: string): boolean {
   if (pattern.endsWith('xx')) return Math.floor(status / 100) === Number(pattern[0]);
   const range = pattern.split('-');
   return range.length === 2 ? status >= Number(range[0]) && status <= Number(range[1]) : status === Number(pattern);
+}
+
+// Seconds as .NET's "0.#" prints them.
+const seconds = (ms: number) => String(Number((ms / 1000).toFixed(1)));
+
+function bodyMatches(r: Recorded, largerThan: number | undefined, contains: string | undefined, regex: RegExp | undefined): boolean {
+  if (largerThan === undefined && contains === undefined && regex === undefined) return true;
+  if (largerThan !== undefined && (r.body?.length ?? 0) <= largerThan) return false;
+  if (contains === undefined && regex === undefined) return true;
+  if (!r.body) return false;
+  const text = r.body.toString('utf8');
+  return (contains === undefined || text.includes(contains)) && (regex === undefined || regex.test(text));
+}
+
+// What was asked for, as the journey line said it. A body filter shows its text and size only, never the body.
+function describeRequestExpectation(c: Extract<Command, { type: 'expectRequest' }>): string {
+  const parts = [`matching "${c.url}"`];
+  if (c.method !== undefined) parts.push(`--method ${c.method}`);
+  if (c.types && c.types.length > 0) parts.push(`--type ${c.types.join(',')}`);
+  if (c.status !== undefined) parts.push(`--status ${c.status}`);
+  if (c.failed) parts.push('--failed');
+  if (c.largerThan !== undefined) parts.push(`--larger-than ${c.largerThan} bytes`);
+  if (c.bodyContains !== undefined) parts.push(`--body-contains "${c.bodyContains}"`);
+  if (c.bodyRegex !== undefined) parts.push(`--body-regex "${c.bodyRegex}"`);
+  return parts.join(' ');
 }
 
 const globToRegExp = (glob: string) =>

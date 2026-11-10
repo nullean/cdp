@@ -85,6 +85,15 @@ public sealed class Page
 	/// <summary>How long a locator waits for its element before an action or read fails. Defaults to 5 seconds.</summary>
 	public TimeSpan ActionTimeout { get; set; } = TimeSpan.FromSeconds(5);
 
+	private int _documents;
+
+	/// <summary>
+	/// How many documents the main frame has started: a navigation, a reload or a history step adds one; a same-document
+	/// navigation (<c>pushState</c>, an anchor, a boosted htmx swap) does not. Compare two readings to tell whether the page
+	/// was replaced in between.
+	/// </summary>
+	public int DocumentLoads => Volatile.Read(ref _documents);
+
 	/// <summary>The mouse.</summary>
 	public Mouse Mouse => field ??= new Mouse(this);
 
@@ -343,7 +352,10 @@ public sealed class Page
 				return;
 			// "init" starts a new document: its events replace the old one's.
 			if (name == "init")
+			{
 				_lifecycle = new ConcurrentDictionary<string, byte>(StringComparer.Ordinal);
+				Interlocked.Increment(ref _documents);
+			}
 			_lifecycle.TryAdd(name, 0);
 		});
 		_ = Connection.On(SessionId, _log.OnEvent);

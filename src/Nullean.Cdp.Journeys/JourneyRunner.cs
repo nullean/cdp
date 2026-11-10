@@ -115,7 +115,7 @@ public static class JourneyRunner
 			: null;
 		run.Guard = guard;
 		// The network is recorded only for journeys that read it.
-		await using var network = journey.Steps.Any(s => s.Command is HarCommand or RequestsCommand)
+		await using var network = journey.Steps.Any(s => s.Command is HarCommand or RequestsCommand or ExpectRequestCommand)
 			? await page.RecordNetworkAsync(cancellationToken).ConfigureAwait(false)
 			: null;
 		run.Network = network;
@@ -126,10 +126,15 @@ public static class JourneyRunner
 		{
 			string? failure;
 			options.OnStep?.Invoke(step);
+			if (step.Command is ActCommand or KeyboardCommand or DragCommand or ScrollCommand)
+				run.ActionDocuments = page.DocumentLoads;
 			try
 			{
 				var output = await RunStepAsync(run, step, cancellationToken).ConfigureAwait(false);
 				failure = Blocked(guard, run.AllowList, blocked);
+				// A navigation starts from the page it lands on.
+				if (step.Command is OpenCommand or HistoryCommand)
+					run.ActionDocuments = page.DocumentLoads;
 				if (failure is null && output is not null)
 				{
 					var url = await page.UrlAsync(cancellationToken).ConfigureAwait(false);
@@ -157,6 +162,9 @@ public static class JourneyRunner
 		public NetworkRecording? Network { get; set; }
 
 		public int HarStart { get; set; } = -1;
+
+		// The page's document count when the last action began (after a navigation, when it ended), for `expect same-document`.
+		public int ActionDocuments { get; set; }
 	}
 
 	// A refused navigation fails the step; refused sub-resources are reported with the result.
@@ -322,6 +330,12 @@ public static class JourneyRunner
 				return await ReadAsync(read, page, ct).ConfigureAwait(false);
 			case ExpectCommand expect:
 				await ExpectAsync(expect, page, run.Secrets, ct).ConfigureAwait(false);
+				return null;
+			case ExpectRequestCommand request:
+				await ExpectRequestAsync(request, run, ct).ConfigureAwait(false);
+				return null;
+			case ExpectSameDocumentCommand sameDocument:
+				await ExpectSameDocumentAsync(sameDocument, run, ct).ConfigureAwait(false);
 				return null;
 			default:
 				throw new InvalidOperationException($"No runner for {step.Command.GetType().Name}.");
@@ -533,6 +547,112 @@ public static class JourneyRunner
 			: await page.CheckAsync(matcher, expect.Options, ct).ConfigureAwait(false);
 		if (!result.Passed)
 			throw new ExpectationException(result);
+	}
+
+	// `expect request`: holds when a finished request matches the URL glob and every filter. Negated, it holds when none does and
+	// none that could still match the URL is in flight, so a late failure is not missed.
+	private static async Task ExpectRequestAsync(ExpectRequestCommand command, Run run, CancellationToken ct)
+	{
+		var timeout = command.Options.Timeout ?? run.Page.ActionTimeout;
+		var glob = Page.UrlGlob(command.Url);
+		var contains = command.BodyContains is { } text ? run.Secrets.Resolve(text) : null;
+		var regex = command.BodyRegex is { } pattern ? new System.Text.RegularExpressions.Regex(run.Secrets.Resolve(pattern), System.Text.RegularExpressions.RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1)) : null;
+		var types = command.Types ?? [];
+		var started = System.Diagnostics.Stopwatch.StartNew();
+		while (true)
+		{
+			var scoped = run.Network!.Requests
+				.Where(r => glob.IsMatch(r.Url)
+					&& (types.Count == 0 || types.Contains(r.ResourceType, StringComparer.OrdinalIgnoreCase))
+					&& (command.Method is null || r.Method == command.Method))
+				.ToList();
+			var pending = scoped.Where(r => !r.IsFinished).ToList();
+			var matching = new List<NetworkRequest>();
+			foreach (var request in scoped.Where(r => r.IsFinished))
+			{
+				if ((command.Status is null || StatusMatches(request.Status, command.Status))
+					&& (!command.Failed || Failed(request))
+					&& await BodyMatchesAsync(request, command.LargerThan, contains, regex, ct).ConfigureAwait(false))
+					matching.Add(request);
+			}
+
+			var holds = command.Options.Negate ? matching.Count == 0 && pending.Count == 0 : matching.Count > 0;
+			if (holds)
+				return;
+			if (started.Elapsed >= timeout)
+			{
+				var describe = DescribeRequestExpectation(command);
+				var received = command.Options.Negate
+					? matching.Count > 0 ? "found " + ListRequests(matching, command) : $"{pending.Count} still in flight: " + ListRequests(pending, command)
+					: scoped.Count == 0
+						? $"no request with that URL among the {run.Network!.Requests.Count} so far"
+						: $"{scoped.Count} with that URL, none matching the other filters" + (pending.Count > 0 ? $" ({pending.Count} still in flight)" : "") + ": " + ListRequests(scoped, command);
+				throw new ExpectationException(new ExpectationResult(false, "the requests",
+					(command.Options.Negate ? "include no request " : "include a request ") + describe, received, timeout, started.Elapsed));
+			}
+
+			await Task.Delay(command.Options.PollInterval, ct).ConfigureAwait(false);
+		}
+	}
+
+	private static async Task<bool> BodyMatchesAsync(NetworkRequest request, long? largerThan, string? contains, System.Text.RegularExpressions.Regex? regex, CancellationToken ct)
+	{
+		if (largerThan is null && contains is null && regex is null)
+			return true;
+		var body = await request.GetPostDataAsync(ct).ConfigureAwait(false);
+		if (largerThan is { } size && (body?.LongLength ?? 0) <= size)
+			return false;
+		if (contains is null && regex is null)
+			return true;
+		if (body is null)
+			return false;
+		var text = System.Text.Encoding.UTF8.GetString(body);
+		return (contains is null || text.Contains(contains, StringComparison.Ordinal)) && (regex is null || regex.IsMatch(text));
+	}
+
+	// What was asked for, as the journey line said it. A body filter shows its text and size only, never the body.
+	private static string DescribeRequestExpectation(ExpectRequestCommand c)
+	{
+		var parts = new List<string> { "matching \"" + c.Url + "\"" };
+		if (c.Method is not null)
+			parts.Add("--method " + c.Method);
+		if (c.Types is { Count: > 0 } types)
+			parts.Add("--type " + string.Join(',', types));
+		if (c.Status is not null)
+			parts.Add("--status " + c.Status);
+		if (c.Failed)
+			parts.Add("--failed");
+		if (c.LargerThan is { } larger)
+			parts.Add("--larger-than " + larger.ToString(CultureInfo.InvariantCulture) + " bytes");
+		if (c.BodyContains is not null)
+			parts.Add("--body-contains \"" + c.BodyContains + "\"");
+		if (c.BodyRegex is not null)
+			parts.Add("--body-regex \"" + c.BodyRegex + "\"");
+		return string.Join(' ', parts);
+	}
+
+	private static string ListRequests(List<NetworkRequest> requests, ExpectRequestCommand command)
+	{
+		var shown = requests.Take(5).Select(r => command.LargerThan is not null && r.PostDataLength is { } length ? $"{r} [{length} bytes]" : r.ToString());
+		return string.Join("; ", shown) + (requests.Count > 5 ? $"; and {requests.Count - 5} more" : "");
+	}
+
+	// `expect same-document`: no new document since the last action began. Negated, it waits for one.
+	private static async Task ExpectSameDocumentAsync(ExpectSameDocumentCommand command, Run run, CancellationToken ct)
+	{
+		var timeout = command.Options.Timeout ?? run.Page.ActionTimeout;
+		var started = System.Diagnostics.Stopwatch.StartNew();
+		while (true)
+		{
+			var replaced = run.Page.DocumentLoads - run.ActionDocuments;
+			if (replaced == 0 != command.Options.Negate)
+				return;
+			if (started.Elapsed >= timeout)
+				throw new ExpectationException(new ExpectationResult(false, "the page",
+					command.Options.Negate ? "have been replaced by a new document since the last action" : "still be the document the last action began on",
+					replaced == 0 ? "the same document" : $"{replaced} new document(s) since the last action", timeout, started.Elapsed));
+			await Task.Delay(command.Options.PollInterval, ct).ConfigureAwait(false);
+		}
 	}
 
 	private static async Task<string> ReadAsync(ReadCommand read, Page page, CancellationToken ct)

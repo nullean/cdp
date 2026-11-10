@@ -139,6 +139,8 @@ These differ on purpose, because Playwright produces them differently or owns th
 | `network har start`, `stop` | skipped with a warning: use `recordHar` in the Playwright configuration. |
 | `screenshot` | written only when `artifactsDir` is given; Playwright and Synthetics keep their own screenshots. |
 | `set useragent` | Chromium only, through a DevTools session, for the page. Other browsers: set `userAgent` in the Playwright config. |
+| `expect request` | from Playwright's `request`, `response` and `requestfinished` events; the body is `request.postDataBuffer()`. The same rules as in `cdp run`. |
+| `expect same-document` | counts `domcontentloaded`, which a new document fires and `pushState` does not. |
 | `set viewport … <scale>`, `set device` | the viewport only. Scale, user agent and touch are fixed when the context is created: use a Playwright project. |
 | `set credentials` | refused. Set `httpCredentials` in the Playwright configuration: an extra header would go to every host. |
 | `console` | `type: text`, one per line. |

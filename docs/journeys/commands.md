@@ -109,6 +109,31 @@ assertion records nothing, so it changes no verified transcript. The target is a
 | `expect title <text>` | the page title |
 | `expect url <glob>` | the URL, as `wait --url`: `**` is anything, `*` anything but `/`; `--regex` for a pattern |
 
+Two more are about the page rather than an element:
+
+| Command | Holds when |
+|---|---|
+| `expect request <url glob> [filters]` | a request the page made, once it is over (answered or failed), matches the URL glob and every filter. The URL is a glob as in `expect url`: `**/_api/v1/o/*`. The filters are `network requests`' (`--method`, `--type`, `--status`, `--failed`) and three about the body: `--larger-than <size>` (bytes, `32kb`, `1.5mb`), `--body-contains <text>` and `--body-regex <pattern>`. |
+| `expect same-document` | nothing replaced the document the last action began on: a boosted htmx swap or `pushState` keeps it, a full navigation or reload does not. `open`, `back`, `forward` and `reload` start from the page they land on. |
+
+With `--not`, `expect request` holds when no finished request matches **and** none matching the URL (and `--method`, `--type`) is
+still in flight, since a late answer could still be the one you wanted absent: `expect --not request "**/_api/v1/o/*" --failed`
+is "every export was accepted", and it waits for the exports still on their way. `--not same-document` waits for a new document.
+A request that never finishes (a long poll) is never matched. A body is the request's own, as the page sent it: text is read as
+UTF-8, and a failure shows its size, never its text. Like every `expect` they record nothing.
+
+```text
+set useragent "Mozilla/5.0 (X11; Linux x86_64) Chrome/130.0.0.0 Safari/537.36 telemetry-test"
+open /
+find role link click --name "Elastic Fundamentals"
+expect url "**/get-started**"
+expect same-document
+open about:blank
+expect --timeout 20000 request "**/_api/v1/o/l" --method POST --status 2xx
+expect --not request "**/_api/v1/o/*" --larger-than 32kb
+expect request "**/_api/v1/o/l" --body-contains '"docs-frontend"'
+```
+
 `--not` inverts any of them, and keeps checking until the matcher stops holding. `--contains` and `--regex` apply to
 `text`, `value`, `attr`, `class`, `title` and `url`; `--ignore-case` to `text`, `attr` and `url`. Only `visible`, `hidden`,
 `attached` and `count` can be asserted about an element that is not there; every other matcher needs one, even negated

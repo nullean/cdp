@@ -798,7 +798,7 @@ public sealed partial class Journey
 			foreach (var step in Steps)
 			{
 				// timings, metrics and links are not agent-browser commands; vitals is, without our budgets.
-				if (step.Command is PerformanceCommand { Kind: not "vitals" } or LinksCommand or ExpectCommand or SetCommand { Setting: "useragent" })
+				if (step.Command is PerformanceCommand { Kind: not "vitals" } or LinksCommand or ExpectCommand or ExpectRequestCommand or ExpectSameDocumentCommand or SetCommand { Setting: "useragent" })
 					continue;
 				json.WriteStartArray();
 				if (step.Command is PerformanceCommand)

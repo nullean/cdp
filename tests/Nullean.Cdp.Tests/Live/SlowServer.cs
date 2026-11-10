@@ -53,6 +53,32 @@ internal sealed class SlowServer : IAsyncDisposable
 						await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(
 							$"<!doctype html><title>Headers</title><p id=\"x\">{WebUtility.HtmlEncode(context.Request.Headers["x-test"] ?? "none")}</p><p id=\"ua\">{WebUtility.HtmlEncode(context.Request.UserAgent ?? "none")}</p><script>document.title = navigator.userAgent</script>"));
 					}
+					else if (context.Request.Url.AbsolutePath == "/telemetry")
+					{
+						// What the browser SDK does: JSON posted to a collector, some of it slow, one refused, one large.
+						response.ContentType = "text/html; charset=utf-8";
+						await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(
+							"<!doctype html><title>Telemetry</title><link rel=\"icon\" href=\"data:,\"><h1>Telemetry</h1><script>"
+							+ "const post = (path, body) => fetch(path, { method: 'POST', body });"
+							+ "post('/collect/l', JSON.stringify({ resourceLogs: [{ resource: { attributes: [{ key: 'service.name', value: { stringValue: 'docs-frontend' } }] },"
+							+ " scopeLogs: [{ logRecords: [{ eventName: 'browser.navigation_timing' }] }] }] }));"
+							+ "post('/collect/big', 'x'.repeat(100000)); post('/collect/deny', '{}'); post('/collect/slow', '{}'); post('/collect/blob', new Blob(['blob-body-text']));</script>"));
+					}
+					else if (context.Request.Url.AbsolutePath == "/spa")
+					{
+						// One button that changes the URL without a new document, and one link that is a full navigation.
+						response.ContentType = "text/html; charset=utf-8";
+						await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(
+							"<!doctype html><title>Spa</title><link rel=\"icon\" href=\"data:,\"><h1>Spa</h1>"
+							+ "<button id=\"push\" onclick=\"history.pushState(null, '', '/spa/inner')\">Push</button> <a id=\"full\" href=\"/next\">Full</a>"));
+					}
+					else if (context.Request.Url.AbsolutePath.StartsWith("/collect/", StringComparison.Ordinal))
+					{
+						await context.Request.InputStream.CopyToAsync(Stream.Null);
+						if (context.Request.Url.AbsolutePath == "/collect/slow")
+							await Task.Delay(1500);
+						response.StatusCode = context.Request.Url.AbsolutePath == "/collect/deny" ? 403 : 200;
+					}
 					else if (context.Request.Url.AbsolutePath == "/private")
 					{
 						// Basic auth for user "admin" with password "hunter22".

@@ -74,7 +74,22 @@ export type Command =
       ignoreCase?: true;
       innerText?: true;
       timeoutMs?: number;
-    };
+    }
+  | {
+      type: 'expectRequest';
+      url: string;
+      method?: string;
+      types?: string[];
+      status?: string;
+      failed?: true;
+      /** Bytes: the request body must be larger. */
+      largerThan?: number;
+      bodyContains?: string;
+      bodyRegex?: string;
+      not?: true;
+      timeoutMs?: number;
+    }
+  | { type: 'expectSameDocument'; not?: true; timeoutMs?: number };
 
 export type ExpectMatcher =
   | 'visible' | 'hidden' | 'enabled' | 'disabled' | 'checked' | 'unchecked' | 'focused' | 'editable' | 'attached' | 'empty'
