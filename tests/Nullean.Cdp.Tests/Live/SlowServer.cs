@@ -51,7 +51,7 @@ internal sealed class SlowServer : IAsyncDisposable
 					{
 						response.ContentType = "text/html; charset=utf-8";
 						await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(
-							$"<!doctype html><title>Headers</title><p id=\"x\">{WebUtility.HtmlEncode(context.Request.Headers["x-test"] ?? "none")}</p>"));
+							$"<!doctype html><title>Headers</title><p id=\"x\">{WebUtility.HtmlEncode(context.Request.Headers["x-test"] ?? "none")}</p><p id=\"ua\">{WebUtility.HtmlEncode(context.Request.UserAgent ?? "none")}</p><script>document.title = navigator.userAgent</script>"));
 					}
 					else if (context.Request.Url.AbsolutePath == "/telemetry")
 					{

@@ -182,6 +182,11 @@ Every agent-browser command that acts on or reads the page in a repeatable way i
 - **`set offline`** without on|off toggles, as agent-browser's does; the runner tracks the state from a journey's start.
 - **`set device`** knows twelve devices by their Playwright names, with representative sizes and user agents, not
   Playwright's full catalogue.
+- **`set useragent <ua>`** is ours, not agent-browser's (which sets a user agent only at launch, `--user-agent`), so the batch
+  export leaves it out like `expect`. It is `Emulation.setUserAgentOverride`, which changes the `User-Agent` header and
+  `navigator.userAgent` together; `set headers` alone would leave the second, which is what a page reads to switch features
+  (the telemetry SDK turns itself off for `Elastic/Synthetics`). On Playwright it goes through a DevTools session, so
+  Chromium only. The value is literal: no secret references.
 - **`expect request` and `expect same-document`** (assertions about the page, not an element) are their own commands, since they
   read the network recording and a document counter, not a locator. A request is matched only once it is over (a response or a
   failure), so `--status`, `--failed` and body filters judge the whole exchange; a negated assertion also waits while a request

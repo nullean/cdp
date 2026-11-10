@@ -277,6 +277,9 @@ public static class JourneyRunner
 			case SetCommand { Setting: "headers" } headers:
 				await page.SetExtraHeadersAsync(Headers(headers.Headers!), ct).ConfigureAwait(false);
 				return null;
+			case SetCommand { Setting: "useragent" } userAgent:
+				await page.SetUserAgentAsync(userAgent.UserAgent!, ct).ConfigureAwait(false);
+				return null;
 			case SetCommand { Setting: "credentials" } credentials:
 				run.Guard!.UseCredentials(run.Secrets.Resolve(credentials.User!), run.Secrets.Resolve(credentials.Password!));
 				return null;

@@ -157,7 +157,7 @@
       "errors": [
         {
           "line": 1,
-          "message": "set cookie is not supported in journeys: set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | credentials <user> <password>"
+          "message": "set cookie is not supported in journeys: set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | useragent <ua> | credentials <user> <password>"
         }
       ]
     },
@@ -613,7 +613,7 @@
       "errors": [
         {
           "line": 1,
-          "message": "usage: set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | credentials <user> <password>"
+          "message": "usage: set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | useragent <ua> | credentials <user> <password>"
         }
       ]
     },

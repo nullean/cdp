@@ -35,6 +35,7 @@ export type Command =
       longitude?: number;
       offline?: boolean;
       headers?: string;
+      userAgent?: string;
       user?: string;
       password?: string;
     }

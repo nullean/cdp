@@ -85,6 +85,9 @@ public sealed record SetCommand(string Setting, int Width = 0, int Height = 0, s
 	/// <summary>For <c>set offline</c>: on, off, or <c>null</c> to toggle.</summary>
 	public bool? Offline { get; init; }
 
+	/// <summary>The user agent for <c>set useragent</c>.</summary>
+	public string? UserAgent { get; init; }
+
 	/// <summary>The headers for <c>set headers</c>, as JSON text.</summary>
 	public string? Headers { get; init; }
 
@@ -488,7 +491,7 @@ public sealed partial class Journey
 
 	private static SetCommand ParseSet(string[] rest)
 	{
-		const string all = "set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | credentials <user> <password>";
+		const string all = "set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | useragent <ua> | credentials <user> <password>";
 		switch (rest)
 		{
 			case ["viewport", var width, var height, .. var scale] when scale.Length <= 1:
@@ -523,11 +526,13 @@ public sealed partial class Journey
 				return new SetCommand("offline") { Offline = rest[1] == "on" };
 			case ["headers", var json]:
 				return ValidHeaders(json) ? new SetCommand("headers") { Headers = json } : throw new JourneySyntaxException("set headers needs a JSON object of string values, e.g. '{\"x-test\": \"1\"}'");
+			case ["useragent", var userAgent] when userAgent.Length > 0:
+				return new SetCommand("useragent") { UserAgent = userAgent };
 			case ["credentials", var user, var password]:
 				return JourneySecrets.IsReference(password)
 					? new SetCommand("credentials") { User = Value(user), Password = password }
 					: throw new JourneySyntaxException("set credentials needs a secret reference for the password ($env:NAME), not a literal");
-			case [var other, ..] when other is not ("viewport" or "media" or "device" or "geo" or "offline" or "headers" or "credentials"):
+			case [var other, ..] when other is not ("viewport" or "media" or "device" or "geo" or "offline" or "headers" or "useragent" or "credentials"):
 				throw new JourneySyntaxException($"set {other} is not supported in journeys: {all}");
 			default:
 				throw Usage(all);
@@ -793,7 +798,7 @@ public sealed partial class Journey
 			foreach (var step in Steps)
 			{
 				// timings, metrics and links are not agent-browser commands; vitals is, without our budgets.
-				if (step.Command is PerformanceCommand { Kind: not "vitals" } or LinksCommand or ExpectCommand or ExpectRequestCommand or ExpectSameDocumentCommand)
+				if (step.Command is PerformanceCommand { Kind: not "vitals" } or LinksCommand or ExpectCommand or ExpectRequestCommand or ExpectSameDocumentCommand or SetCommand { Setting: "useragent" })
 					continue;
 				json.WriteStartArray();
 				if (step.Command is PerformanceCommand)

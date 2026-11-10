@@ -99,6 +99,7 @@ public sealed partial class Journey
 				if (c.Offline is { } offline)
 					json.WriteBoolean("offline", offline);
 				WriteOptional(json, "headers", c.Headers);
+				WriteOptional(json, "userAgent", c.UserAgent);
 				WriteOptional(json, "user", c.User);
 				WriteOptional(json, "password", c.Password);
 				break;

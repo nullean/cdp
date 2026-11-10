@@ -515,6 +515,16 @@ export class JourneyRun {
         await context.setOffline(this.offline);
         break;
       case 'headers': await context.setExtraHTTPHeaders(JSON.parse(c.headers!) as Record<string, string>); break;
+      case 'useragent':
+        // Playwright fixes the user agent when the context is created; Chromium's own override changes it for the page,
+        // header and navigator.userAgent both.
+        try {
+          const session = await context.newCDPSession(this.page);
+          await session.send('Emulation.setUserAgentOverride', { userAgent: c.userAgent! });
+        } catch {
+          throw new StepError('set useragent needs Chromium: set userAgent in the Playwright config for other browsers.');
+        }
+        break;
       case 'credentials':
         throw new StepError('set credentials is not supported by the Playwright runner: set httpCredentials in the Playwright config (an extra header would be sent to every host).');
       default: await this.page.emulateMedia({ colorScheme: c.scheme as 'dark' | 'light' });
