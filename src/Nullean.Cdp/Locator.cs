@@ -108,6 +108,27 @@ public sealed partial class Locator
 		}
 		""";
 
+	// Runs with `this` the element to click: what the browser would deliver a click at (x, y) to, and whether that is
+	// the element (or something inside it, or the label of a control that is it). Goes into shadow roots, as a click
+	// does. pointer-events: none is skipped by elementFromPoint, as it is by a click. Locators find elements of the
+	// top document only, so there are no iframe offsets to subtract.
+	private const string HitFunction = """
+		function(x, y) {
+			let hit = this.ownerDocument.elementFromPoint(x, y);
+			while (hit && hit.shadowRoot) {
+				const inner = hit.shadowRoot.elementFromPoint(x, y);
+				if (!inner || inner === hit) break;
+				hit = inner;
+			}
+			if (!hit) return null;
+			for (let n = hit; n; n = n.parentNode || n.host) if (n === this) return true;
+			const label = hit.closest && hit.closest('label');
+			if (label && label.control === this) return true;
+			const classes = (hit.getAttribute('class') || '').split(/\s+/).filter(Boolean).slice(0, 2).map(c => '.' + c).join('');
+			return hit.tagName.toLowerCase() + (hit.id ? '#' + hit.id : '') + classes;
+		}
+		""";
+
 	private readonly Page _page;
 
 	// The object handles one locator holds, released after each action. A group per locator, so two locators acting on
@@ -226,7 +247,7 @@ public sealed partial class Locator
 	public Task ScrollByAsync(double deltaX, double deltaY, CancellationToken cancellationToken = default) =>
 		UsingAsync(LocatorState.Visible, async element =>
 		{
-			var (x, y) = await ClickPointAsync(element, cancellationToken).ConfigureAwait(false);
+			var (x, y) = await PointOfAsync(element, cancellationToken).ConfigureAwait(false);
 			await _page.Mouse.WheelAsync(x, y, deltaX, deltaY, cancellationToken).ConfigureAwait(false);
 		}, cancellationToken);
 
@@ -246,11 +267,12 @@ public sealed partial class Locator
 		}, cancellationToken);
 	}
 
-	// The centre of this locator's element, scrolled into view; for being the other end of a drag.
+	// The centre of this locator's element, scrolled into view; for being the other end of a drag. Nothing is pressed
+	// there, so what covers it does not matter.
 	private async Task<(double X, double Y)> PointAsync(CancellationToken cancellationToken)
 	{
 		(double, double) point = default;
-		await UsingAsync(LocatorState.Visible, async element => point = await ClickPointAsync(element, cancellationToken).ConfigureAwait(false),
+		await UsingAsync(LocatorState.Visible, async element => point = await PointOfAsync(element, cancellationToken).ConfigureAwait(false),
 			cancellationToken).ConfigureAwait(false);
 		return point;
 	}
@@ -678,7 +700,42 @@ public sealed partial class Locator
 	private async Task FocusAsync(string objectId, CancellationToken cancellationToken) =>
 		await _page.SendAsync("DOM.focus", w => w.WriteString("objectId", objectId), cancellationToken).ConfigureAwait(false);
 
+	// The point a click would press, once nothing else would receive it: a cover (a modal, a banner), or a point off the
+	// screen or clipped, is waited out like any other state, and reported with what is in the way when it does not go.
 	private async Task<(double X, double Y)> ClickPointAsync(string objectId, CancellationToken cancellationToken)
+	{
+		var timeout = _page.ActionTimeout;
+		var started = System.Diagnostics.Stopwatch.StartNew();
+		while (true)
+		{
+			var (x, y) = await PointOfAsync(objectId, cancellationToken).ConfigureAwait(false);
+			var hit = await CallAsync(objectId, HitFunction, w =>
+			{
+				w.WriteStartObject();
+				w.WriteNumber("value", x);
+				w.WriteEndObject();
+				w.WriteStartObject();
+				w.WriteNumber("value", y);
+				w.WriteEndObject();
+			}, cancellationToken).ConfigureAwait(false);
+			if (hit.ValueKind == JsonValueKind.True)
+				return (x, y);
+			if (started.Elapsed >= timeout)
+			{
+				var point = $"({x.ToString("0.#", CultureInfo.InvariantCulture)}, {y.ToString("0.#", CultureInfo.InvariantCulture)})";
+				var cause = hit.ValueKind == JsonValueKind.String
+					? $"<{hit.GetString()}> would receive it instead"
+					: "nothing is there: it is outside the viewport or clipped";
+				throw new LocatorTimeoutException(
+					$"Timed out after {timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s waiting for {this} to receive a click at {point}: {cause}.");
+			}
+
+			await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+		}
+	}
+
+	// The centre of the element, scrolled into view.
+	private async Task<(double X, double Y)> PointOfAsync(string objectId, CancellationToken cancellationToken)
 	{
 		await _page.SendAsync("DOM.scrollIntoViewIfNeeded", w => w.WriteString("objectId", objectId), cancellationToken).ConfigureAwait(false);
 		var quads = await _page.SendAsync("DOM.getContentQuads", w => w.WriteString("objectId", objectId), cancellationToken).ConfigureAwait(false);

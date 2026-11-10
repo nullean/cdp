@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Covered</title>
+<link rel="icon" href="data:,">
+<style>
+  body { margin: 0; }
+  .row { position: relative; height: 80px; }
+  .cover { position: absolute; inset: 0; background: rgba(0, 0, 0, .5); }
+  .passthrough { pointer-events: none; }
+  #offscreen { position: fixed; left: -5000px; top: 10px; }
+  label.switch { position: relative; display: inline-block; width: 60px; height: 30px; background: #ccc; }
+  label.switch input { position: absolute; inset: 0; opacity: 0; }
+  label.switch span { position: absolute; inset: 0; }
+</style>
+<p id="log">nothing</p>
+<div class="row"><button onclick="log.textContent = 'clicked open'">Open</button></div>
+<div class="row"><button onclick="log.textContent = 'clicked covered'">Covered</button><div class="cover modal" id="curtain"></div></div>
+<div class="row"><button onclick="log.textContent = 'clicked later'">Cleared later</button><div class="cover banner" id="banner"></div></div>
+<div class="row"><button onclick="log.textContent = 'clicked through'">Through</button><div class="cover passthrough"></div></div>
+<div class="row"><button id="offscreen" onclick="log.textContent = 'clicked offscreen'">Offscreen</button></div>
+<div class="row"><label class="switch"><input type="checkbox" id="toggle" onchange="log.textContent = 'toggled ' + this.checked"><span></span></label></div>
+<div class="row"><button onclick="log.textContent = 'clicked inner'"><span id="inner">Inner span</span></button></div>
+<script>setTimeout(() => document.getElementById('banner').remove(), 600);</script>

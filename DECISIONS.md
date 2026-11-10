@@ -573,4 +573,16 @@ published by hand by the owner.
 - **No allow-list option was added**: `AllowedHosts` already is the run-level default.
 - **A click that hits nothing is not this change**: at the phone viewport `find role link click` completed with no effect.
   The default viewport is the fix for that site; a click that reports it missed its target is separate.
+## A click that cannot land fails
+
+- **Pointer actions hit-test their point.** Chrome delivers `Input.dispatchMouseEvent` to whatever is at the point, so a
+  click on a covered or off-screen element "succeeds" and does nothing, and the failure shows at a later step that
+  times out far from the cause. `click`, `dblclick`, `hover`, `check`, `uncheck` and the source of `drag` check
+  `elementFromPoint` at the point first (into shadow roots, like a click). Scrolling and the target of a drag press
+  nothing, so they do not.
+- **It waits, as Playwright's "receives events" does**, because covers are often transient (a banner fading out); the
+  step fails with the element that would receive the click, or "nothing is there" off the screen or clipped.
+- **Accepted as a hit:** the element, anything inside it, or a `<label>` whose control is the element (a custom switch
+  hides its input under the label). `pointer-events: none` is skipped by the browser, so the element under it counts.
+- **No `force` option.** A journey that must click a covered element is describing something a user cannot do.
 
