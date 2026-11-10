@@ -182,6 +182,11 @@ Every agent-browser command that acts on or reads the page in a repeatable way i
 - **`set offline`** without on|off toggles, as agent-browser's does; the runner tracks the state from a journey's start.
 - **`set device`** knows twelve devices by their Playwright names, with representative sizes and user agents, not
   Playwright's full catalogue.
+- **`set useragent <ua>`** is ours, not agent-browser's (which sets a user agent only at launch, `--user-agent`), so the batch
+  export leaves it out like `expect`. It is `Emulation.setUserAgentOverride`, which changes the `User-Agent` header and
+  `navigator.userAgent` together; `set headers` alone would leave the second, which is what a page reads to switch features
+  (the telemetry SDK turns itself off for `Elastic/Synthetics`). On Playwright it goes through a DevTools session, so
+  Chromium only. The value is literal: no secret references.
 - **`wait --load`** reads the main frame's lifecycle events for the current document (`load`, `DOMContentLoaded`,
   `networkIdle`); a new document clears them. `wait --url` takes a glob: `**` anything, `*` anything but `/`.
 - **HTML drag and drop** needs the mouse moves to report the left button held; Chrome then hands the drag over

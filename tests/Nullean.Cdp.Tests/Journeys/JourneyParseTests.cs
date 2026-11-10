@@ -59,6 +59,7 @@ public class JourneyParseTests
 		One("set offline").Should().Be(new SetCommand("offline"));
 		One("set offline off").Should().Be(new SetCommand("offline") { Offline = false });
 		One("set headers '{\"x-test\": \"1\"}'").Should().Be(new SetCommand("headers") { Headers = "{\"x-test\": \"1\"}" });
+		One("set useragent \"Mozilla/5.0 test-marker\"").Should().Be(new SetCommand("useragent") { UserAgent = "Mozilla/5.0 test-marker" });
 		One("set credentials admin $env:PW").Should().Be(new SetCommand("credentials") { User = "admin", Password = "$env:PW" });
 		One("snapshot -u -c").Should().Be(new SnapshotCommand(new AxSnapshotOptions { Urls = true, Compact = true }));
 		One("get box #a").Should().Be(new ReadCommand("box", css("#a")));
@@ -187,7 +188,7 @@ public class JourneyParseTests
 	[Arguments("set geo 91 0", "usage: set geo <latitude> <longitude>")]
 	[Arguments("set headers [1]", "set headers needs a JSON object of string values, e.g. '{\"x-test\": \"1\"}'")]
 	[Arguments("set credentials admin hunter22", "set credentials needs a secret reference for the password ($env:NAME), not a literal")]
-	[Arguments("set cookie x", "set cookie is not supported in journeys: set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | credentials <user> <password>")]
+	[Arguments("set cookie x", "set cookie is not supported in journeys: set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | useragent <ua> | credentials <user> <password>")]
 	[Arguments("upload #f ../secret.txt", "'../secret.txt' must be a path inside the journey's folder, relative to it.")]
 	[Arguments("upload #f /etc/passwd", "'/etc/passwd' must be a path inside the journey's folder, relative to it.")]
 	[Arguments("scroll sideways", "usage: scroll [up|down|left|right] [pixels] [-s <selector>]")]

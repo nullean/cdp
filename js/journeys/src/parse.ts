@@ -282,7 +282,7 @@ function parseWait(rest: string[]): Command {
 
 function parseSet(rest: string[]): Command {
   const all =
-    'set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | credentials <user> <password>';
+    'set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | useragent <ua> | credentials <user> <password>';
   const viewportUsage = 'set viewport <width> <height> [scale]';
   const [what, ...args] = rest;
   switch (what) {
@@ -329,6 +329,9 @@ function parseSet(rest: string[]): Command {
         if (validHeaders(args[0])) return { type: 'set', setting: 'headers', headers: args[0] };
         throw fail('set headers needs a JSON object of string values, e.g. \'{"x-test": "1"}\'');
       }
+      throw usage(all);
+    case 'useragent':
+      if (args.length === 1 && args[0].length > 0) return { type: 'set', setting: 'useragent', userAgent: args[0] };
       throw usage(all);
     case 'credentials':
       if (args.length === 2) {
