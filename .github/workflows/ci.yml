@@ -106,7 +106,7 @@ jobs:
 
       - name: Upload the library packages
         if: github.event_name != 'pull_request' && matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nupkg-libraries
           path: .artifacts/package-output/*.nupkg
@@ -155,7 +155,7 @@ jobs:
           [[ -n "$BINARY" ]] || { echo "no native binary found"; exit 1; }
           ls -la "$BINARY"
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nupkg-cli-${{ matrix.rid }}
           path: .artifacts/package-output/*.nupkg
@@ -195,7 +195,7 @@ jobs:
             esac
           done
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nupkg-cli-root
           path: .artifacts/package-output/*.nupkg
@@ -227,7 +227,7 @@ jobs:
         env:
           MISE_JOBS: "1" # dotnet versions share one DOTNET_ROOT; installing them in parallel races
 
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: nupkg-cli-*
           path: ${{ runner.temp }}/feed
@@ -278,7 +278,7 @@ jobs:
         env:
           MISE_JOBS: "1"
 
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: nupkg-*
           path: packages
