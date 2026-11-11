@@ -26,13 +26,17 @@ jobs:
         working-directory: js/journeys
 
     steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: js/journeys/package-lock.json
+          persist-credentials: false
+
+      # Node comes from mise.toml, as it does locally; this job needs nothing else from it.
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+        with:
+          install_args: node
+          cache: false # this workflow publishes what its jobs build; never restore a cache a PR could have written
+        env:
+          MISE_JOBS: "1"
 
       - run: npm ci
       - run: npm run typecheck
@@ -61,17 +65,20 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       # MinVer derives the version from tags, so the full tag list must be present.
       - run: git fetch --prune --tags
         shell: bash
 
-      - uses: actions/setup-dotnet@v5
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
-          global-json-file: global.json
+          cache: false # this workflow publishes what these jobs build; never restore a cache a PR could have written
+        env:
+          MISE_JOBS: "1" # dotnet versions share one DOTNET_ROOT; installing them in parallel races
 
       - name: Build
         run: dotnet build -c Release
@@ -97,7 +104,7 @@ jobs:
 
       - name: Upload the library packages
         if: github.event_name != 'pull_request' && matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: nupkg-libraries
           path: .artifacts/package-output/*.nupkg
@@ -120,16 +127,19 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - run: git fetch --prune --tags
         shell: bash
 
-      - uses: actions/setup-dotnet@v5
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
-          global-json-file: global.json
+          cache: false # this workflow publishes what these jobs build; never restore a cache a PR could have written
+        env:
+          MISE_JOBS: "1" # dotnet versions share one DOTNET_ROOT; installing them in parallel races
 
       - name: Pack the native tool for ${{ matrix.rid }}
         run: dotnet pack src/Nullean.Cdp.Cli -c Release -r ${{ matrix.rid }} -o .artifacts/package-output
@@ -143,7 +153,7 @@ jobs:
           [[ -n "$BINARY" ]] || { echo "no native binary found"; exit 1; }
           ls -la "$BINARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: nupkg-cli-${{ matrix.rid }}
           path: .artifacts/package-output/*.nupkg
@@ -158,15 +168,18 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - run: git fetch --prune --tags
 
-      - uses: actions/setup-dotnet@v5
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
-          global-json-file: global.json
+          cache: false # this workflow publishes what these jobs build; never restore a cache a PR could have written
+        env:
+          MISE_JOBS: "1" # dotnet versions share one DOTNET_ROOT; installing them in parallel races
 
       - name: Pack
         run: |
@@ -180,7 +193,7 @@ jobs:
             esac
           done
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: nupkg-cli-root
           path: .artifacts/package-output/*.nupkg
@@ -198,18 +211,21 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - run: git fetch --prune --tags
         shell: bash
 
-      - uses: actions/setup-dotnet@v5
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
-          global-json-file: global.json
+          cache: false # this workflow publishes what these jobs build; never restore a cache a PR could have written
+        env:
+          MISE_JOBS: "1" # dotnet versions share one DOTNET_ROOT; installing them in parallel races
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: nupkg-cli-*
           path: ${{ runner.temp }}/feed
@@ -226,6 +242,7 @@ jobs:
           if [[ "$RUNNER_OS" == "Windows" ]]; then temp="$(cygpath -u "$RUNNER_TEMP")"; cdp="cdp.cmd"; fi
           feed="$temp/feed"
           ls "$feed"
+          # shellcheck disable=SC2012 # package file names are plain ASCII
           root="$(ls "$feed" | sed -n 's/^Nullean\.Cdp\.Cli\.\([0-9][^/]*\)\.nupkg$/\1/p')"
           [ -n "$root" ] || { echo "no root package in the feed"; exit 1; }
           echo "version $root"
@@ -249,11 +266,17 @@ jobs:
       id-token: write   # trusted publishing: exchange the workflow's OIDC token for a short-lived key
 
     steps:
-      - uses: actions/setup-dotnet@v5
+      # No checkout here, so no mise.toml: the action writes one with the SDK the push needs.
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
-          dotnet-version: 10.0.x
+          cache: false # a release never restores a cache PR builds could have written
+          mise_toml: |
+            [tools]
+            dotnet = "10"
+        env:
+          MISE_JOBS: "1"
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           pattern: nupkg-*
           path: packages
@@ -273,7 +296,7 @@ jobs:
 
       - name: Log in to nuget.org (trusted publishing)
         id: nuget-login
-        uses: NuGet/login@v1
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
         with:
           user: ${{ secrets.NUGET_USER }}
 
@@ -323,12 +346,16 @@ jobs:
         working-directory: js/journeys
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v7
+      # Kept on setup-node: its registry-url writes the .npmrc that npm's trusted publishing is set up against.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+          package-manager-cache: false # never restore a cache into a publishing job
 
       # Trusted publishing needs npm 11.5.1 or later.
       - name: Check npm supports trusted publishing
@@ -363,3 +390,9 @@ jobs:
           case "$GITHUB_REF_NAME" in *-*) tag=next ;; esac
           # Provenance is automatic with trusted publishing from a public repository.
           npm publish --access public --tag "$tag"
+
+  # Static analysis of these workflows (nullean/.github).
+  zizmor:
+    uses: nullean/.github/.github/workflows/zizmor.yml@83ef343759c443afe1964e9c33327527f8677b05 # v1.3.0
+    permissions:
+      contents: read

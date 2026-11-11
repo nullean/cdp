@@ -1,0 +1,62 @@
+# Bootstraps the toolchain and is the one entry point: `mise run <task>`, the same task names in every nullean repo.
+# The .NET SDK version lives only in global.json: the first dotnet entry reads it from there (sdk.version is the first
+# "version" key). The net10.0 runtime is listed after it because every project and test targets net10.0. Node is the
+# version CI builds and tests @nullean/journeys (js/journeys) with.
+#
+# The tasks run the commands CI runs; there is no build project. Browser tests need a local Chrome: without one they
+# skip (CI sets CDP_BROWSER_REQUIRED=1 on Linux so they fail instead).
+
+[env]
+DOTNET_NOLOGO = "1"
+DOTNET_CLI_TELEMETRY_OPTOUT = "1"
+DOTNET_SKIP_FIRST_TIME_EXPERIENCE = "1"
+
+[tools]
+dotnet = ["""{{ read_file(path='global.json') | split(pat='"version"') | nth(n=1) | split(pat='"') | nth(n=1) }}""", "10"]
+node = "24"
+gh = "latest"
+zizmor = "1"
+
+[tasks.build]
+description = "Build the solution"
+run = "dotnet build -c Release"
+
+[tasks.test]
+description = "Build, then run the tests"
+run = ["dotnet build -c Release", "dotnet test -c Release --no-build"]
+
+[tasks.check]
+description = "Fail on workflow findings (zizmor)"
+run = "zizmor --min-severity medium ."
+
+[tasks.pack]
+description = "Build and pack the libraries, as CI's build job does (the CLI is a native AOT tool CI packs per RID)"
+run = [
+  "dotnet build -c Release",
+  '''
+  for project in src/*/*.csproj; do
+    case "$project" in *Nullean.Cdp.Cli*) continue ;; esac
+    dotnet pack "$project" -c Release --no-build -o .artifacts/package-output
+  done
+  ls .artifacts/package-output
+  ''',
+]
+
+[tasks.docs]
+description = "Build the documentation and serve it locally (needs docs-builder; see scripts/docs.sh)"
+run = "scripts/docs.sh"
+
+[tasks.ci]
+description = "What CI runs on every push: the build job (build, test, pack the libraries) and the journeys-js job"
+run = [
+  "dotnet build -c Release",
+  "dotnet test -c Release --no-build",
+  '''
+  for project in src/*/*.csproj; do
+    case "$project" in *Nullean.Cdp.Cli*) continue ;; esac
+    dotnet pack "$project" -c Release --no-build -o .artifacts/package-output
+  done
+  ls .artifacts/package-output
+  ''',
+  "cd js/journeys && npm ci && npm run typecheck && npm run build && npm pack --dry-run && npm test && npm run test:live",
+]

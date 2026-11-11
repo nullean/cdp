@@ -28,7 +28,7 @@ public static class AccessibilityAudit
 	private static readonly Rule OneMain = new("landmark-one-main", "moderate", "A page has exactly one main landmark");
 
 	private static readonly HashSet<string> FieldRoles =
-		new(StringComparer.Ordinal) { "textbox", "searchbox", "combobox", "listbox", "checkbox", "radio", "slider", "spinbutton", "switch" };
+		[with(StringComparer.Ordinal), "textbox", "searchbox", "combobox", "listbox", "checkbox", "radio", "slider", "spinbutton", "switch"];
 
 	// Document, ARIA, id and contrast rules, on the DOM. Each finding: [rule, impact, help, node description].
 	private const string DomRules = """

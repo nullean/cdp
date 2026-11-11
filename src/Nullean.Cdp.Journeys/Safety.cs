@@ -73,7 +73,7 @@ public sealed partial class JourneySecrets
 	public const int MinimumLength = 4;
 
 	private readonly Func<string, string?> _resolve;
-	private readonly Dictionary<string, string> _values = new(StringComparer.Ordinal);
+	private readonly Dictionary<string, string> _values = [with(StringComparer.Ordinal)];
 
 	internal JourneySecrets(Func<string, string?> resolve) => _resolve = resolve;
 
