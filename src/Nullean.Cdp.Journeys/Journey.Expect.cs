@@ -16,14 +16,23 @@ public sealed record ExpectCommand(Matcher Matcher, JourneyTarget? Target, Expec
 /// the URL glob and every filter (the ones <c>network requests</c> takes, plus the request body's size and text). With
 /// <c>--not</c>, no request does, and none matching the URL is still in flight. Like every <c>expect</c> it records nothing.
 /// </summary>
-public sealed record ExpectRequestCommand(string Url, ExpectOptions Options, string? Method = null, IReadOnlyList<string>? Types = null,
-	string? Status = null, bool Failed = false, long? LargerThan = null, string? BodyContains = null, string? BodyRegex = null) : JourneyCommand
+public sealed record ExpectRequestCommand(
+	string Url,
+	ExpectOptions Options,
+	string? Method = null,
+	IReadOnlyList<string>? Types = null,
+	string? Status = null,
+	bool Failed = false,
+	long? LargerThan = null,
+	string? BodyContains = null,
+	string? BodyRegex = null
+) : JourneyCommand
 {
 	/// <inheritdoc />
 	public bool Equals(ExpectRequestCommand? other) =>
-		other is not null && Url == other.Url && Options == other.Options && Method == other.Method
-		&& (Types ?? []).SequenceEqual(other.Types ?? []) && Status == other.Status && Failed == other.Failed
-		&& LargerThan == other.LargerThan && BodyContains == other.BodyContains && BodyRegex == other.BodyRegex;
+		other is not null && Url == other.Url && Options == other.Options && Method == other.Method && (Types ?? []).SequenceEqual(
+			other.Types ?? []
+		) && Status == other.Status && Failed == other.Failed && LargerThan == other.LargerThan && BodyContains == other.BodyContains && BodyRegex == other.BodyRegex;
 
 	/// <inheritdoc />
 	public override int GetHashCode() => HashCode.Combine(Url, Options, Method, Status, Failed, LargerThan, BodyContains, BodyRegex);
@@ -38,11 +47,10 @@ public sealed record ExpectSameDocumentCommand(ExpectOptions Options) : JourneyC
 
 public sealed partial class Journey
 {
-	private const string ExpectUsage =
-		"expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target>"
-		+ " | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob>"
-		+ " [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact];"
-		+ " about the page: request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>] | same-document";
+	private const string ExpectUsage = "expect [--not] [--timeout <ms>] visible|hidden|enabled|disabled|checked|unchecked|focused|editable|attached|empty <target>" +
+		" | text|value|class <target> <text> | attr <target> <name> [<text>] | count <target> <n> | title <text> | url <glob>" +
+		" [--contains] [--regex] [--ignore-case] [--inner-text]; <target> is a selector or find <kind> <value> [--name <name>] [--exact];" +
+		" about the page: request <url glob> [--method <m>] [--type <types>] [--status <code>] [--failed] [--larger-than <size>] [--body-contains <text>] [--body-regex <pattern>] | same-document";
 
 	private static JourneyCommand ParseExpect(string[] rest)
 	{
@@ -198,13 +206,17 @@ public sealed partial class Journey
 			}
 		}
 
-		return new ExpectCommand(matcher, target, new ExpectOptions
-		{
-			Negate = negate,
-			IgnoreCase = ignoreCase,
-			UseInnerText = innerText,
-			Timeout = timeoutMs is { } t ? TimeSpan.FromMilliseconds(t) : null,
-		});
+		return new ExpectCommand(
+			matcher,
+			target,
+			new ExpectOptions
+			{
+				Negate = negate,
+				IgnoreCase = ignoreCase,
+				UseInnerText = innerText,
+				Timeout = timeoutMs is { } t ? TimeSpan.FromMilliseconds(t) : null,
+			}
+		);
 	}
 
 	// The matcher word: the first argument that is not --not or --timeout and its number.
@@ -298,8 +310,17 @@ public sealed partial class Journey
 			}
 		}
 
-		return new ExpectRequestCommand(url, new ExpectOptions { Negate = negate, Timeout = timeoutMs is { } t ? TimeSpan.FromMilliseconds(t) : null },
-			method, types, status, failed, larger, contains, regex);
+		return new ExpectRequestCommand(
+			url,
+			new ExpectOptions { Negate = negate, Timeout = timeoutMs is { } t ? TimeSpan.FromMilliseconds(t) : null },
+			method,
+			types,
+			status,
+			failed,
+			larger,
+			contains,
+			regex
+		);
 	}
 
 	// A size in bytes: 2048, 32kb, 1.5mb (1 kb is 1024 bytes).

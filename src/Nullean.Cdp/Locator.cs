@@ -64,7 +64,8 @@ public sealed partial class Locator
 	private static long GroupCounter;
 
 	// Finds elements for every kind but Role, in document order. Runs with `this` bound to the document.
-	private const string FindFunction = """
+	private const string FindFunction =
+		"""
 		function(kind, value, exact) {
 			const norm = s => (s || '').replace(/\s+/g, ' ').trim();
 			const want = exact ? value : norm(value).toLowerCase();
@@ -98,7 +99,8 @@ public sealed partial class Locator
 		}
 		""";
 
-	private const string StateFunction = """
+	private const string StateFunction =
+		"""
 		function() {
 			const box = this.getBoundingClientRect();
 			const style = getComputedStyle(this);
@@ -112,7 +114,8 @@ public sealed partial class Locator
 	// the element (or something inside it, or the label of a control that is it). Goes into shadow roots, as a click
 	// does. pointer-events: none is skipped by elementFromPoint, as it is by a click. Locators find elements of the
 	// top document only, so there are no iframe offsets to subtract.
-	private const string HitFunction = """
+	private const string HitFunction =
+		"""
 		function(x, y) {
 			let hit = this.ownerDocument.elementFromPoint(x, y);
 			while (hit && hit.shadowRoot) {
@@ -186,9 +189,10 @@ public sealed partial class Locator
 			text.Append(" --exact");
 		return text.ToString();
 
-		static string Quote(string s) => s.Length > 0 && s.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '#' or '.')
-			? s
-			: "\"" + s.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
+		static string Quote(string s) =>
+			s.Length > 0 && s.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '#' or '.')
+				? s
+				: "\"" + s.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
 	}
 
 	/// <summary>How many elements match now, without waiting.</summary>
@@ -219,19 +223,27 @@ public sealed partial class Locator
 
 	/// <summary>Scrolls the element into view and clicks its centre, then waits for any navigation it starts.</summary>
 	public Task ClickAsync(CancellationToken cancellationToken = default) =>
-		UsingAsync(LocatorState.Actionable, async element =>
-		{
-			var (x, y) = await ClickPointAsync(element, cancellationToken).ConfigureAwait(false);
-			await _page.WithNavigationAsync(() => _page.Mouse.ClickAsync(x, y, cancellationToken), cancellationToken).ConfigureAwait(false);
-		}, cancellationToken);
+		UsingAsync(
+			LocatorState.Actionable,
+			async element =>
+			{
+				var (x, y) = await ClickPointAsync(element, cancellationToken).ConfigureAwait(false);
+				await _page.WithNavigationAsync(() => _page.Mouse.ClickAsync(x, y, cancellationToken), cancellationToken).ConfigureAwait(false);
+			},
+			cancellationToken
+		);
 
 	/// <summary>Double-clicks the element's centre, then waits for any navigation it starts.</summary>
 	public Task DoubleClickAsync(CancellationToken cancellationToken = default) =>
-		UsingAsync(LocatorState.Actionable, async element =>
-		{
-			var (x, y) = await ClickPointAsync(element, cancellationToken).ConfigureAwait(false);
-			await _page.WithNavigationAsync(() => _page.Mouse.DoubleClickAsync(x, y, cancellationToken), cancellationToken).ConfigureAwait(false);
-		}, cancellationToken);
+		UsingAsync(
+			LocatorState.Actionable,
+			async element =>
+			{
+				var (x, y) = await ClickPointAsync(element, cancellationToken).ConfigureAwait(false);
+				await _page.WithNavigationAsync(() => _page.Mouse.DoubleClickAsync(x, y, cancellationToken), cancellationToken).ConfigureAwait(false);
+			},
+			cancellationToken
+		);
 
 	/// <summary>Gives the element keyboard focus.</summary>
 	public Task FocusAsync(CancellationToken cancellationToken = default) =>
@@ -239,17 +251,25 @@ public sealed partial class Locator
 
 	/// <summary>Scrolls until the element is in the viewport.</summary>
 	public Task ScrollIntoViewAsync(CancellationToken cancellationToken = default) =>
-		UsingAsync(LocatorState.Attached, async element =>
-			await _page.SendAsync("DOM.scrollIntoViewIfNeeded", w => w.WriteString("objectId", element), cancellationToken).ConfigureAwait(false),
-			cancellationToken);
+		UsingAsync(
+			LocatorState.Attached,
+			async element => await _page.SendAsync("DOM.scrollIntoViewIfNeeded", w => w.WriteString("objectId", element), cancellationToken).ConfigureAwait(
+				false
+			),
+			cancellationToken
+		);
 
 	/// <summary>Scrolls the element itself (a scrollable container) by a number of pixels.</summary>
 	public Task ScrollByAsync(double deltaX, double deltaY, CancellationToken cancellationToken = default) =>
-		UsingAsync(LocatorState.Visible, async element =>
-		{
-			var (x, y) = await PointOfAsync(element, cancellationToken).ConfigureAwait(false);
-			await _page.Mouse.WheelAsync(x, y, deltaX, deltaY, cancellationToken).ConfigureAwait(false);
-		}, cancellationToken);
+		UsingAsync(
+			LocatorState.Visible,
+			async element =>
+			{
+				var (x, y) = await PointOfAsync(element, cancellationToken).ConfigureAwait(false);
+				await _page.Mouse.WheelAsync(x, y, deltaX, deltaY, cancellationToken).ConfigureAwait(false);
+			},
+			cancellationToken
+		);
 
 	/// <summary>
 	/// Drags the element onto <paramref name="target"/>: the mouse goes down on its centre, moves to the target's and
@@ -259,12 +279,16 @@ public sealed partial class Locator
 	public Task DragToAsync(Locator target, CancellationToken cancellationToken = default)
 	{
 		ArgumentNullException.ThrowIfNull(target);
-		return UsingAsync(LocatorState.Actionable, async source =>
-		{
-			var from = await ClickPointAsync(source, cancellationToken).ConfigureAwait(false);
-			var to = await target.PointAsync(cancellationToken).ConfigureAwait(false);
-			await _page.Mouse.DragAsync(from, to, cancellationToken).ConfigureAwait(false);
-		}, cancellationToken);
+		return UsingAsync(
+			LocatorState.Actionable,
+			async source =>
+			{
+				var from = await ClickPointAsync(source, cancellationToken).ConfigureAwait(false);
+				var to = await target.PointAsync(cancellationToken).ConfigureAwait(false);
+				await _page.Mouse.DragAsync(from, to, cancellationToken).ConfigureAwait(false);
+			},
+			cancellationToken
+		);
 	}
 
 	// The centre of this locator's element, scrolled into view; for being the other end of a drag. Nothing is pressed
@@ -272,8 +296,11 @@ public sealed partial class Locator
 	private async Task<(double X, double Y)> PointAsync(CancellationToken cancellationToken)
 	{
 		(double, double) point = default;
-		await UsingAsync(LocatorState.Visible, async element => point = await PointOfAsync(element, cancellationToken).ConfigureAwait(false),
-			cancellationToken).ConfigureAwait(false);
+		await UsingAsync(
+			LocatorState.Visible,
+			async element => point = await PointOfAsync(element, cancellationToken).ConfigureAwait(false),
+			cancellationToken
+		).ConfigureAwait(false);
 		return point;
 	}
 
@@ -281,69 +308,108 @@ public sealed partial class Locator
 	public Task UploadAsync(IReadOnlyList<string> files, CancellationToken cancellationToken = default)
 	{
 		ArgumentNullException.ThrowIfNull(files);
-		return UsingAsync(LocatorState.Attached, async element =>
-		{
-			var isFileInput = await CallAsync(element, "function() { return this.tagName === 'INPUT' && this.type === 'file'; }", null, cancellationToken)
-				.ConfigureAwait(false);
-			if (isFileInput.ValueKind != JsonValueKind.True)
-				throw new LocatorException($"Cannot upload to {this}: the element is not a file input.");
-			await _page.SendAsync("DOM.setFileInputFiles", w =>
+		return UsingAsync(
+			LocatorState.Attached,
+			async element =>
 			{
-				w.WriteStartArray("files");
-				foreach (var file in files)
-					w.WriteStringValue(Path.GetFullPath(file));
-				w.WriteEndArray();
-				w.WriteString("objectId", element);
-			}, cancellationToken).ConfigureAwait(false);
-		}, cancellationToken);
+				var isFileInput = await CallAsync(
+					element,
+					"function() { return this.tagName === 'INPUT' && this.type === 'file'; }",
+					null,
+					cancellationToken
+				).ConfigureAwait(false);
+				if (isFileInput.ValueKind != JsonValueKind.True)
+					throw new LocatorException($"Cannot upload to {this}: the element is not a file input.");
+				await _page.SendAsync(
+					"DOM.setFileInputFiles",
+					w =>
+					{
+						w.WriteStartArray("files");
+						foreach (var file in files)
+							w.WriteStringValue(Path.GetFullPath(file));
+						w.WriteEndArray();
+						w.WriteString("objectId", element);
+					},
+					cancellationToken
+				).ConfigureAwait(false);
+			},
+			cancellationToken
+		);
 	}
 
 	/// <summary>The element's box in CSS pixels, as agent-browser's <c>get box</c> prints it.</summary>
 	public Task<string> BoxAsync(CancellationToken cancellationToken = default) =>
-		ReadStringAsync("""
+		ReadStringAsync(
+			"""
 			function() {
 				const r = this.getBoundingClientRect();
 				return ['x', 'y', 'width', 'height'].map(k => (k + ':').padEnd(8) + r[k]).join('\n');
 			}
-			""", cancellationToken);
+			""",
+			cancellationToken
+		);
 
 	/// <summary>A PNG of the element's box, scrolled into view first.</summary>
 	public async Task<byte[]> ScreenshotAsync(CancellationToken cancellationToken = default)
 	{
 		byte[] png = [];
-		await UsingAsync(LocatorState.Visible, async element =>
-		{
-			await _page.SendAsync("DOM.scrollIntoViewIfNeeded", w => w.WriteString("objectId", element), cancellationToken).ConfigureAwait(false);
-			var box = await CallAsync(element, "function() { const r = this.getBoundingClientRect(); return [r.x + scrollX, r.y + scrollY, r.width, r.height]; }", null, cancellationToken).ConfigureAwait(false);
-			png = await PageScreenshots.CaptureAsync(_page, (box[0].GetDouble(), box[1].GetDouble(), box[2].GetDouble(), box[3].GetDouble()), cancellationToken).ConfigureAwait(false);
-		}, cancellationToken).ConfigureAwait(false);
+		await UsingAsync(
+			LocatorState.Visible,
+			async element =>
+			{
+				await _page.SendAsync("DOM.scrollIntoViewIfNeeded", w => w.WriteString("objectId", element), cancellationToken).ConfigureAwait(false);
+				var box = await CallAsync(
+					element,
+					"function() { const r = this.getBoundingClientRect(); return [r.x + scrollX, r.y + scrollY, r.width, r.height]; }",
+					null,
+					cancellationToken
+				).ConfigureAwait(false);
+				png = await PageScreenshots.CaptureAsync(
+					_page,
+					(box[0].GetDouble(), box[1].GetDouble(), box[2].GetDouble(), box[3].GetDouble()),
+					cancellationToken
+				).ConfigureAwait(false);
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 		return png;
 	}
 
 	/// <summary>Every computed style of the element, sorted, one <c>property: value</c> per line, as agent-browser's <c>get styles</c>.</summary>
 	public Task<string> StylesAsync(CancellationToken cancellationToken = default) =>
-		ReadStringAsync("""
+		ReadStringAsync(
+			"""
 			function() {
 				const s = getComputedStyle(this);
 				return Array.from(s).sort().map(p => p + ': ' + s.getPropertyValue(p)).join('\n');
 			}
-			""", cancellationToken);
+			""",
+			cancellationToken
+		);
 
 	/// <summary>Moves the mouse over the element's centre.</summary>
 	public Task HoverAsync(CancellationToken cancellationToken = default) =>
-		UsingAsync(LocatorState.Visible, async element =>
-		{
-			var (x, y) = await ClickPointAsync(element, cancellationToken).ConfigureAwait(false);
-			await _page.Mouse.MoveAsync(x, y, cancellationToken).ConfigureAwait(false);
-		}, cancellationToken);
+		UsingAsync(
+			LocatorState.Visible,
+			async element =>
+			{
+				var (x, y) = await ClickPointAsync(element, cancellationToken).ConfigureAwait(false);
+				await _page.Mouse.MoveAsync(x, y, cancellationToken).ConfigureAwait(false);
+			},
+			cancellationToken
+		);
 
 	/// <summary>Replaces the value of an input, text area or editable element, as if typed at once.</summary>
 	public Task FillAsync(string text, CancellationToken cancellationToken = default)
 	{
 		ArgumentNullException.ThrowIfNull(text);
-		return UsingAsync(LocatorState.Actionable, async element =>
-		{
-			var editable = await CallAsync(element, """
+		return UsingAsync(
+			LocatorState.Actionable,
+			async element =>
+			{
+				var editable = await CallAsync(
+					element,
+					"""
 				function() {
 					const editable = this.isContentEditable || this.tagName === 'TEXTAREA'
 						|| (this.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit', 'reset', 'file', 'image', 'hidden', 'range', 'color'].includes(this.type));
@@ -354,36 +420,49 @@ public sealed partial class Locator
 					else this.select();
 					return true;
 				}
-				""", null, cancellationToken).ConfigureAwait(false);
-			if (editable.ValueKind == JsonValueKind.False)
-				throw new LocatorException($"Cannot fill {this}: the element is not an input, text area or editable element.");
-			if (editable.ValueKind == JsonValueKind.String)
-				throw new LocatorException($"Cannot fill {this}: the element is read-only.");
-			if (text.Length > 0)
-				await _page.SendAsync("Input.insertText", w => w.WriteString("text", text), cancellationToken).ConfigureAwait(false);
-			else
-				await _page.Keyboard.PressAsync("Delete", cancellationToken).ConfigureAwait(false);
-		}, cancellationToken);
+				""",
+					null,
+					cancellationToken
+				).ConfigureAwait(false);
+				if (editable.ValueKind == JsonValueKind.False)
+					throw new LocatorException($"Cannot fill {this}: the element is not an input, text area or editable element.");
+				if (editable.ValueKind == JsonValueKind.String)
+					throw new LocatorException($"Cannot fill {this}: the element is read-only.");
+				if (text.Length > 0)
+					await _page.SendAsync("Input.insertText", w => w.WriteString("text", text), cancellationToken).ConfigureAwait(false);
+				else
+					await _page.Keyboard.PressAsync("Delete", cancellationToken).ConfigureAwait(false);
+			},
+			cancellationToken
+		);
 	}
 
 	/// <summary>Focuses the element and types <paramref name="text"/> one key at a time.</summary>
 	public Task TypeAsync(string text, CancellationToken cancellationToken = default)
 	{
 		ArgumentNullException.ThrowIfNull(text);
-		return UsingAsync(LocatorState.Actionable, async element =>
-		{
-			await FocusAsync(element, cancellationToken).ConfigureAwait(false);
-			await _page.Keyboard.TypeAsync(text, cancellationToken).ConfigureAwait(false);
-		}, cancellationToken);
+		return UsingAsync(
+			LocatorState.Actionable,
+			async element =>
+			{
+				await FocusAsync(element, cancellationToken).ConfigureAwait(false);
+				await _page.Keyboard.TypeAsync(text, cancellationToken).ConfigureAwait(false);
+			},
+			cancellationToken
+		);
 	}
 
 	/// <summary>Focuses the element and presses <paramref name="key"/> (<c>Enter</c>, <c>Control+a</c>).</summary>
 	public Task PressAsync(string key, CancellationToken cancellationToken = default) =>
-		UsingAsync(LocatorState.Actionable, async element =>
-		{
-			await FocusAsync(element, cancellationToken).ConfigureAwait(false);
-			await _page.WithNavigationAsync(() => _page.Keyboard.PressAsync(key, cancellationToken), cancellationToken).ConfigureAwait(false);
-		}, cancellationToken);
+		UsingAsync(
+			LocatorState.Actionable,
+			async element =>
+			{
+				await FocusAsync(element, cancellationToken).ConfigureAwait(false);
+				await _page.WithNavigationAsync(() => _page.Keyboard.PressAsync(key, cancellationToken), cancellationToken).ConfigureAwait(false);
+			},
+			cancellationToken
+		);
 
 	/// <summary>Checks a checkbox or radio button by clicking it, unless it already is.</summary>
 	public Task CheckAsync(CancellationToken cancellationToken = default) => SetCheckedAsync(true, cancellationToken);
@@ -392,16 +471,26 @@ public sealed partial class Locator
 	public Task UncheckAsync(CancellationToken cancellationToken = default) => SetCheckedAsync(false, cancellationToken);
 
 	private Task SetCheckedAsync(bool check, CancellationToken cancellationToken) =>
-		UsingAsync(LocatorState.Actionable, async element =>
-		{
-			const string read = "function() { return this.getAttribute('aria-checked') === 'true' || this.checked === true; }";
-			if ((await CallAsync(element, read, null, cancellationToken).ConfigureAwait(false)).ValueKind == (check ? JsonValueKind.True : JsonValueKind.False))
-				return;
-			var (x, y) = await ClickPointAsync(element, cancellationToken).ConfigureAwait(false);
-			await _page.Mouse.ClickAsync(x, y, cancellationToken).ConfigureAwait(false);
-			if ((await CallAsync(element, read, null, cancellationToken).ConfigureAwait(false)).ValueKind != (check ? JsonValueKind.True : JsonValueKind.False))
-				throw new LocatorException($"Clicking {this} did not {(check ? "check" : "uncheck")} it.");
-		}, cancellationToken);
+		UsingAsync(
+			LocatorState.Actionable,
+			async element =>
+			{
+				const string read = "function() { return this.getAttribute('aria-checked') === 'true' || this.checked === true; }";
+				if (
+					(await CallAsync(element, read, null, cancellationToken).ConfigureAwait(false)).ValueKind ==
+					(check ? JsonValueKind.True : JsonValueKind.False)
+				)
+					return;
+				var (x, y) = await ClickPointAsync(element, cancellationToken).ConfigureAwait(false);
+				await _page.Mouse.ClickAsync(x, y, cancellationToken).ConfigureAwait(false);
+				if (
+					(await CallAsync(element, read, null, cancellationToken).ConfigureAwait(false)).ValueKind !=
+					(check ? JsonValueKind.True : JsonValueKind.False)
+				)
+					throw new LocatorException($"Clicking {this} did not {(check ? "check" : "uncheck")} it.");
+			},
+			cancellationToken
+		);
 
 	/// <summary>
 	/// Selects the options of a <c>&lt;select&gt;</c> whose value or label is one of <paramref name="values"/>, and
@@ -411,9 +500,13 @@ public sealed partial class Locator
 	{
 		ArgumentNullException.ThrowIfNull(values);
 		IReadOnlyList<string> selected = [];
-		await UsingAsync(LocatorState.Actionable, async element =>
-		{
-			var result = await CallAsync(element, """
+		await UsingAsync(
+			LocatorState.Actionable,
+			async element =>
+			{
+				var result = await CallAsync(
+					element,
+					"""
 				function(values) {
 					if (this.tagName !== 'SELECT') return { error: 'the element is not a <select>' };
 					const options = Array.from(this.options);
@@ -429,19 +522,24 @@ public sealed partial class Locator
 					this.dispatchEvent(new Event('change', { bubbles: true }));
 					return { values: picked.map(o => o.value) };
 				}
-				""", w =>
-				{
-					w.WriteStartObject();
-					w.WriteStartArray("value");
-					foreach (var value in values)
-						w.WriteStringValue(value);
-					w.WriteEndArray();
-					w.WriteEndObject();
-				}, cancellationToken).ConfigureAwait(false);
-			if (result.StringOrNull("error") is { } error)
-				throw new LocatorException($"Cannot select in {this}: {error}.");
-			selected = [.. result.GetProperty("values").EnumerateArray().Select(v => v.GetString() ?? string.Empty)];
-		}, cancellationToken).ConfigureAwait(false);
+				""",
+					w =>
+					{
+						w.WriteStartObject();
+						w.WriteStartArray("value");
+						foreach (var value in values)
+							w.WriteStringValue(value);
+						w.WriteEndArray();
+						w.WriteEndObject();
+					},
+					cancellationToken
+				).ConfigureAwait(false);
+				if (result.StringOrNull("error") is { } error)
+					throw new LocatorException($"Cannot select in {this}: {error}.");
+				selected = [.. result.GetProperty("values").EnumerateArray().Select(v => v.GetString() ?? string.Empty)];
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 		return selected;
 	}
 
@@ -450,8 +548,7 @@ public sealed partial class Locator
 		ReadStringAsync("function() { return this.innerText ?? this.textContent ?? ''; }", cancellationToken);
 
 	/// <summary>The first match's inner HTML.</summary>
-	public Task<string> HtmlAsync(CancellationToken cancellationToken = default) =>
-		ReadStringAsync("function() { return this.innerHTML; }", cancellationToken);
+	public Task<string> HtmlAsync(CancellationToken cancellationToken = default) => ReadStringAsync("function() { return this.innerHTML; }", cancellationToken);
 
 	/// <summary>The first match's <c>value</c> (an input's text, a select's chosen value).</summary>
 	public Task<string> ValueAsync(CancellationToken cancellationToken = default) =>
@@ -461,16 +558,25 @@ public sealed partial class Locator
 	public async Task<string?> AttributeAsync(string name, CancellationToken cancellationToken = default)
 	{
 		string? value = null;
-		await UsingAsync(LocatorState.Attached, async element =>
-		{
-			var result = await CallAsync(element, "function(name) { return this.getAttribute(name); }", w =>
+		await UsingAsync(
+			LocatorState.Attached,
+			async element =>
 			{
-				w.WriteStartObject();
-				w.WriteString("value", name);
-				w.WriteEndObject();
-			}, cancellationToken).ConfigureAwait(false);
-			value = result.ValueKind == JsonValueKind.String ? result.GetString() : null;
-		}, cancellationToken).ConfigureAwait(false);
+				var result = await CallAsync(
+					element,
+					"function(name) { return this.getAttribute(name); }",
+					w =>
+					{
+						w.WriteStartObject();
+						w.WriteString("value", name);
+						w.WriteEndObject();
+					},
+					cancellationToken
+				).ConfigureAwait(false);
+				value = result.ValueKind == JsonValueKind.String ? result.GetString() : null;
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 		return value;
 	}
 
@@ -484,9 +590,16 @@ public sealed partial class Locator
 	public async Task<bool> IsCheckedAsync(CancellationToken cancellationToken = default)
 	{
 		var isChecked = false;
-		await UsingAsync(LocatorState.Attached, async element =>
-			isChecked = (await CallAsync(element, "function() { return this.getAttribute('aria-checked') === 'true' || this.checked === true; }", null, cancellationToken)
-				.ConfigureAwait(false)).ValueKind == JsonValueKind.True, cancellationToken).ConfigureAwait(false);
+		await UsingAsync(
+			LocatorState.Attached,
+			async element => isChecked = (await CallAsync(
+				element,
+				"function() { return this.getAttribute('aria-checked') === 'true' || this.checked === true; }",
+				null,
+				cancellationToken
+			).ConfigureAwait(false)).ValueKind == JsonValueKind.True,
+			cancellationToken
+		).ConfigureAwait(false);
 		return isChecked;
 	}
 
@@ -506,9 +619,11 @@ public sealed partial class Locator
 	private async Task<string> ReadStringAsync(string function, CancellationToken cancellationToken)
 	{
 		var value = string.Empty;
-		await UsingAsync(LocatorState.Attached, async element =>
-			value = (await CallAsync(element, function, null, cancellationToken).ConfigureAwait(false)).GetString() ?? string.Empty,
-			cancellationToken).ConfigureAwait(false);
+		await UsingAsync(
+			LocatorState.Attached,
+			async element => value = (await CallAsync(element, function, null, cancellationToken).ConfigureAwait(false)).GetString() ?? string.Empty,
+			cancellationToken
+		).ConfigureAwait(false);
 		return value;
 	}
 
@@ -545,7 +660,8 @@ public sealed partial class Locator
 
 			if (started.Elapsed >= timeout)
 				throw new LocatorTimeoutException(
-					$"Timed out after {timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s waiting for {this} to be {Describe(state)}: {Diagnose(states)}.");
+					$"Timed out after {timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s waiting for {this} to be {Describe(state)}: {Diagnose(states)}."
+				);
 			await ReleaseAsync().ConfigureAwait(false);
 			await Task.Delay(50, cancellationToken).ConfigureAwait(false);
 		}
@@ -582,47 +698,67 @@ public sealed partial class Locator
 		if (Kind == LocatorKind.Role)
 			return await FindByRoleAsync(cancellationToken).ConfigureAwait(false);
 
-		var document = await _page.SendAsync("Runtime.evaluate", w =>
-		{
-			w.WriteString("expression", "document");
-			w.WriteString("objectGroup", _objectGroup);
-		}, cancellationToken).ConfigureAwait(false);
-		var documentId = document.GetProperty("result").GetProperty("objectId").GetString() ?? throw new LocatorException($"Cannot look up {this}: the page returned no object.");
-		var found = await _page.SendAsync("Runtime.callFunctionOn", w =>
-		{
-			w.WriteString("functionDeclaration", FindFunction);
-			w.WriteString("objectId", documentId);
-			w.WriteString("objectGroup", _objectGroup);
-			w.WriteStartArray("arguments");
-			w.WriteStartObject();
-			w.WriteString("value", Kind == LocatorKind.TestId ? "testid" : Kind.ToString().ToLowerInvariant());
-			w.WriteEndObject();
-			w.WriteStartObject();
-			w.WriteString("value", Value);
-			w.WriteEndObject();
-			w.WriteStartObject();
-			w.WriteBoolean("value", Exact);
-			w.WriteEndObject();
-			w.WriteEndArray();
-		}, cancellationToken).ConfigureAwait(false);
+		var document = await _page.SendAsync(
+			"Runtime.evaluate",
+			w =>
+			{
+				w.WriteString("expression", "document");
+				w.WriteString("objectGroup", _objectGroup);
+			},
+			cancellationToken
+		).ConfigureAwait(false);
+		var documentId = document.GetProperty("result").GetProperty("objectId").GetString() ??
+			throw new LocatorException($"Cannot look up {this}: the page returned no object.");
+		var found = await _page.SendAsync(
+			"Runtime.callFunctionOn",
+			w =>
+			{
+				w.WriteString("functionDeclaration", FindFunction);
+				w.WriteString("objectId", documentId);
+				w.WriteString("objectGroup", _objectGroup);
+				w.WriteStartArray("arguments");
+				w.WriteStartObject();
+				w.WriteString("value", Kind == LocatorKind.TestId ? "testid" : Kind.ToString().ToLowerInvariant());
+				w.WriteEndObject();
+				w.WriteStartObject();
+				w.WriteString("value", Value);
+				w.WriteEndObject();
+				w.WriteStartObject();
+				w.WriteBoolean("value", Exact);
+				w.WriteEndObject();
+				w.WriteEndArray();
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 		if (found.TryGetProperty("exceptionDetails", out var details))
 		{
 			var message = details.TryGetProperty("exception", out var e) && e.StringOrNull("description") is { } d ? d.Split('\n')[0] : "script error";
 			throw new LocatorException($"Cannot look up {this}: {message}");
 		}
 
-		var arrayId = found.GetProperty("result").GetProperty("objectId").GetString() ?? throw new LocatorException($"Cannot look up {this}: the page returned no object.");
-		var properties = await _page.SendAsync("Runtime.getProperties", w =>
-		{
-			w.WriteString("objectId", arrayId);
-			w.WriteBoolean("ownProperties", true);
-		}, cancellationToken).ConfigureAwait(false);
+		var arrayId = found.GetProperty("result").GetProperty("objectId").GetString() ??
+			throw new LocatorException($"Cannot look up {this}: the page returned no object.");
+		var properties = await _page.SendAsync(
+			"Runtime.getProperties",
+			w =>
+			{
+				w.WriteString("objectId", arrayId);
+				w.WriteBoolean("ownProperties", true);
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 
 		var elements = new List<(int Index, string ObjectId)>();
 		foreach (var property in properties.GetProperty("result").EnumerateArray())
 		{
-			if (int.TryParse(property.GetProperty("name").GetString(), NumberStyles.None, CultureInfo.InvariantCulture, out var index)
-				&& property.TryGetProperty("value", out var value) && value.StringOrNull("objectId") is { } objectId)
+			if (
+				int.TryParse(
+					property.GetProperty("name").GetString(),
+					NumberStyles.None,
+					CultureInfo.InvariantCulture,
+					out var index
+				) && property.TryGetProperty("value", out var value) && value.StringOrNull("objectId") is { } objectId
+			)
 				elements.Add((index, objectId));
 		}
 
@@ -647,11 +783,15 @@ public sealed partial class Locator
 			if (Name is not null && !Matches(node.TryGetProperty("name", out var n) ? n.StringOrNull("value") ?? string.Empty : string.Empty))
 				continue;
 
-			var resolved = await _page.SendAsync("DOM.resolveNode", w =>
-			{
-				w.WriteNumber("backendNodeId", backend.GetInt64());
-				w.WriteString("objectGroup", _objectGroup);
-			}, cancellationToken).ConfigureAwait(false);
+			var resolved = await _page.SendAsync(
+				"DOM.resolveNode",
+				w =>
+				{
+					w.WriteNumber("backendNodeId", backend.GetInt64());
+					w.WriteString("objectGroup", _objectGroup);
+				},
+				cancellationToken
+			).ConfigureAwait(false);
 			if (resolved.GetProperty("object").StringOrNull("objectId") is { } objectId)
 				ids.Add(objectId);
 		}
@@ -675,19 +815,23 @@ public sealed partial class Locator
 
 	private async Task<JsonElement> CallAsync(string objectId, string function, Action<Utf8JsonWriter>? argument, CancellationToken cancellationToken)
 	{
-		var result = await _page.SendAsync("Runtime.callFunctionOn", w =>
-		{
-			w.WriteString("functionDeclaration", function);
-			w.WriteString("objectId", objectId);
-			w.WriteBoolean("returnByValue", true);
-			w.WriteBoolean("awaitPromise", true);
-			if (argument is not null)
+		var result = await _page.SendAsync(
+			"Runtime.callFunctionOn",
+			w =>
 			{
-				w.WriteStartArray("arguments");
-				argument(w);
-				w.WriteEndArray();
-			}
-		}, cancellationToken).ConfigureAwait(false);
+				w.WriteString("functionDeclaration", function);
+				w.WriteString("objectId", objectId);
+				w.WriteBoolean("returnByValue", true);
+				w.WriteBoolean("awaitPromise", true);
+				if (argument is not null)
+				{
+					w.WriteStartArray("arguments");
+					argument(w);
+					w.WriteEndArray();
+				}
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 		if (result.TryGetProperty("exceptionDetails", out var details))
 		{
 			var message = details.TryGetProperty("exception", out var e) && e.StringOrNull("description") is { } d ? d.Split('\n')[0] : "script error";
@@ -709,15 +853,20 @@ public sealed partial class Locator
 		while (true)
 		{
 			var (x, y) = await PointOfAsync(objectId, cancellationToken).ConfigureAwait(false);
-			var hit = await CallAsync(objectId, HitFunction, w =>
-			{
-				w.WriteStartObject();
-				w.WriteNumber("value", x);
-				w.WriteEndObject();
-				w.WriteStartObject();
-				w.WriteNumber("value", y);
-				w.WriteEndObject();
-			}, cancellationToken).ConfigureAwait(false);
+			var hit = await CallAsync(
+				objectId,
+				HitFunction,
+				w =>
+				{
+					w.WriteStartObject();
+					w.WriteNumber("value", x);
+					w.WriteEndObject();
+					w.WriteStartObject();
+					w.WriteNumber("value", y);
+					w.WriteEndObject();
+				},
+				cancellationToken
+			).ConfigureAwait(false);
 			if (hit.ValueKind == JsonValueKind.True)
 				return (x, y);
 			if (started.Elapsed >= timeout)
@@ -727,7 +876,8 @@ public sealed partial class Locator
 					? $"<{hit.GetString()}> would receive it instead"
 					: "nothing is there: it is outside the viewport or clipped";
 				throw new LocatorTimeoutException(
-					$"Timed out after {timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s waiting for {this} to receive a click at {point}: {cause}.");
+					$"Timed out after {timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s waiting for {this} to receive a click at {point}: {cause}."
+				);
 			}
 
 			await Task.Delay(50, cancellationToken).ConfigureAwait(false);

@@ -8,8 +8,7 @@ namespace Nullean.Cdp.Protocol;
 public sealed record CdpEvent(string Method, string? SessionId, JsonElement Params);
 
 /// <summary>The browser answered a command with an error.</summary>
-public sealed class CdpException(string method, int code, string message)
-	: Exception($"{method} failed: {message} ({code})")
+public sealed class CdpException(string method, int code, string message) : Exception($"{method} failed: {message} ({code})")
 {
 	/// <summary>The command that failed.</summary>
 	public string Method { get; } = method;
@@ -25,10 +24,12 @@ public sealed class CdpException(string method, int code, string message)
 public sealed class CdpDisconnectedException : Exception
 {
 	/// <summary>Creates the exception.</summary>
-	public CdpDisconnectedException(string message) : base(message) { }
+	public CdpDisconnectedException(string message) : base(message)
+	{ }
 
 	/// <summary>Creates the exception with its cause.</summary>
-	public CdpDisconnectedException(string message, Exception inner) : base(message, inner) { }
+	public CdpDisconnectedException(string message, Exception inner) : base(message, inner)
+	{ }
 }
 
 /// <summary>

@@ -28,10 +28,22 @@ public static class AccessibilityAudit
 	private static readonly Rule OneMain = new("landmark-one-main", "moderate", "A page has exactly one main landmark");
 
 	private static readonly HashSet<string> FieldRoles =
-		[with(StringComparer.Ordinal), "textbox", "searchbox", "combobox", "listbox", "checkbox", "radio", "slider", "spinbutton", "switch"];
+	[
+		with(StringComparer.Ordinal),
+		"textbox",
+		"searchbox",
+		"combobox",
+		"listbox",
+		"checkbox",
+		"radio",
+		"slider",
+		"spinbutton",
+		"switch"
+	];
 
 	// Document, ARIA, id and contrast rules, on the DOM. Each finding: [rule, impact, help, node description].
-	private const string DomRules = """
+	private const string DomRules =
+		"""
 		function(scoped) {
 			const root = this;
 			const describe = e => {
@@ -91,7 +103,8 @@ public static class AccessibilityAudit
 		}
 		""";
 
-	private const string DescribeFunction = """
+	private const string DescribeFunction =
+		"""
 		function() {
 			const e = this.nodeType === 1 ? this : this.parentElement;
 			const tag = e.tagName.toLowerCase();
@@ -162,10 +175,12 @@ public static class AccessibilityAudit
 		foreach (var finding in await DomFindingsAsync(page, selector, cancellationToken).ConfigureAwait(false))
 			findings.Add(finding);
 
-		return [.. findings
-			.GroupBy(f => f.Rule.Id, StringComparer.Ordinal)
-			.OrderBy(g => g.Key, StringComparer.Ordinal)
-			.Select(g => new AuditViolation(g.Key, g.First().Rule.Impact, g.First().Rule.Help, [.. g.Select(f => f.Node)]))];
+		return [
+			.. findings
+				.GroupBy(f => f.Rule.Id, StringComparer.Ordinal)
+				.OrderBy(g => g.Key, StringComparer.Ordinal)
+				.Select(g => new AuditViolation(g.Key, g.First().Rule.Impact, g.First().Rule.Help, [.. g.Select(f => f.Node)]))
+		];
 	}
 
 	/// <summary>The audit as agent-browser lays out <c>a11y</c>: a count, then each rule with its elements.</summary>
@@ -175,8 +190,17 @@ public static class AccessibilityAudit
 		var text = new StringBuilder().Append("violations: ").Append(violations.Count);
 		foreach (var v in violations)
 		{
-			text.Append('\n').Append('[').Append(v.Impact).Append("] ").Append(v.Rule).Append(": ").Append(v.Help)
-				.Append(" (").Append(v.Nodes.Count).Append(v.Nodes.Count == 1 ? " node)" : " nodes)");
+			text
+				.Append('\n')
+				.Append('[')
+				.Append(v.Impact)
+				.Append("] ")
+				.Append(v.Rule)
+				.Append(": ")
+				.Append(v.Help)
+				.Append(" (")
+				.Append(v.Nodes.Count)
+				.Append(v.Nodes.Count == 1 ? " node)" : " nodes)");
 			foreach (var node in v.Nodes)
 				text.Append("\n  - ").Append(node);
 		}
@@ -202,7 +226,11 @@ public static class AccessibilityAudit
 			return null;
 		foreach (var p in properties.EnumerateArray())
 		{
-			if (p.StringOrNull("name") == "level" && p.TryGetProperty("value", out var v) && v.TryGetProperty("value", out var level) && level.TryGetInt32(out var l))
+			if (
+				p.StringOrNull("name") == "level" && p.TryGetProperty("value", out var v) && v.TryGetProperty("value", out var level) && level.TryGetInt32(
+					out var l
+				)
+			)
 				return l;
 		}
 
@@ -213,40 +241,57 @@ public static class AccessibilityAudit
 	{
 		if (!node.TryGetProperty("backendDOMNodeId", out var backend))
 			return "(no element)";
-		var resolved = await page.SendAsync("DOM.resolveNode", w => w.WriteNumber("backendNodeId", backend.GetInt64()), cancellationToken).ConfigureAwait(false);
+		var resolved = await page.SendAsync("DOM.resolveNode", w => w.WriteNumber("backendNodeId", backend.GetInt64()), cancellationToken).ConfigureAwait(
+			false
+		);
 		var objectId = resolved.GetProperty("object").StringOrNull("objectId");
 		if (objectId is null)
 			return "(no element)";
-		var described = await page.SendAsync("Runtime.callFunctionOn", w =>
-		{
-			w.WriteString("functionDeclaration", DescribeFunction);
-			w.WriteString("objectId", objectId);
-			w.WriteBoolean("returnByValue", true);
-		}, cancellationToken).ConfigureAwait(false);
+		var described = await page.SendAsync(
+			"Runtime.callFunctionOn",
+			w =>
+			{
+				w.WriteString("functionDeclaration", DescribeFunction);
+				w.WriteString("objectId", objectId);
+				w.WriteBoolean("returnByValue", true);
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 		await page.SendAsync("Runtime.releaseObject", w => w.WriteString("objectId", objectId), cancellationToken).ConfigureAwait(false);
 		return described.GetProperty("result").StringOrNull("value") ?? "(no element)";
 	}
 
 	private static async Task<IEnumerable<(Rule, string)>> DomFindingsAsync(Page page, string? selector, CancellationToken cancellationToken)
 	{
-		var root = await page.SendAsync("Runtime.evaluate", w =>
-			w.WriteString("expression", selector is null ? "document.documentElement" : $"document.querySelector({JsonSerializerString(selector)})"),
-			cancellationToken).ConfigureAwait(false);
+		var root = await page.SendAsync(
+			"Runtime.evaluate",
+			w => w.WriteString("expression", selector is null ? "document.documentElement" : $"document.querySelector({JsonSerializerString(selector)})"),
+			cancellationToken
+		).ConfigureAwait(false);
 		var objectId = root.GetProperty("result").StringOrNull("objectId") ?? throw new PageSelectorException(selector ?? "html");
-		var result = await page.SendAsync("Runtime.callFunctionOn", w =>
-		{
-			w.WriteString("functionDeclaration", DomRules);
-			w.WriteString("objectId", objectId);
-			w.WriteBoolean("returnByValue", true);
-			w.WriteStartArray("arguments");
-			w.WriteStartObject();
-			w.WriteBoolean("value", selector is not null);
-			w.WriteEndObject();
-			w.WriteEndArray();
-		}, cancellationToken).ConfigureAwait(false);
+		var result = await page.SendAsync(
+			"Runtime.callFunctionOn",
+			w =>
+			{
+				w.WriteString("functionDeclaration", DomRules);
+				w.WriteString("objectId", objectId);
+				w.WriteBoolean("returnByValue", true);
+				w.WriteStartArray("arguments");
+				w.WriteStartObject();
+				w.WriteBoolean("value", selector is not null);
+				w.WriteEndObject();
+				w.WriteEndArray();
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 		await page.SendAsync("Runtime.releaseObject", w => w.WriteString("objectId", objectId), cancellationToken).ConfigureAwait(false);
-		return [.. result.GetProperty("result").GetProperty("value").EnumerateArray()
-			.Select(f => (new Rule(f[0].GetString()!, f[1].GetString()!, f[2].GetString()!), f[3].GetString()!))];
+		return [
+			.. result
+				.GetProperty("result")
+				.GetProperty("value")
+				.EnumerateArray()
+				.Select(f => (new Rule(f[0].GetString()!, f[1].GetString()!, f[2].GetString()!), f[3].GetString()!))
+		];
 	}
 
 	private static string JsonSerializerString(string value) => "\"" + JsonEncodedText.Encode(value) + "\"";
@@ -254,11 +299,15 @@ public static class AccessibilityAudit
 	private static async Task<long> BackendNodeIdAsync(Page page, string selector, CancellationToken cancellationToken)
 	{
 		var document = await page.SendAsync("DOM.getDocument", w => w.WriteNumber("depth", 0), cancellationToken).ConfigureAwait(false);
-		var found = await page.SendAsync("DOM.querySelector", w =>
-		{
-			w.WriteNumber("nodeId", document.GetProperty("root").GetProperty("nodeId").GetInt32());
-			w.WriteString("selector", selector);
-		}, cancellationToken).ConfigureAwait(false);
+		var found = await page.SendAsync(
+			"DOM.querySelector",
+			w =>
+			{
+				w.WriteNumber("nodeId", document.GetProperty("root").GetProperty("nodeId").GetInt32());
+				w.WriteString("selector", selector);
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 		var nodeId = found.GetProperty("nodeId").GetInt32();
 		if (nodeId == 0)
 			throw new PageSelectorException(selector);

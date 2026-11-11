@@ -9,8 +9,11 @@ public class CheckTests(ChromeFixture chrome)
 	private static Uri Site => new(new Uri(ChromeFixture.Site("index.html")), "./");
 
 	private async Task<JourneyResult> Run(string journey, Uri baseUrl, string? artifacts = null, bool guard = true) =>
-		await JourneyRunner.RunAsync(Journey.Parse(journey), chrome.Browser,
-			new JourneyOptions { BaseUrl = baseUrl, ArtifactsDirectory = artifacts, GuardNetwork = guard });
+		await JourneyRunner.RunAsync(
+			Journey.Parse(journey),
+			chrome.Browser,
+			new JourneyOptions { BaseUrl = baseUrl, ArtifactsDirectory = artifacts, GuardNetwork = guard }
+		);
 
 	private static string LinksPage(SlowServer other) => "/links?other=" + Uri.EscapeDataString(other.Url + "next");
 
@@ -24,9 +27,14 @@ public class CheckTests(ChromeFixture chrome)
 		var result = await Run($"open {LinksPage(other)}\nlinks\nlinks --all -s nav", new Uri(server.Url));
 
 		result.Failure.Should().BeNull();
-		result.Checkpoints.Select(c => c.Output).Should().Equal(
-			"links: 2 checked, 1 broken, 2 on other sites not checked (--external)\n404 /missing-page",
-			"links: 2 checked, 1 broken\n200 /next\n404 /missing-page");
+		result
+			.Checkpoints
+			.Select(c => c.Output)
+			.Should()
+			.Equal(
+				"links: 2 checked, 1 broken, 2 on other sites not checked (--external)\n404 /missing-page",
+				"links: 2 checked, 1 broken\n200 /next\n404 /missing-page"
+			);
 	}
 
 	[Test]
@@ -61,7 +69,10 @@ public class CheckTests(ChromeFixture chrome)
 		var folder = Directory.CreateTempSubdirectory("cdp-links-");
 		try
 		{
-			File.WriteAllText(Path.Combine(folder.FullName, "index.html"), "<!doctype html><title>Files</title><link rel=\"icon\" href=\"data:,\"><a href=\"there.html\">There</a> <a href=\"gone.html\">Gone</a>");
+			File.WriteAllText(
+				Path.Combine(folder.FullName, "index.html"),
+				"<!doctype html><title>Files</title><link rel=\"icon\" href=\"data:,\"><a href=\"there.html\">There</a> <a href=\"gone.html\">Gone</a>"
+			);
 			File.WriteAllText(Path.Combine(folder.FullName, "there.html"), "<!doctype html><title>There</title>");
 
 			var result = await Run("open index.html\nlinks --all", new Uri(new Uri(folder.FullName + Path.DirectorySeparatorChar), "index.html"));
@@ -93,7 +104,11 @@ public class CheckTests(ChromeFixture chrome)
 		var artifacts = Directory.CreateTempSubdirectory("cdp-shots-");
 		try
 		{
-			var result = await Run("open shot.html\nset viewport 1280 720\nscreenshot view.png\nscreenshot shots/full.png --full\nscreenshot #box shots/box.png", Site, artifacts.FullName);
+			var result = await Run(
+				"open shot.html\nset viewport 1280 720\nscreenshot view.png\nscreenshot shots/full.png --full\nscreenshot #box shots/box.png",
+				Site,
+				artifacts.FullName
+			);
 
 			result.Failure.Should().BeNull();
 			result.Checkpoints.Should().BeEmpty("screenshots are not checkpoints");

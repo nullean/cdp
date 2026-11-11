@@ -11,7 +11,8 @@ public class ConsoleTests(ChromeFixture chrome)
 	[Test]
 	public async Task ConsoleAndErrorsAreCheckpointsAndClearForgets()
 	{
-		var journey = Journey.Parse("""
+		var journey = Journey.Parse(
+			"""
 			open console.html
 			find role button click --name Go
 			wait 300
@@ -21,18 +22,24 @@ public class ConsoleTests(ChromeFixture chrome)
 			errors --clear
 			console
 			errors
-			""");
+			"""
+		);
 
 		var result = await JourneyRunner.RunAsync(journey, chrome.Browser, new JourneyOptions { BaseUrl = Site });
 
 		result.Failure.Should().BeNull();
 		var page = Site + "console.html";
-		result.Checkpoints.Select(c => c.Output).Should().Equal(
-			"[info] loaded\n[log] clicked 1 {a: 2} [1, \"x\"] null undefined\n[warning] careful\n[error] bad thing",
-			// Chrome locates errors in inline event handlers within the compiled handler, not the HTML line.
-			$"Error: rejected ({page}:3:48)\nError: boom ({page}:2:323)",
-			"",
-			"");
+		result
+			.Checkpoints
+			.Select(c => c.Output)
+			.Should()
+			.Equal(
+				"[info] loaded\n[log] clicked 1 {a: 2} [1, \"x\"] null undefined\n[warning] careful\n[error] bad thing",
+				// Chrome locates errors in inline event handlers within the compiled handler, not the HTML line.
+				$"Error: rejected ({page}:3:48)\nError: boom ({page}:2:323)",
+				"",
+				""
+			);
 	}
 
 	[Test]

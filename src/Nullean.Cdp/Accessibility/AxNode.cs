@@ -68,7 +68,8 @@ public static class AxTree
 				Text(node, "value"),
 				Properties(node),
 				node.TryGetProperty("childIds", out var children) ? [.. children.EnumerateArray().Select(c => c.GetString()!)] : [],
-				backend);
+				backend
+			);
 			byId[id] = raw;
 			if (rootId is null && !node.TryGetProperty("parentId", out _))
 				rootId = id;
@@ -119,7 +120,10 @@ public static class AxTree
 		foreach (var property in properties.EnumerateArray())
 		{
 			var name = property.GetProperty("name").GetString()!;
-			if (Array.IndexOf(PrintedProperties, name) < 0 || !property.TryGetProperty("value", out var holder) || !holder.TryGetProperty("value", out var value))
+			if (
+				Array.IndexOf(PrintedProperties, name) < 0 || !property.TryGetProperty("value", out var holder) ||
+				!holder.TryGetProperty("value", out var value)
+			)
 				continue;
 			found[name] = value.ValueKind switch
 			{

@@ -21,11 +21,9 @@ public class CdpConnectionTests
 			return ValueTask.CompletedTask;
 		}
 
-		public async ValueTask<ReadOnlyMemory<byte>?> ReceiveAsync(CancellationToken cancellationToken) =>
-			await _toClient.Reader.ReadAsync(cancellationToken);
+		public async ValueTask<ReadOnlyMemory<byte>?> ReceiveAsync(CancellationToken cancellationToken) => await _toClient.Reader.ReadAsync(cancellationToken);
 
-		public async Task<JsonElement> NextRequestAsync() =>
-			await _fromClient.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+		public async Task<JsonElement> NextRequestAsync() => await _fromClient.Reader.ReadAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
 
 		public void Push(string json) => _toClient.Writer.TryWrite(Encoding.UTF8.GetBytes(json));
 
@@ -116,8 +114,7 @@ public class CdpConnectionTests
 		browser.Push($$$"""{"id":{{{id}}},"error":{"code":-32000,"message":"DOM Error while querying","data":"bad selector"}}""");
 
 		var act = () => send.WaitAsync(Wait);
-		(await act.Should().ThrowAsync<CdpException>())
-			.Which.Message.Should().Be("DOM.querySelector failed: DOM Error while querying: bad selector (-32000)");
+		(await act.Should().ThrowAsync<CdpException>()).Which.Message.Should().Be("DOM.querySelector failed: DOM Error while querying: bad selector (-32000)");
 	}
 
 	[Test]
@@ -164,7 +161,10 @@ public class CdpConnectionTests
 		var waiting = connection.WaitForEventAsync("S1", "Page.loadEventFired");
 		browser.Close();
 
-		await FluentActions.Awaiting(() => pending.WaitAsync(Wait)).Should().ThrowAsync<CdpDisconnectedException>()
+		await FluentActions
+			.Awaiting(() => pending.WaitAsync(Wait))
+			.Should()
+			.ThrowAsync<CdpDisconnectedException>()
 			.WithMessage("The browser closed the connection.");
 		await FluentActions.Awaiting(() => waiting.WaitAsync(Wait)).Should().ThrowAsync<CdpDisconnectedException>();
 		connection.IsClosed.Should().BeTrue();
@@ -183,7 +183,10 @@ public class CdpConnectionTests
 
 		await connection.DisposeAsync();
 
-		await FluentActions.Awaiting(() => pending.WaitAsync(Wait)).Should().ThrowAsync<CdpDisconnectedException>()
+		await FluentActions
+			.Awaiting(() => pending.WaitAsync(Wait))
+			.Should()
+			.ThrowAsync<CdpDisconnectedException>()
 			.WithMessage("The connection to the browser was disposed.");
 	}
 
@@ -208,7 +211,10 @@ public class CdpConnectionTests
 
 		await connection.DisposeAsync();
 
-		await FluentActions.Awaiting(() => pending.WaitAsync(Wait)).Should().ThrowAsync<CdpDisconnectedException>()
+		await FluentActions
+			.Awaiting(() => pending.WaitAsync(Wait))
+			.Should()
+			.ThrowAsync<CdpDisconnectedException>()
 			.WithMessage("The connection to the browser was disposed.");
 	}
 
@@ -222,7 +228,10 @@ public class CdpConnectionTests
 
 		transport.Fail();
 
-		await FluentActions.Awaiting(() => pending.WaitAsync(Wait)).Should().ThrowAsync<CdpDisconnectedException>()
+		await FluentActions
+			.Awaiting(() => pending.WaitAsync(Wait))
+			.Should()
+			.ThrowAsync<CdpDisconnectedException>()
 			.WithMessage("Reading from the browser failed: the socket broke");
 	}
 

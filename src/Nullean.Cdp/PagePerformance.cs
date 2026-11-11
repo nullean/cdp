@@ -18,24 +18,38 @@ public sealed record PageTimings(
 {
 	/// <summary>Each timing by the name journeys use: <c>ttfb</c>, <c>first-paint</c>, <c>fcp</c>, <c>dom-interactive</c>, <c>dom-content-loaded</c>, <c>load</c>.</summary>
 	public IReadOnlyList<(string Name, double? Value)> Named =>
-	[
-		("ttfb", TimeToFirstByte), ("first-paint", FirstPaint), ("fcp", FirstContentfulPaint),
-		("dom-interactive", DomInteractive), ("dom-content-loaded", DomContentLoaded), ("load", Load),
-	];
+		[
+			("ttfb", TimeToFirstByte),
+			("first-paint", FirstPaint),
+			("fcp", FirstContentfulPaint),
+			("dom-interactive", DomInteractive),
+			("dom-content-loaded", DomContentLoaded),
+			("load", Load),
+		];
 }
 
 /// <summary>
 /// Core Web Vitals of the current document, as agent-browser's <c>vitals</c> names them. Times in milliseconds; CLS is
 /// unitless. <c>null</c> when there is nothing to measure yet (INP needs an interaction).
 /// </summary>
-public sealed record WebVitals(double? TimeToFirstByte, double? FirstContentfulPaint, double? LargestContentfulPaint, double CumulativeLayoutShift, double? InteractionToNextPaint, string? LargestContentfulPaintElement)
+public sealed record WebVitals(
+	double? TimeToFirstByte,
+	double? FirstContentfulPaint,
+	double? LargestContentfulPaint,
+	double CumulativeLayoutShift,
+	double? InteractionToNextPaint,
+	string? LargestContentfulPaintElement
+)
 {
 	/// <summary>Each vital by name: <c>ttfb</c>, <c>fcp</c>, <c>lcp</c>, <c>cls</c>, <c>inp</c>.</summary>
 	public IReadOnlyList<(string Name, double? Value)> Named =>
-	[
-		("ttfb", TimeToFirstByte), ("fcp", FirstContentfulPaint), ("lcp", LargestContentfulPaint), ("cls", CumulativeLayoutShift),
-		("inp", InteractionToNextPaint),
-	];
+		[
+			("ttfb", TimeToFirstByte),
+			("fcp", FirstContentfulPaint),
+			("lcp", LargestContentfulPaint),
+			("cls", CumulativeLayoutShift),
+			("inp", InteractionToNextPaint),
+		];
 }
 
 /// <summary>Performance readings of a page: timings, Core Web Vitals and Chrome's runtime counters.</summary>
@@ -43,7 +57,8 @@ public static class PagePerformance
 {
 	// Paint entries are recorded once the frame is presented, which on a GPU-less Linux runner can be after load. Only
 	// when the page has loaded but not yet reported a paint: let two frames pass, and give it up to 2 s more.
-	private const string TimingsScript = """
+	private const string TimingsScript =
+		"""
 		(async () => {
 			const unpainted = () => document.readyState === 'complete' && !performance.getEntriesByType('paint').length;
 			if (unpainted())
@@ -61,7 +76,8 @@ public static class PagePerformance
 
 	// Buffered observers hand over every entry so far. CLS uses session windows (gaps under 1 s, at most 5 s long);
 	// INP is the slowest interaction (the 98th percentile once there are 50 or more).
-	private const string VitalsScript = """
+	private const string VitalsScript =
+		"""
 		(async () => {
 			// An interaction is reported after the frame it caused is painted: let two frames pass, and give one that
 			// happened just now up to 200 ms to arrive.
@@ -102,7 +118,8 @@ public static class PagePerformance
 	/// Runs before any page script in every document: Chrome buffers only interactions of about 104 ms or more, so
 	/// shorter ones (down to 16 ms, which INP counts) are kept from the start, by interaction.
 	/// </summary>
-	internal const string InteractionRecorder = """
+	internal const string InteractionRecorder =
+		"""
 		(() => {
 			const slowest = new Map();
 			Object.defineProperty(window, '__nulleanCdpInteractions', { value: slowest });
@@ -125,8 +142,9 @@ public static class PagePerformance
 		ArgumentNullException.ThrowIfNull(page);
 		if (Interlocked.Exchange(ref page.RecordingInteractions, 1) == 1)
 			return;
-		await page.SendAsync("Page.addScriptToEvaluateOnNewDocument", w => w.WriteString("source", InteractionRecorder), cancellationToken)
-			.ConfigureAwait(false);
+		await page.SendAsync("Page.addScriptToEvaluateOnNewDocument", w => w.WriteString("source", InteractionRecorder), cancellationToken).ConfigureAwait(
+			false
+		);
 	}
 
 	/// <summary>The current document's paint and load timings.</summary>
@@ -145,7 +163,14 @@ public static class PagePerformance
 	{
 		ArgumentNullException.ThrowIfNull(page);
 		var v = await page.EvaluateAsync(VitalsScript, cancellationToken).ConfigureAwait(false);
-		return new WebVitals(Number(v[0]), Number(v[1]), Number(v[2]), Number(v[3]) ?? 0, Number(v[4]), v[5].ValueKind == JsonValueKind.String ? v[5].GetString() : null);
+		return new WebVitals(
+			Number(v[0]),
+			Number(v[1]),
+			Number(v[2]),
+			Number(v[3]) ?? 0,
+			Number(v[4]),
+			v[5].ValueKind == JsonValueKind.String ? v[5].GetString() : null
+		);
 	}
 
 	/// <summary>

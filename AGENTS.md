@@ -13,9 +13,10 @@ repository, and run the commands CI runs:
 mise run build            # build the solution
 mise run test             # build, then run the tests
 mise run pack             # build and pack the libraries (CI packs the native AOT CLI per RID)
-mise run ci               # what CI runs on every push: build, test, pack, and the js/journeys job
+mise run ci               # what CI runs on every push: build, curb check, test, pack, and the js/journeys job
 mise run docs             # build the docs and serve them (needs docs-builder, see scripts/docs.sh)
-mise run check            # workflow security checks (zizmor)
+mise run format           # format the repository with curb
+mise run check            # formatting drift (curb) and workflow security checks (zizmor)
 mise run release          # show the release draft; `mise run release publish` releases
 ```
 

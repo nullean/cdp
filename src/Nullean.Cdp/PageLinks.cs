@@ -19,7 +19,8 @@ public sealed record LinkStatus(string Url, int? Status, string? Error)
 /// <summary>Finds the links on a page and checks whether they work.</summary>
 public static class PageLinks
 {
-	private const string CollectLinks = """
+	private const string CollectLinks =
+		"""
 		function() {
 			const seen = new Set(), links = [];
 			for (const a of this.querySelectorAll('a[href], area[href]')) {
@@ -40,18 +41,24 @@ public static class PageLinks
 	public static async Task<IReadOnlyList<string>> LinksAsync(this Page page, string? selector = null, CancellationToken cancellationToken = default)
 	{
 		ArgumentNullException.ThrowIfNull(page);
-		var root = await page.SendAsync("Runtime.evaluate", w =>
-			w.WriteString("expression", selector is null ? "document" : $"document.querySelector(\"{JsonEncodedText.Encode(selector)}\")"),
-			cancellationToken).ConfigureAwait(false);
+		var root = await page.SendAsync(
+			"Runtime.evaluate",
+			w => w.WriteString("expression", selector is null ? "document" : $"document.querySelector(\"{JsonEncodedText.Encode(selector)}\")"),
+			cancellationToken
+		).ConfigureAwait(false);
 		var objectId = root.GetProperty("result").StringOrNull("objectId") ?? throw new PageSelectorException(selector ?? "document");
 		try
 		{
-			var result = await page.SendAsync("Runtime.callFunctionOn", w =>
-			{
-				w.WriteString("functionDeclaration", CollectLinks);
-				w.WriteString("objectId", objectId);
-				w.WriteBoolean("returnByValue", true);
-			}, cancellationToken).ConfigureAwait(false);
+			var result = await page.SendAsync(
+				"Runtime.callFunctionOn",
+				w =>
+				{
+					w.WriteString("functionDeclaration", CollectLinks);
+					w.WriteString("objectId", objectId);
+					w.WriteBoolean("returnByValue", true);
+				},
+				cancellationToken
+			).ConfigureAwait(false);
 			return [.. result.GetProperty("result").GetProperty("value").EnumerateArray().Select(l => l.GetString()!)];
 		}
 		finally
@@ -65,14 +72,22 @@ public static class PageLinks
 	/// the page, so the page's CORS rules don't apply and nothing the page intercepts sees them; cookies are sent only to
 	/// the page's own origin. File links are checked on disk.
 	/// </summary>
-	public static async Task<IReadOnlyList<LinkStatus>> CheckLinksAsync(this Page page, IReadOnlyList<string> urls, int concurrency = 4, CancellationToken cancellationToken = default)
+	public static async Task<IReadOnlyList<LinkStatus>> CheckLinksAsync(
+		this Page page,
+		IReadOnlyList<string> urls,
+		int concurrency = 4,
+		CancellationToken cancellationToken = default
+	)
 	{
 		ArgumentNullException.ThrowIfNull(page);
 		ArgumentNullException.ThrowIfNull(urls);
 		var origin = Origin(await page.UrlAsync(cancellationToken).ConfigureAwait(false));
 		var results = new LinkStatus[urls.Count];
-		await Parallel.ForEachAsync(Enumerable.Range(0, urls.Count), new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, concurrency), CancellationToken = cancellationToken },
-			async (i, ct) => results[i] = await CheckAsync(page, urls[i], origin, ct).ConfigureAwait(false)).ConfigureAwait(false);
+		await Parallel.ForEachAsync(
+			Enumerable.Range(0, urls.Count),
+			new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, concurrency), CancellationToken = cancellationToken },
+			async (i, ct) => results[i] = await CheckAsync(page, urls[i], origin, ct).ConfigureAwait(false)
+		).ConfigureAwait(false);
 		return results;
 	}
 
@@ -84,18 +99,24 @@ public static class PageLinks
 		if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
 			return new LinkStatus(url, null, "not a URL");
 		if (uri.IsFile)
-			return File.Exists(uri.LocalPath) || Directory.Exists(uri.LocalPath) ? new LinkStatus(url, null, null) : new LinkStatus(url, null, "file not found");
+			return File.Exists(uri.LocalPath) || Directory.Exists(uri.LocalPath)
+				? new LinkStatus(url, null, null)
+				: new LinkStatus(url, null, "file not found");
 		try
 		{
-			var loaded = await page.SendAsync("Network.loadNetworkResource", w =>
-			{
-				w.WriteString("frameId", page.TargetId);
-				w.WriteString("url", url);
-				w.WriteStartObject("options");
-				w.WriteBoolean("disableCache", true);
-				w.WriteBoolean("includeCredentials", Origin(url) == origin);
-				w.WriteEndObject();
-			}, cancellationToken).ConfigureAwait(false);
+			var loaded = await page.SendAsync(
+				"Network.loadNetworkResource",
+				w =>
+				{
+					w.WriteString("frameId", page.TargetId);
+					w.WriteString("url", url);
+					w.WriteStartObject("options");
+					w.WriteBoolean("disableCache", true);
+					w.WriteBoolean("includeCredentials", Origin(url) == origin);
+					w.WriteEndObject();
+				},
+				cancellationToken
+			).ConfigureAwait(false);
 			var resource = loaded.GetProperty("resource");
 			// Only the status is wanted: the body's stream is closed unread.
 			if (resource.StringOrNull("stream") is { } stream)

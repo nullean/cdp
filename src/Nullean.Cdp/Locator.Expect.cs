@@ -31,7 +31,8 @@ public sealed partial class Locator
 	private const string CheckedFunction = "function() { return this.getAttribute('aria-checked') === 'true' || this.checked === true; }";
 	private const string FocusedFunction = "function() { return document.activeElement === this; }";
 
-	private const string EditableFunction = """
+	private const string EditableFunction =
+		"""
 		function() {
 			const editable = ['INPUT', 'TEXTAREA', 'SELECT'].includes(this.tagName) || this.isContentEditable;
 			if (!editable) return false;
@@ -41,7 +42,8 @@ public sealed partial class Locator
 		}
 		""";
 
-	private const string EmptyFunction = """
+	private const string EmptyFunction =
+		"""
 		function() {
 			if (this.tagName === 'INPUT' || this.tagName === 'TEXTAREA') return this.value === '';
 			return (this.textContent ?? '').trim() === '';
@@ -81,24 +83,43 @@ public sealed partial class Locator
 				case MatcherKind.Attached:
 					return new Observation(true);
 				case MatcherKind.Text:
-					return new Observation(true, Text: (await CallAsync(element, TextFunction, w =>
-					{
-						w.WriteStartObject();
-						w.WriteBoolean("value", options.UseInnerText);
-						w.WriteEndObject();
-					}, cancellationToken).ConfigureAwait(false)).GetString() ?? string.Empty);
+					return new Observation(
+						true,
+						Text: (await CallAsync(
+							element,
+							TextFunction,
+							w =>
+							{
+								w.WriteStartObject();
+								w.WriteBoolean("value", options.UseInnerText);
+								w.WriteEndObject();
+							},
+							cancellationToken
+						).ConfigureAwait(false)).GetString() ?? string.Empty
+					);
 				case MatcherKind.Value:
-					return new Observation(true, Text: (await CallAsync(element, ValueFunction, null, cancellationToken).ConfigureAwait(false)).GetString() ?? string.Empty);
+					return new Observation(
+						true,
+						Text: (await CallAsync(element, ValueFunction, null, cancellationToken).ConfigureAwait(false)).GetString() ?? string.Empty
+					);
 				case MatcherKind.Attribute:
-					var attribute = await CallAsync(element, AttributeFunction, w =>
-					{
-						w.WriteStartObject();
-						w.WriteString("value", matcher.Name);
-						w.WriteEndObject();
-					}, cancellationToken).ConfigureAwait(false);
+					var attribute = await CallAsync(
+						element,
+						AttributeFunction,
+						w =>
+						{
+							w.WriteStartObject();
+							w.WriteString("value", matcher.Name);
+							w.WriteEndObject();
+						},
+						cancellationToken
+					).ConfigureAwait(false);
 					return new Observation(true, Text: attribute.ValueKind == JsonValueKind.String ? attribute.GetString() : null);
 				case MatcherKind.Class:
-					return new Observation(true, Text: (await CallAsync(element, ClassFunction, null, cancellationToken).ConfigureAwait(false)).GetString() ?? string.Empty);
+					return new Observation(
+						true,
+						Text: (await CallAsync(element, ClassFunction, null, cancellationToken).ConfigureAwait(false)).GetString() ?? string.Empty
+					);
 				default:
 					throw new ArgumentException($"{matcher.Kind} is not an element matcher.", nameof(matcher));
 			}

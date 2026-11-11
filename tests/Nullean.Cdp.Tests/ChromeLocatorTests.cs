@@ -11,8 +11,7 @@ public class ChromeLocatorTests
 	[Test]
 	public void VariableWinsOverInstallPaths()
 	{
-		var location = Locator(OSPlatform.Linux, new() { ["CDP_CHROME"] = "/opt/mine/chrome" },
-			"/opt/mine/chrome", "/usr/bin/google-chrome").Locate();
+		var location = Locator(OSPlatform.Linux, new() { ["CDP_CHROME"] = "/opt/mine/chrome" }, "/opt/mine/chrome", "/usr/bin/google-chrome").Locate();
 
 		location.Path.Should().Be("/opt/mine/chrome");
 		location.Source.Should().Be("CDP_CHROME");
@@ -29,8 +28,7 @@ public class ChromeLocatorTests
 	[Test]
 	public void CdpChromeWinsOverChromePath()
 	{
-		var location = Locator(OSPlatform.Linux, new() { ["CDP_CHROME"] = "/a/chrome", ["CHROME_PATH"] = "/b/chrome" },
-			"/a/chrome", "/b/chrome").Locate();
+		var location = Locator(OSPlatform.Linux, new() { ["CDP_CHROME"] = "/a/chrome", ["CHROME_PATH"] = "/b/chrome" }, "/a/chrome", "/b/chrome").Locate();
 
 		location.Path.Should().Be("/a/chrome");
 	}
@@ -47,8 +45,11 @@ public class ChromeLocatorTests
 	[Test]
 	public void WindowsInstallPathUsesBackslashes()
 	{
-		var location = Locator(OSPlatform.Windows, new() { ["ProgramFiles"] = @"C:\Program Files" },
-			@"C:\Program Files\Google\Chrome\Application\chrome.exe").Locate();
+		var location = Locator(
+			OSPlatform.Windows,
+			new() { ["ProgramFiles"] = @"C:\Program Files" },
+			@"C:\Program Files\Google\Chrome\Application\chrome.exe"
+		).Locate();
 
 		location.Path.Should().Be(@"C:\Program Files\Google\Chrome\Application\chrome.exe");
 	}

@@ -14,7 +14,10 @@ public class JourneyErrorFixtureTests
 		{
 			var name = c.GetProperty("name").GetString()!;
 			var text = c.GetProperty("text").GetString()!;
-			var expected = string.Join('\n', c.GetProperty("errors").EnumerateArray().Select(e => $"x.journey:{e.GetProperty("line").GetInt32()}: {e.GetProperty("message").GetString()}"));
+			var expected = string.Join(
+				'\n',
+				c.GetProperty("errors").EnumerateArray().Select(e => $"x.journey:{e.GetProperty("line").GetInt32()}: {e.GetProperty("message").GetString()}")
+			);
 			yield return () => (name, text, expected);
 		}
 	}

@@ -15,18 +15,41 @@ public class JourneyMetadataTests
 	}
 
 	public static IEnumerable<Func<(string Name, string Text, string? Expected)>> Valid() =>
-		Fixture("valid").EnumerateArray().Select(c => (Func<(string, string, string?)>)(() =>
-			(c.GetProperty("name").GetString()!, c.GetProperty("text").GetString()!, c.GetProperty("metadata").ValueKind == JsonValueKind.Null ? null : c.GetProperty("metadata").GetRawText())));
+		Fixture("valid")
+			.EnumerateArray()
+			.Select(
+				c =>
+					(Func<(string, string, string?)>)(() =>
+						(c.GetProperty("name").GetString()!, c.GetProperty("text").GetString()!, c.GetProperty("metadata").ValueKind == JsonValueKind.Null
+							? null
+							: c.GetProperty("metadata").GetRawText()))
+			);
 
 	public static IEnumerable<Func<(string Name, string Text, string Expected)>> Invalid() =>
-		Fixture("invalid").EnumerateArray().Select(c => (Func<(string, string, string)>)(() =>
-			(c.GetProperty("name").GetString()!, c.GetProperty("text").GetString()!,
-				string.Join('\n', c.GetProperty("errors").EnumerateArray().Select(e => $"x.journey:{e.GetProperty("line").GetInt32()}: {e.GetProperty("message").GetString()}")))));
+		Fixture("invalid")
+			.EnumerateArray()
+			.Select(
+				c =>
+					(Func<(string, string, string)>)(() =>
+						(c.GetProperty("name").GetString()!, c.GetProperty("text").GetString()!, string.Join(
+							'\n',
+							c
+								.GetProperty("errors")
+								.EnumerateArray()
+								.Select(e => $"x.journey:{e.GetProperty("line").GetInt32()}: {e.GetProperty("message").GetString()}")
+						)))
+			);
 
 	public static IEnumerable<Func<(string Requirement, string[] Features, string? BuildType, string? Env, bool Met)>> Requirements() =>
-		Fixture("requirements").EnumerateArray().Select(c => (Func<(string, string[], string?, string?, bool)>)(() =>
-			(c.GetProperty("requirement").GetString()!, [.. c.GetProperty("features").EnumerateArray().Select(f => f.GetString()!)],
-				c.GetProperty("buildType").GetString(), c.GetProperty("env").GetString(), c.GetProperty("met").GetBoolean())));
+		Fixture("requirements")
+			.EnumerateArray()
+			.Select(
+				c =>
+					(Func<(string, string[], string?, string?, bool)>)(() =>
+						(c.GetProperty("requirement").GetString()!, [.. c.GetProperty("features").EnumerateArray().Select(f => f.GetString()!)], c.GetProperty(
+							"buildType"
+						).GetString(), c.GetProperty("env").GetString(), c.GetProperty("met").GetBoolean()))
+			);
 
 	[Test]
 	[MethodDataSource(nameof(Valid))]
@@ -74,7 +97,10 @@ public class JourneyMetadataTests
 	[Test]
 	public void TheMetadataIsReadable()
 	{
-		var metadata = Journey.Parse("# @tags a\n# @requires x !env:prod\n# @monitor schedule=5 locations=eu\n# @alert pagerduty\n# @mutates\nopen /", "x.journey").Metadata;
+		var metadata = Journey.Parse(
+			"# @tags a\n# @requires x !env:prod\n# @monitor schedule=5 locations=eu\n# @alert pagerduty\n# @mutates\nopen /",
+			"x.journey"
+		).Metadata;
 
 		metadata.Tags.Should().Equal("a");
 		metadata.Requires.Select(r => r.ToString()).Should().Equal("x", "!env:prod");

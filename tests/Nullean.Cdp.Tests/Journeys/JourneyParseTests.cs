@@ -29,7 +29,9 @@ public class JourneyParseTests
 		One("wait --text \"3 results\"").Should().Be(new WaitCommand(new JourneyTarget(LocatorKind.Text, "3 results"), null));
 		One("set viewport 800 600").Should().Be(new SetCommand("viewport", 800, 600));
 		One("set media dark").Should().Be(new SetCommand("media", Scheme: "dark"));
-		One("snapshot -c -i -d 2 -s main").Should().Be(new SnapshotCommand(new AxSnapshotOptions { Compact = true, Interactive = true, Depth = 2, Selector = "main" }));
+		One("snapshot -c -i -d 2 -s main")
+			.Should()
+			.Be(new SnapshotCommand(new AxSnapshotOptions { Compact = true, Interactive = true, Depth = 2, Selector = "main" }));
 		One("get title").Should().Be(new ReadCommand("title", null));
 		One("get attr #q placeholder").Should().Be(new ReadCommand("attr", new JourneyTarget(LocatorKind.Css, "#q"), "placeholder"));
 		One("get count li").Should().Be(new ReadCommand("count", new JourneyTarget(LocatorKind.Css, "li")));
@@ -65,14 +67,17 @@ public class JourneyParseTests
 		One("get box #a").Should().Be(new ReadCommand("box", css("#a")));
 		One("get styles #a").Should().Be(new ReadCommand("styles", css("#a")));
 		One("timings").Should().Be(new PerformanceCommand("timings", []));
-		One("vitals --budget lcp=2500 cls=0.1").Should().Be(new PerformanceCommand("vitals", [new PerformanceBudget("lcp", 2500), new PerformanceBudget("cls", 0.1)]));
+		One("vitals --budget lcp=2500 cls=0.1")
+			.Should()
+			.Be(new PerformanceCommand("vitals", [new PerformanceBudget("lcp", 2500), new PerformanceBudget("cls", 0.1)]));
 		One("metrics --budget Nodes=1500").Should().Be(new PerformanceCommand("metrics", [new PerformanceBudget("Nodes", 1500)]));
 		One("network har start").Should().Be(new HarCommand("start"));
 		One("network har stop out/run.har").Should().Be(new HarCommand("stop", "out/run.har"));
 		One("network requests").Should().Be(new RequestsCommand(false, null, [], null, null));
 		One("network requests --clear").Should().Be(new RequestsCommand(true, null, [], null, null));
 		One("network requests --filter api --type xhr,fetch --method post --status 4xx")
-			.Should().Be(new RequestsCommand(false, "api", ["xhr", "fetch"], "POST", "4xx"));
+			.Should()
+			.Be(new RequestsCommand(false, "api", ["xhr", "fetch"], "POST", "4xx"));
 		One("links").Should().Be(new LinksCommand(null, false, false, false));
 		One("links -s main --external --all --strict").Should().Be(new LinksCommand("main", true, true, true));
 		One("screenshot shot.png").Should().Be(new ScreenshotCommand(null, "shot.png", false));
@@ -94,10 +99,13 @@ public class JourneyParseTests
 		One("expect visible #a").Should().Be(new ExpectCommand(Matcher.Visible, css("#a"), new ExpectOptions()));
 		One("expect --not hidden #a").Should().Be(new ExpectCommand(Matcher.Hidden, css("#a"), new ExpectOptions { Negate = true }));
 		One("expect hidden #a --not").Should().Be(new ExpectCommand(Matcher.Hidden, css("#a"), new ExpectOptions { Negate = true }));
-		One("expect --timeout 1500 enabled #a").Should().Be(new ExpectCommand(Matcher.Enabled, css("#a"), new ExpectOptions { Timeout = TimeSpan.FromMilliseconds(1500) }));
+		One("expect --timeout 1500 enabled #a")
+			.Should()
+			.Be(new ExpectCommand(Matcher.Enabled, css("#a"), new ExpectOptions { Timeout = TimeSpan.FromMilliseconds(1500) }));
 		One("expect text #count \"2 results\"").Should().Be(new ExpectCommand(Matcher.Text("2 results"), css("#count"), new ExpectOptions()));
-		One("expect text #count results --contains --ignore-case --inner-text").Should().Be(
-			new ExpectCommand(Matcher.Text("results", TextMatch.Contains), css("#count"), new ExpectOptions { IgnoreCase = true, UseInnerText = true }));
+		One("expect text #count results --contains --ignore-case --inner-text")
+			.Should()
+			.Be(new ExpectCommand(Matcher.Text("results", TextMatch.Contains), css("#count"), new ExpectOptions { IgnoreCase = true, UseInnerText = true }));
 		// Quoted, so the backslash is the regular expression's: unquoted, a backslash escapes the next character.
 		One("expect text #count '^\\d+' --regex").Should().Be(new ExpectCommand(Matcher.Text("^\\d+", TextMatch.Regex), css("#count"), new ExpectOptions()));
 		One("expect text #count \"^\\d+\" --regex").Should().Be(new ExpectCommand(Matcher.Text("^\\d+", TextMatch.Regex), css("#count"), new ExpectOptions()));
@@ -105,29 +113,48 @@ public class JourneyParseTests
 		One("expect value #name Ada").Should().Be(new ExpectCommand(Matcher.Value("Ada"), css("#name"), new ExpectOptions()));
 		One("expect request \"**/o/l\"").Should().Be(new ExpectRequestCommand("**/o/l", new ExpectOptions()));
 		One("expect --not --timeout 20000 request \"**/o/*\" --method post --type fetch,xhr --status 2xx --failed --larger-than 32kb --body-contains x")
-			.Should().Be(new ExpectRequestCommand("**/o/*", new ExpectOptions { Negate = true, Timeout = TimeSpan.FromSeconds(20) }, "POST", ["fetch", "xhr"], "2xx", true, 32768, "x"));
-		One("expect request /a --larger-than 1.5mb --body-regex '\"id\"'").Should().Be(new ExpectRequestCommand("/a", new ExpectOptions(), LargerThan: 1572864, BodyRegex: "\"id\""));
+			.Should()
+			.Be(
+				new ExpectRequestCommand(
+					"**/o/*",
+					new ExpectOptions { Negate = true, Timeout = TimeSpan.FromSeconds(20) },
+					"POST",
+					["fetch", "xhr"],
+					"2xx",
+					true,
+					32768,
+					"x"
+				)
+			);
+		One("expect request /a --larger-than 1.5mb --body-regex '\"id\"'")
+			.Should()
+			.Be(new ExpectRequestCommand("/a", new ExpectOptions(), LargerThan: 1572864, BodyRegex: "\"id\""));
 		One("expect request /a --larger-than 2048").Should().Be(new ExpectRequestCommand("/a", new ExpectOptions(), LargerThan: 2048));
 		One("expect same-document").Should().Be(new ExpectSameDocumentCommand(new ExpectOptions()));
-		One("expect --not --timeout 300 same-document").Should().Be(new ExpectSameDocumentCommand(new ExpectOptions { Negate = true, Timeout = TimeSpan.FromMilliseconds(300) }));
+		One("expect --not --timeout 300 same-document")
+			.Should()
+			.Be(new ExpectSameDocumentCommand(new ExpectOptions { Negate = true, Timeout = TimeSpan.FromMilliseconds(300) }));
 		One("expect attr #name placeholder").Should().Be(new ExpectCommand(Matcher.Attribute("placeholder"), css("#name"), new ExpectOptions()));
-		One("expect attr #name placeholder Name --contains").Should().Be(new ExpectCommand(Matcher.Attribute("placeholder", "Name", TextMatch.Contains), css("#name"), new ExpectOptions()));
+		One("expect attr #name placeholder Name --contains")
+			.Should()
+			.Be(new ExpectCommand(Matcher.Attribute("placeholder", "Name", TextMatch.Contains), css("#name"), new ExpectOptions()));
 		One("expect class #go \"primary big\"").Should().Be(new ExpectCommand(Matcher.Class("primary big"), css("#go"), new ExpectOptions()));
 		One("expect count li 3").Should().Be(new ExpectCommand(Matcher.Count(3), css("li"), new ExpectOptions()));
 		One("expect title Loaded").Should().Be(new ExpectCommand(Matcher.Title("Loaded"), null, new ExpectOptions()));
 		One("expect url \"**/about.html\"").Should().Be(new ExpectCommand(Matcher.Url("**/about.html"), null, new ExpectOptions()));
-		One("expect visible find role button --name Save --exact").Should().Be(
-			new ExpectCommand(Matcher.Visible, new JourneyTarget(LocatorKind.Role, "button", "Save", true), new ExpectOptions()));
-		One("expect text find label Email \"a@b.c\"").Should().Be(
-			new ExpectCommand(Matcher.Text("a@b.c"), new JourneyTarget(LocatorKind.Label, "Email"), new ExpectOptions()));
+		One("expect visible find role button --name Save --exact")
+			.Should()
+			.Be(new ExpectCommand(Matcher.Visible, new JourneyTarget(LocatorKind.Role, "button", "Save", true), new ExpectOptions()));
+		One("expect text find label Email \"a@b.c\"")
+			.Should()
+			.Be(new ExpectCommand(Matcher.Text("a@b.c"), new JourneyTarget(LocatorKind.Label, "Email"), new ExpectOptions()));
 		One("expect visible find last li").Should().Be(new ExpectCommand(Matcher.Visible, css("li") with { Index = -1 }, new ExpectOptions()));
 		One("expect text find nth 2 li Two").Should().Be(new ExpectCommand(Matcher.Text("Two"), css("li") with { Index = 2 }, new ExpectOptions()));
 		One("expect value #pw $env:PW").Should().Be(new ExpectCommand(Matcher.Value("$env:PW"), css("#pw"), new ExpectOptions()));
 	}
 
 	[Test]
-	public void AnExpectCommandIsNotACheckpoint() =>
-		One("expect visible #a").IsCheckpoint.Should().BeFalse();
+	public void AnExpectCommandIsNotACheckpoint() => One("expect visible #a").IsCheckpoint.Should().BeFalse();
 
 	[Test]
 	public void AnInvalidRegularExpressionIsAParseError() =>
@@ -146,7 +173,9 @@ public class JourneyParseTests
 	public void ParsesFind()
 	{
 		One("find role button --name Go").Should().BeEquivalentTo(new ActCommand("click", new JourneyTarget(LocatorKind.Role, "button", "Go"), []));
-		One("find text \"Sign in\" click --exact").Should().BeEquivalentTo(new ActCommand("click", new JourneyTarget(LocatorKind.Text, "Sign in", null, true), []));
+		One("find text \"Sign in\" click --exact")
+			.Should()
+			.BeEquivalentTo(new ActCommand("click", new JourneyTarget(LocatorKind.Text, "Sign in", null, true), []));
 		One("find label Email fill a@b.test").Should().BeEquivalentTo(new ActCommand("fill", new JourneyTarget(LocatorKind.Label, "Email"), ["a@b.test"]));
 		One("find testid save hover").Should().BeEquivalentTo(new ActCommand("hover", new JourneyTarget(LocatorKind.TestId, "save"), []));
 		One("find role heading text --name Welcome").Should().Be(new ReadCommand("text", new JourneyTarget(LocatorKind.Role, "heading", "Welcome")));
@@ -168,16 +197,19 @@ public class JourneyParseTests
 
 	[Test]
 	public void RefsAreRejected() =>
-		Error("click @e12").Should().Be(
-			"x.journey:1: '@e12' is an agent-browser ref, which changes from run to run; use find role <role> --name <name>, find text, or a CSS selector.");
+		Error("click @e12")
+			.Should()
+			.Be("x.journey:1: '@e12' is an agent-browser ref, which changes from run to run; use find role <role> --name <name>, find text, or a CSS selector.");
 
 	[Test]
 	public void EveryErrorIsReportedWithItsLine() =>
-		Error("open /\npdf a.pdf\nfill #q\nfind nth li\nclick \"open").Should().Be(
-			"x.journey:2: 'pdf' is not supported in journeys. Supported: allow, feature, end, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, links, screenshot, a11y, timings, vitals, metrics, is, expect.\n" +
-			"x.journey:3: usage: fill <selector> <text>\n" +
-			"x.journey:4: usage: find nth <n> <selector> [action] [text]\n" +
-			"x.journey:5: the double quote is not closed");
+		Error("open /\npdf a.pdf\nfill #q\nfind nth li\nclick \"open")
+			.Should()
+			.Be(
+				"x.journey:2: 'pdf' is not supported in journeys. Supported: allow, feature, end, open, back, forward, reload, click, dblclick, hover, focus, scrollintoview, fill, type, check, uncheck, select, upload, drag, scroll, press, keyboard, find, wait, set, snapshot, get, console, errors, network, links, screenshot, a11y, timings, vitals, metrics, is, expect.\n" +
+					"x.journey:3: usage: fill <selector> <text>\n" + "x.journey:4: usage: find nth <n> <selector> [action] [text]\n" +
+					"x.journey:5: the double quote is not closed"
+			);
 
 	[Test]
 	[Arguments("find role button press", "find does not support 'press': use click, fill, check, hover or text")]
@@ -235,42 +267,61 @@ public class JourneyParseTests
 	[Test]
 	public void ExportsAgentBrowserBatchJson()
 	{
-		var journey = Journey.Parse("""
+		var journey = Journey.Parse(
+			"""
 			open /shop
 			open docs?page=2
 			open https://elsewhere.test/a
 			find role button --name "Say hello"
 			fill #q "red \"lamp\""
 			snapshot -c
-			""");
+			"""
+		);
 
 		journey.ToAgentBrowserBatch(new Uri("http://localhost:5000/app/")).Should().MatchSnapshot();
 	}
 
 	[Test]
 	public void ExportKeepsVitalsWithoutBudgetsAndSkipsOurOwnReadings() =>
-		Journey.Parse("open https://x.test/\ntimings\nvitals --budget lcp=1\nmetrics\nget title").ToAgentBrowserBatch()
-			.Should().Be("[[\"open\",\"https://x.test/\"],[\"vitals\"],[\"get\",\"title\"]]\n");
+		Journey
+			.Parse("open https://x.test/\ntimings\nvitals --budget lcp=1\nmetrics\nget title")
+			.ToAgentBrowserBatch()
+			.Should()
+			.Be("[[\"open\",\"https://x.test/\"],[\"vitals\"],[\"get\",\"title\"]]\n");
 
 	[Test]
 	public void ExportTranslatesOurChecks() =>
-		Journey.Parse("open https://x.test/\nlinks --strict\nnetwork requests --failed --strict\nnetwork requests --status 5xx --failed\nscreenshot #box box.png").ToAgentBrowserBatch()
-			.Should().Be("[[\"open\",\"https://x.test/\"],[\"network\",\"requests\",\"--status\",\"400-599\"],[\"network\",\"requests\",\"--status\",\"5xx\"],[\"screenshot\",\"#box\",\"box.png\"]]\n");
+		Journey
+			.Parse("open https://x.test/\nlinks --strict\nnetwork requests --failed --strict\nnetwork requests --status 5xx --failed\nscreenshot #box box.png")
+			.ToAgentBrowserBatch()
+			.Should()
+			.Be(
+				"[[\"open\",\"https://x.test/\"],[\"network\",\"requests\",\"--status\",\"400-599\"],[\"network\",\"requests\",\"--status\",\"5xx\"],[\"screenshot\",\"#box\",\"box.png\"]]\n"
+			);
 
 	[Test]
 	public void ExportLeavesAssertionsOutBecauseAgentBrowserHasNone() =>
-		Journey.Parse("open https://x.test/\nexpect visible #a\nexpect title Home\nget title").ToAgentBrowserBatch()
-			.Should().Be("[[\"open\",\"https://x.test/\"],[\"get\",\"title\"]]\n");
+		Journey
+			.Parse("open https://x.test/\nexpect visible #a\nexpect title Home\nget title")
+			.ToAgentBrowserBatch()
+			.Should()
+			.Be("[[\"open\",\"https://x.test/\"],[\"get\",\"title\"]]\n");
 
 	[Test]
 	public void ExportLeavesNetworkAndDocumentAssertionsOutToo() =>
-		Journey.Parse("open https://x.test/\nexpect request \"**/a\" --larger-than 1kb\nclick #go\nexpect same-document\nget title").ToAgentBrowserBatch()
-			.Should().Be("[[\"open\",\"https://x.test/\"],[\"click\",\"#go\"],[\"get\",\"title\"]]\n");
+		Journey
+			.Parse("open https://x.test/\nexpect request \"**/a\" --larger-than 1kb\nclick #go\nexpect same-document\nget title")
+			.ToAgentBrowserBatch()
+			.Should()
+			.Be("[[\"open\",\"https://x.test/\"],[\"click\",\"#go\"],[\"get\",\"title\"]]\n");
 
 	[Test]
 	public void ExportKeepsA11yWithoutStrict() =>
-		Journey.Parse("open https://x.test/\na11y -s main --strict").ToAgentBrowserBatch()
-			.Should().Be("[[\"open\",\"https://x.test/\"],[\"a11y\",\"--selector\",\"main\"]]\n");
+		Journey
+			.Parse("open https://x.test/\na11y -s main --strict")
+			.ToAgentBrowserBatch()
+			.Should()
+			.Be("[[\"open\",\"https://x.test/\"],[\"a11y\",\"--selector\",\"main\"]]\n");
 
 	[Test]
 	public void RelativeUrlsNeedABaseUrl()

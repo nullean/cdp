@@ -9,13 +9,17 @@ public class ReadOnlyTests(ChromeFixture chrome)
 	private async Task<(JourneyResult Result, int Writes)> Run(string journey, bool readOnly = true, params string[] writable)
 	{
 		await using var server = new WriteServer();
-		var result = await JourneyRunner.RunAsync(Journey.Parse(journey, "read-only.journey"), chrome.Browser, new JourneyOptions
-		{
-			BaseUrl = new Uri(server.Url),
-			ReadOnly = readOnly,
-			WritableUrls = writable.Select(w => server.Url + w).ToArray(),
-			ActionTimeout = TimeSpan.FromSeconds(3),
-		});
+		var result = await JourneyRunner.RunAsync(
+			Journey.Parse(journey, "read-only.journey"),
+			chrome.Browser,
+			new JourneyOptions
+			{
+				BaseUrl = new Uri(server.Url),
+				ReadOnly = readOnly,
+				WritableUrls = writable.Select(w => server.Url + w).ToArray(),
+				ActionTimeout = TimeSpan.FromSeconds(3),
+			}
+		);
 		await Task.Delay(100);
 		return (result, server.Writes);
 	}
@@ -27,7 +31,15 @@ public class ReadOnlyTests(ChromeFixture chrome)
 
 		result.Failure.Should().NotBeNull();
 		result.Failure!.Line.Should().BeOneOf(2, 3);
-		result.Failure.Message.Should().StartWith("Blocked POST http://localhost:").And.EndWith("/write: this run is read-only, so only GET, HEAD and OPTIONS requests are sent (JourneyOptions.WritableUrls, or --writable on the CLI, allows a URL).");
+		result
+			.Failure
+			.Message
+			.Should()
+			.StartWith("Blocked POST http://localhost:")
+			.And
+			.EndWith(
+				"/write: this run is read-only, so only GET, HEAD and OPTIONS requests are sent (JourneyOptions.WritableUrls, or --writable on the CLI, allows a URL)."
+			);
 		writes.Should().Be(0);
 	}
 

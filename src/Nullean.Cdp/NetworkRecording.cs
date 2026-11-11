@@ -132,10 +132,15 @@ public sealed class NetworkRecording : IAsyncDisposable
 					hop.FinishedSeconds = p.GetProperty("timestamp").GetDouble();
 				}
 
-				var started = new NetworkRequest(id, request.StringOrNull("url") ?? string.Empty, request.StringOrNull("method") ?? "GET",
-					p.StringOrNull("type") ?? "Other", p.GetProperty("timestamp").GetDouble(),
+				var started = new NetworkRequest(
+					id,
+					request.StringOrNull("url") ?? string.Empty,
+					request.StringOrNull("method") ?? "GET",
+					p.StringOrNull("type") ?? "Other",
+					p.GetProperty("timestamp").GetDouble(),
 					p.TryGetProperty("wallTime", out var wall) ? wall.GetDouble() : 0,
-					request.TryGetProperty("headers", out var headers) ? headers.Clone() : default);
+					request.TryGetProperty("headers", out var headers) ? headers.Clone() : default
+				);
 				CapturePostData(started, request);
 				_open[id] = started;
 				Volatile.Read(ref _requests).Enqueue(started);
@@ -161,8 +166,11 @@ public sealed class NetworkRecording : IAsyncDisposable
 	{
 		if (!request.TryGetProperty("hasPostData", out var has) || has.ValueKind != JsonValueKind.True)
 			return;
-		if (request.TryGetProperty("postDataEntries", out var entries) && entries.ValueKind == JsonValueKind.Array
-			&& entries.EnumerateArray().All(e => e.TryGetProperty("bytes", out _)))
+		if (
+			request.TryGetProperty("postDataEntries", out var entries) && entries.ValueKind == JsonValueKind.Array && entries.EnumerateArray().All(
+				e => e.TryGetProperty("bytes", out _)
+			)
+		)
 		{
 			started.PostBytes = [.. entries.EnumerateArray().SelectMany(e => Convert.FromBase64String(e.GetProperty("bytes").GetString() ?? string.Empty))];
 			return;
@@ -200,8 +208,8 @@ public sealed class NetworkRecording : IAsyncDisposable
 		request.StatusText = response.StringOrNull("statusText") ?? string.Empty;
 		request.MimeType = response.StringOrNull("mimeType") ?? string.Empty;
 		request.Protocol = response.StringOrNull("protocol") ?? string.Empty;
-		request.FromCache = (response.TryGetProperty("fromDiskCache", out var disk) && disk.ValueKind == JsonValueKind.True)
-			|| (response.TryGetProperty("fromServiceWorker", out var worker) && worker.ValueKind == JsonValueKind.True);
+		request.FromCache = (response.TryGetProperty("fromDiskCache", out var disk) && disk.ValueKind == JsonValueKind.True) ||
+			(response.TryGetProperty("fromServiceWorker", out var worker) && worker.ValueKind == JsonValueKind.True);
 		request.ResponseHeaders = response.TryGetProperty("headers", out var headers) ? headers.Clone() : default;
 		request.Timing = response.TryGetProperty("timing", out var timing) ? timing.Clone() : default;
 	}
@@ -217,7 +225,10 @@ public sealed class NetworkRecording : IAsyncDisposable
 	{
 		ArgumentNullException.ThrowIfNull(requests);
 		var buffer = new ArrayBufferWriter<byte>();
-		using (var json = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
+		using (var json = new Utf8JsonWriter(
+			buffer,
+			new JsonWriterOptions { Indented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }
+		))
 		{
 			json.WriteStartObject();
 			json.WriteStartObject("log");
@@ -244,7 +255,10 @@ public sealed class NetworkRecording : IAsyncDisposable
 	{
 		var (blocked, dns, connect, ssl, send, wait, receive, total) = Timings(request);
 		json.WriteStartObject();
-		json.WriteString("startedDateTime", DateTimeOffset.FromUnixTimeMilliseconds((long)(request.WallTime * 1000)).ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture));
+		json.WriteString(
+			"startedDateTime",
+			DateTimeOffset.FromUnixTimeMilliseconds((long)(request.WallTime * 1000)).ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture)
+		);
 		json.WriteNumber("time", Math.Round(total, 3));
 		json.WriteString("_resourceType", request.ResourceType);
 		if (request.Error is { } error)
@@ -297,14 +311,19 @@ public sealed class NetworkRecording : IAsyncDisposable
 	/// HAR phases in ms from Chrome's resource timing, as DevTools exports them: <c>-1</c> for a phase that did not
 	/// happen (a reused connection has no DNS or connect); <c>ssl</c> is part of <c>connect</c>.
 	/// </summary>
-	internal static (double Blocked, double Dns, double Connect, double Ssl, double Send, double Wait, double Receive, double Total) Timings(NetworkRequest request)
+	internal static (double Blocked, double Dns, double Connect, double Ssl, double Send, double Wait, double Receive, double Total) Timings(
+		NetworkRequest request
+	)
 	{
 		var total = request.FinishedSeconds is { } end ? Math.Max(0, (end - request.StartedSeconds) * 1000) : 0;
 		if (request.Timing.ValueKind != JsonValueKind.Object)
 			return (0, -1, -1, -1, 0, 0, total, total);
 		var t = request.Timing;
+
 		double At(string name) => t.TryGetProperty(name, out var v) ? v.GetDouble() : -1;
+
 		double Span(double start, double finish) => start >= 0 && finish >= 0 ? finish - start : -1;
+
 		var requestTime = At("requestTime");
 		var (dnsStart, dnsEnd, connectStart, connectEnd) = (At("dnsStart"), At("dnsEnd"), At("connectStart"), At("connectEnd"));
 		var (sslStart, sslEnd, sendStart, sendEnd, headersEnd) = (At("sslStart"), At("sslEnd"), At("sendStart"), At("sendEnd"), At("receiveHeadersEnd"));
@@ -360,8 +379,13 @@ public sealed class NetworkRecording : IAsyncDisposable
 	}
 
 	private static string? HeaderValue(JsonElement headers, string name) =>
-		headers.ValueKind != JsonValueKind.Object ? null
-		: headers.EnumerateObject().Where(h => string.Equals(h.Name, name, StringComparison.OrdinalIgnoreCase)).Select(h => h.Value.ToString()).FirstOrDefault();
+		headers.ValueKind != JsonValueKind.Object
+			? null
+			: headers
+				.EnumerateObject()
+				.Where(h => string.Equals(h.Name, name, StringComparison.OrdinalIgnoreCase))
+				.Select(h => h.Value.ToString())
+				.FirstOrDefault();
 
 	/// <summary>Stops recording.</summary>
 	public ValueTask DisposeAsync()

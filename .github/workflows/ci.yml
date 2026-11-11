@@ -85,6 +85,9 @@ jobs:
       - name: Build
         run: dotnet build -c Release
 
+      - name: Check formatting (curb)
+        run: dotnet tool restore && dotnet curb check .
+
       # Fast PR checks: the browser suite runs on Linux; macOS and Windows build and run the tests that need no
       # browser. (On the small macOS runners a full browser suite with auto-attach made the runner unresponsive.)
       - name: Test

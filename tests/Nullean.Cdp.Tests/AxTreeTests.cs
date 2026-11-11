@@ -7,8 +7,17 @@ namespace Nullean.Cdp.Tests;
 public class AxTreeTests
 {
 	// A compact way to write getFullAXTree nodes: id, role, name, children, and optional extras.
-	private static string Node(string id, string role, string? name = null, string[]? children = null, string? parent = null,
-		bool ignored = false, long? backend = null, string? value = null, string? properties = null)
+	private static string Node(
+		string id,
+		string role,
+		string? name = null,
+		string[]? children = null,
+		string? parent = null,
+		bool ignored = false,
+		long? backend = null,
+		string? value = null,
+		string? properties = null
+	)
 	{
 		var parts = new List<string>
 		{
@@ -76,9 +85,21 @@ public class AxTreeTests
 	public void StatesPrintInAFixedOrderAndFalseFlagsAreLeftOut() =>
 		Print(
 			Node("1", "RootWebArea", children: ["2"]),
-			Node("2", "checkbox", "C", parent: "1", properties: string.Join(',',
-				Prop("required", "true"), Prop("disabled", "false"), Prop("checked", "\"mixed\""), Prop("focusable", "true"),
-				Prop("selected", "true"), Prop("level", "3")))
+			Node(
+				"2",
+				"checkbox",
+				"C",
+				parent: "1",
+				properties: string.Join(
+					',',
+					Prop("required", "true"),
+					Prop("disabled", "false"),
+					Prop("checked", "\"mixed\""),
+					Prop("focusable", "true"),
+					Prop("selected", "true"),
+					Prop("level", "3")
+				)
+			)
 		).Should().Be("- checkbox \"C\" [level=3, checked=mixed, selected, required]\n");
 
 	[Test]
@@ -91,14 +112,15 @@ public class AxTreeTests
 
 	[Test]
 	public void NamesAreEscaped() =>
-		Print(
-			Node("1", "RootWebArea", children: ["2"]),
-			Node("2", "button", "Say \"hi\" \\ there\n\tnow", parent: "1")
-		).Should().Be("- button \"Say \\\"hi\\\" \\\\ there\\n\\tnow\"\n");
+		Print(Node("1", "RootWebArea", children: ["2"]), Node("2", "button", "Say \"hi\" \\ there\n\tnow", parent: "1"))
+			.Should()
+			.Be("- button \"Say \\\"hi\\\" \\\\ there\\n\\tnow\"\n");
 
 	[Test]
 	public void ASelectedElementIsIncludedItself() =>
-		Print(42, null,
+		Print(
+			42,
+			null,
 			Node("1", "RootWebArea", children: ["2"]),
 			Node("2", "main", children: ["3"], parent: "1", backend: 42),
 			Node("3", "heading", "Title", parent: "2", backend: 43)
@@ -106,7 +128,9 @@ public class AxTreeTests
 
 	[Test]
 	public void AnIgnoredSelectedElementGivesItsChildren() =>
-		Print(42, null,
+		Print(
+			42,
+			null,
 			Node("1", "RootWebArea", children: ["2"]),
 			Node("2", "generic", children: ["3"], parent: "1", backend: 42, ignored: true),
 			Node("3", "button", "Go", parent: "2")
@@ -121,7 +145,9 @@ public class AxTreeTests
 
 	[Test]
 	public void CompactDropsMarkersBreaksAndEmptyStructure() =>
-		Print(null, new AxSnapshotOptions { Compact = true },
+		Print(
+			null,
+			new AxSnapshotOptions { Compact = true },
 			Node("1", "RootWebArea", children: ["2", "5"]),
 			Node("2", "listitem", children: ["3", "4"], parent: "1"),
 			Node("3", "ListMarker", "• ", parent: "2"),
@@ -132,7 +158,9 @@ public class AxTreeTests
 
 	[Test]
 	public void InteractiveKeepsControlsHeadingsAndNamedLandmarksOnly() =>
-		Print(null, new AxSnapshotOptions { Interactive = true },
+		Print(
+			null,
+			new AxSnapshotOptions { Interactive = true },
 			Node("1", "RootWebArea", children: ["2", "3"]),
 			Node("2", "main", children: ["4", "5"], parent: "1"),
 			Node("3", "navigation", "Site", ["6"], "1"),
@@ -144,7 +172,9 @@ public class AxTreeTests
 
 	[Test]
 	public void DepthZeroPrintsTheTopLevelOnly() =>
-		Print(null, new AxSnapshotOptions { Depth = 0 },
+		Print(
+			null,
+			new AxSnapshotOptions { Depth = 0 },
 			Node("1", "RootWebArea", children: ["2"]),
 			Node("2", "main", children: ["3"], parent: "1"),
 			Node("3", "button", "B", parent: "2")

@@ -62,9 +62,7 @@ internal static class ChromeProcesses
 					chrome.WaitForExit(2000);
 				}
 			}
-			catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception)
-			{
-			}
+			catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
 
 			for (var attempt = 0; attempt < 10 && Directory.Exists(profile); attempt++)
 			{
@@ -130,8 +128,7 @@ internal static class ChromeProcesses
 		{
 			try
 			{
-				return Directory.EnumerateFileSystemEntries(profile, "SingletonLock").Any()
-					|| Directory.EnumerateFileSystemEntries(profile, "lockfile").Any();
+				return Directory.EnumerateFileSystemEntries(profile, "SingletonLock").Any() || Directory.EnumerateFileSystemEntries(profile, "lockfile").Any();
 			}
 			catch (Exception e) when (e is IOException or UnauthorizedAccessException)
 			{
@@ -169,7 +166,8 @@ internal static class ChromeProcesses
 		Dictionary<string, string> owner;
 		try
 		{
-			owner = File.ReadAllLines(Path.Combine(profile, OwnerFile))
+			owner = File
+				.ReadAllLines(Path.Combine(profile, OwnerFile))
 				.Select(l => l.Split('=', 2))
 				.Where(p => p.Length == 2)
 				.ToDictionary(p => p[0], p => p[1], StringComparer.Ordinal);
@@ -179,14 +177,22 @@ internal static class ChromeProcesses
 			return null;
 		}
 
-		if (!owner.TryGetValue("pid", out var pidText) || !int.TryParse(pidText, NumberStyles.None, CultureInfo.InvariantCulture, out var pid)
-			|| !owner.TryGetValue("started", out var startedText) || !long.TryParse(startedText, NumberStyles.None, CultureInfo.InvariantCulture, out var started))
+		if (
+			!owner.TryGetValue("pid", out var pidText) || !int.TryParse(pidText, NumberStyles.None, CultureInfo.InvariantCulture, out var pid) ||
+			!owner.TryGetValue("started", out var startedText) || !long.TryParse(startedText, NumberStyles.None, CultureInfo.InvariantCulture, out var started)
+		)
 			return null;
-		(int, long)? chrome = owner.TryGetValue("chrome", out var chromeText) && int.TryParse(chromeText, NumberStyles.None, CultureInfo.InvariantCulture, out var chromePid)
-			&& owner.TryGetValue("chromeStarted", out var chromeStartedText)
-			&& long.TryParse(chromeStartedText, NumberStyles.None, CultureInfo.InvariantCulture, out var chromeStarted)
-				? (chromePid, chromeStarted)
-				: null;
+		(int, long)? chrome = owner.TryGetValue("chrome", out var chromeText) && int.TryParse(
+			chromeText,
+			NumberStyles.None,
+			CultureInfo.InvariantCulture,
+			out var chromePid
+		) && owner.TryGetValue("chromeStarted", out var chromeStartedText) && long.TryParse(
+			chromeStartedText,
+			NumberStyles.None,
+			CultureInfo.InvariantCulture,
+			out var chromeStarted
+		) ? (chromePid, chromeStarted) : null;
 		return new ProfileOwner(pid, started, chrome);
 	}
 
@@ -217,8 +223,10 @@ internal static class ChromeProcesses
 			await using var connection = await CdpConnection.ConnectAsync(url, timeout.Token).ConfigureAwait(false);
 			await connection.SendAsync("Browser.close", cancellationToken: timeout.Token).ConfigureAwait(false);
 		}
-		catch (Exception e) when (e is CdpException or CdpDisconnectedException or OperationCanceledException
-			or System.Net.WebSockets.WebSocketException or IOException)
+		catch (Exception e) when (e is CdpException or CdpDisconnectedException or OperationCanceledException or System
+			.Net
+			.WebSockets
+			.WebSocketException or IOException)
 		{
 			// Already gone, or not a Chrome of ours on that port.
 		}

@@ -81,7 +81,20 @@ public class ExpectationTests(ChromeFixture chrome)
 		await missing.ExpectAsync(Matcher.Count(1), new ExpectOptions { Negate = true });
 
 		// ...and every other matcher needs an element, even negated.
-		foreach (var matcher in new[] { Matcher.Enabled, Matcher.Disabled, Matcher.Checked, Matcher.Unchecked, Matcher.Focused, Matcher.Editable, Matcher.Empty, Matcher.Text("x"), Matcher.Value("x"), Matcher.Attribute("x"), Matcher.Class("x") })
+		foreach (var matcher in new[]
+		{
+			Matcher.Enabled,
+			Matcher.Disabled,
+			Matcher.Checked,
+			Matcher.Unchecked,
+			Matcher.Focused,
+			Matcher.Editable,
+			Matcher.Empty,
+			Matcher.Text("x"),
+			Matcher.Value("x"),
+			Matcher.Attribute("x"),
+			Matcher.Class("x")
+		})
 		{
 			var negated = await missing.CheckAsync(matcher, Quick with { Negate = true });
 			negated.Passed.Should().BeFalse($"--not {matcher.Kind} on nothing");
@@ -178,8 +191,7 @@ public class ExpectationTests(ChromeFixture chrome)
 		var (context, page) = await OpenAsync();
 		await using var _ = context;
 
-		var thrown = await FluentActions.Awaiting(() => page.Css("#count").ExpectAsync(Matcher.Text("3"), Quick))
-			.Should().ThrowAsync<ExpectationException>();
+		var thrown = await FluentActions.Awaiting(() => page.Css("#count").ExpectAsync(Matcher.Text("3"), Quick)).Should().ThrowAsync<ExpectationException>();
 
 		thrown.Which.Result.Passed.Should().BeFalse();
 		thrown.Which.Result.Received.Should().Be("\"2 results\"");
@@ -193,8 +205,11 @@ public class ExpectationTests(ChromeFixture chrome)
 		var (context, page) = await OpenAsync();
 		await using var _ = context;
 
-		await FluentActions.Awaiting(() => page.Css("#count").CheckAsync(Matcher.Text("(", TextMatch.Regex), Quick))
-			.Should().ThrowAsync<ArgumentException>().WithMessage("'(' is not a valid regular expression*");
+		await FluentActions
+			.Awaiting(() => page.Css("#count").CheckAsync(Matcher.Text("(", TextMatch.Regex), Quick))
+			.Should()
+			.ThrowAsync<ArgumentException>()
+			.WithMessage("'(' is not a valid regular expression*");
 	}
 
 	[Test]
@@ -203,10 +218,12 @@ public class ExpectationTests(ChromeFixture chrome)
 		var (context, page) = await OpenAsync();
 		await using var _ = context;
 
-		await FluentActions.Awaiting(() => page.Css("#go").CheckAsync(Matcher.Title("x")))
-			.Should().ThrowAsync<ArgumentException>().WithMessage("*use Page.CheckAsync*");
-		await FluentActions.Awaiting(() => page.CheckAsync(Matcher.Visible))
-			.Should().ThrowAsync<ArgumentException>().WithMessage("*use Locator.CheckAsync*");
+		await FluentActions
+			.Awaiting(() => page.Css("#go").CheckAsync(Matcher.Title("x")))
+			.Should()
+			.ThrowAsync<ArgumentException>()
+			.WithMessage("*use Page.CheckAsync*");
+		await FluentActions.Awaiting(() => page.CheckAsync(Matcher.Visible)).Should().ThrowAsync<ArgumentException>().WithMessage("*use Locator.CheckAsync*");
 	}
 
 	[Test]

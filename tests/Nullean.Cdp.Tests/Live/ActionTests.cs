@@ -63,7 +63,9 @@ public class ActionTests(ChromeFixture chrome)
 		page.ActionTimeout = TimeSpan.FromMilliseconds(300);
 
 		var act = () => page.Text("Hidden button").ClickAsync();
-		await act.Should().ThrowAsync<LocatorTimeoutException>()
+		await act
+			.Should()
+			.ThrowAsync<LocatorTimeoutException>()
 			.WithMessage("Timed out after 0.3s waiting for text \"Hidden button\" to be visible and enabled: 1 element matches, none visible.");
 	}
 
@@ -75,8 +77,12 @@ public class ActionTests(ChromeFixture chrome)
 		page.ActionTimeout = TimeSpan.FromMilliseconds(300);
 
 		var act = () => page.Role("button", "Never enabled").ClickAsync();
-		await act.Should().ThrowAsync<LocatorTimeoutException>()
-			.WithMessage("Timed out after 0.3s waiting for role button --name \"Never enabled\" to be visible and enabled: 1 element matches, the visible one is disabled.");
+		await act
+			.Should()
+			.ThrowAsync<LocatorTimeoutException>()
+			.WithMessage(
+				"Timed out after 0.3s waiting for role button --name \"Never enabled\" to be visible and enabled: 1 element matches, the visible one is disabled."
+			);
 		(await Log(page)).Should().Be("nothing yet");
 	}
 
@@ -101,7 +107,9 @@ public class ActionTests(ChromeFixture chrome)
 		page.ActionTimeout = TimeSpan.FromMilliseconds(200);
 
 		var act = () => page.Css("#nope").ClickAsync();
-		await act.Should().ThrowAsync<LocatorTimeoutException>()
+		await act
+			.Should()
+			.ThrowAsync<LocatorTimeoutException>()
 			.WithMessage("Timed out after 0.2s waiting for css #nope to be visible and enabled: no element matches.");
 	}
 
@@ -148,7 +156,9 @@ public class ActionTests(ChromeFixture chrome)
 		await using var _ = context;
 
 		var act = () => page.Role("button", "Say hello").FillAsync("x");
-		await act.Should().ThrowAsync<LocatorException>()
+		await act
+			.Should()
+			.ThrowAsync<LocatorException>()
 			.WithMessage("Cannot fill role button --name \"Say hello\": the element is not an input, text area or editable element.");
 	}
 
@@ -360,9 +370,9 @@ public class ActionTests(ChromeFixture chrome)
 		var (context, page) = await Open();
 		await using var _ = context;
 
-		var reads = await Task.WhenAll(Enumerable.Range(0, 20).Select(i => i % 2 == 0
-			? page.Role("button", "Say hello").TextAsync()
-			: page.Label("Your name").ValueAsync()));
+		var reads = await Task.WhenAll(
+			Enumerable.Range(0, 20).Select(i => i % 2 == 0 ? page.Role("button", "Say hello").TextAsync() : page.Label("Your name").ValueAsync())
+		);
 
 		reads.Where((_, i) => i % 2 == 0).Should().AllBe("Say hello");
 		reads.Where((_, i) => i % 2 == 1).Should().AllBe("prefilled");

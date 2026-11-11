@@ -6,8 +6,7 @@ public class BrowserLaunchTests
 {
 	[Test]
 	public void DevToolsActivePortGivesTheBrowsersWebSocket() =>
-		Browser.ParseDevToolsActivePort(["53117", "/devtools/browser/0b5c-77e"])!.ToString()
-			.Should().Be("ws://127.0.0.1:53117/devtools/browser/0b5c-77e");
+		Browser.ParseDevToolsActivePort(["53117", "/devtools/browser/0b5c-77e"])!.ToString().Should().Be("ws://127.0.0.1:53117/devtools/browser/0b5c-77e");
 
 	// Lines joined with '|'.
 	[Test]
@@ -53,8 +52,11 @@ public class BrowserLaunchTests
 		try
 		{
 			var act = () => Browser.LaunchAsync(new BrowserLaunchOptions { ExecutablePath = script });
-			(await act.Should().ThrowAsync<BrowserLaunchException>()).Which.Message
-				.Should().StartWith("Chrome exited with code 3 before opening its DevTools port.\nLast output:\n  cannot open display");
+			(await act.Should().ThrowAsync<BrowserLaunchException>())
+				.Which
+				.Message
+				.Should()
+				.StartWith("Chrome exited with code 3 before opening its DevTools port.\nLast output:\n  cannot open display");
 		}
 		finally
 		{

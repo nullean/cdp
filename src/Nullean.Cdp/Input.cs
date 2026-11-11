@@ -10,8 +10,7 @@ public sealed class Mouse
 	internal Mouse(Page page) => _page = page;
 
 	/// <summary>Moves the pointer, firing <c>mousemove</c>, <c>mouseenter</c> and <c>mouseover</c>.</summary>
-	public Task MoveAsync(double x, double y, CancellationToken cancellationToken = default) =>
-		DispatchAsync("mouseMoved", x, y, "none", 0, cancellationToken);
+	public Task MoveAsync(double x, double y, CancellationToken cancellationToken = default) => DispatchAsync("mouseMoved", x, y, "none", 0, cancellationToken);
 
 	/// <summary>Moves to the point, presses and releases the left button.</summary>
 	public async Task ClickAsync(double x, double y, CancellationToken cancellationToken = default)
@@ -34,14 +33,18 @@ public sealed class Mouse
 
 	/// <summary>Turns the wheel at a point: positive <paramref name="deltaY"/> scrolls down, positive <paramref name="deltaX"/> right.</summary>
 	public async Task WheelAsync(double x, double y, double deltaX, double deltaY, CancellationToken cancellationToken = default) =>
-		await _page.SendAsync("Input.dispatchMouseEvent", w =>
-		{
-			w.WriteString("type", "mouseWheel");
-			w.WriteNumber("x", x);
-			w.WriteNumber("y", y);
-			w.WriteNumber("deltaX", deltaX);
-			w.WriteNumber("deltaY", deltaY);
-		}, cancellationToken).ConfigureAwait(false);
+		await _page.SendAsync(
+			"Input.dispatchMouseEvent",
+			w =>
+			{
+				w.WriteString("type", "mouseWheel");
+				w.WriteNumber("x", x);
+				w.WriteNumber("y", y);
+				w.WriteNumber("deltaX", deltaX);
+				w.WriteNumber("deltaY", deltaY);
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 
 	/// <summary>
 	/// Presses at <paramref name="from"/>, moves to <paramref name="to"/> in steps and releases. When the page starts an
@@ -74,14 +77,18 @@ public sealed class Mouse
 				var data = await intercepted.Task.ConfigureAwait(false);
 				foreach (var type in new[] { "dragEnter", "dragOver", "drop" })
 				{
-					await _page.SendAsync("Input.dispatchDragEvent", w =>
-					{
-						w.WriteString("type", type);
-						w.WriteNumber("x", to.X);
-						w.WriteNumber("y", to.Y);
-						w.WritePropertyName("data");
-						data.WriteTo(w);
-					}, cancellationToken).ConfigureAwait(false);
+					await _page.SendAsync(
+						"Input.dispatchDragEvent",
+						w =>
+						{
+							w.WriteString("type", type);
+							w.WriteNumber("x", to.X);
+							w.WriteNumber("y", to.Y);
+							w.WritePropertyName("data");
+							data.WriteTo(w);
+						},
+						cancellationToken
+					).ConfigureAwait(false);
 				}
 			}
 
@@ -94,16 +101,20 @@ public sealed class Mouse
 	}
 
 	private async Task DispatchAsync(string type, double x, double y, string button, int clickCount, CancellationToken cancellationToken, int buttons = -1) =>
-		await _page.SendAsync("Input.dispatchMouseEvent", w =>
-		{
-			w.WriteString("type", type);
-			w.WriteNumber("x", x);
-			w.WriteNumber("y", y);
-			w.WriteString("button", button);
-			w.WriteNumber("clickCount", clickCount);
-			if (buttons >= 0)
-				w.WriteNumber("buttons", buttons);
-		}, cancellationToken).ConfigureAwait(false);
+		await _page.SendAsync(
+			"Input.dispatchMouseEvent",
+			w =>
+			{
+				w.WriteString("type", type);
+				w.WriteNumber("x", x);
+				w.WriteNumber("y", y);
+				w.WriteString("button", button);
+				w.WriteNumber("clickCount", clickCount);
+				if (buttons >= 0)
+					w.WriteNumber("buttons", buttons);
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 }
 
 /// <summary>The keyboard, typing into whatever has focus.</summary>
@@ -136,8 +147,17 @@ public sealed class Keyboard
 
 	private static readonly FrozenDictionary<string, string> Aliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 	{
-		["Space"] = " ", ["Esc"] = "Escape", ["Return"] = "Enter", ["Ctrl"] = "Control", ["Cmd"] = "Meta", ["Command"] = "Meta",
-		["Option"] = "Alt", ["Up"] = "ArrowUp", ["Down"] = "ArrowDown", ["Left"] = "ArrowLeft", ["Right"] = "ArrowRight",
+		["Space"] = " ",
+		["Esc"] = "Escape",
+		["Return"] = "Enter",
+		["Ctrl"] = "Control",
+		["Cmd"] = "Meta",
+		["Command"] = "Meta",
+		["Option"] = "Alt",
+		["Up"] = "ArrowUp",
+		["Down"] = "ArrowDown",
+		["Left"] = "ArrowLeft",
+		["Right"] = "ArrowRight",
 	}.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
 	private readonly Page _page;
@@ -196,9 +216,7 @@ public sealed class Keyboard
 	{
 		ArgumentException.ThrowIfNullOrEmpty(keys);
 		// "+" alone, or a trailing "+" as in "Shift++", is the plus key itself.
-		var names = keys == "+" ? ["+"] : keys.EndsWith("++", StringComparison.Ordinal)
-			? [.. keys[..^2].Split('+'), "+"]
-			: keys.Split('+');
+		var names = keys == "+" ? ["+"] : keys.EndsWith("++", StringComparison.Ordinal) ? [.. keys[..^2].Split('+'), "+"] : keys.Split('+');
 		var parsed = new Key[names.Length];
 		for (var i = 0; i < names.Length; i++)
 		{
@@ -210,7 +228,10 @@ public sealed class Keyboard
 			else
 				throw new ArgumentException($"Unknown key '{names[i]}' in '{keys}'.", nameof(keys));
 			if (i < names.Length - 1 && Flag(parsed[i].Name) == 0)
-				throw new ArgumentException($"'{names[i]}' in '{keys}' is not a modifier: only Shift, Control, Alt and Meta can come before '+'.", nameof(keys));
+				throw new ArgumentException(
+					$"'{names[i]}' in '{keys}' is not a modifier: only Shift, Control, Alt and Meta can come before '+'.",
+					nameof(keys)
+				);
 		}
 
 		return parsed;
@@ -238,23 +259,27 @@ public sealed class Keyboard
 	};
 
 	private async Task DispatchAsync(string type, Key key, int modifiers, bool withText, CancellationToken cancellationToken) =>
-		await _page.SendAsync("Input.dispatchKeyEvent", w =>
-		{
-			w.WriteString("type", type);
-			w.WriteString("key", key.Name);
-			if (key.Code.Length > 0)
-				w.WriteString("code", key.Code);
-			if (key.KeyCode != 0)
+		await _page.SendAsync(
+			"Input.dispatchKeyEvent",
+			w =>
 			{
-				w.WriteNumber("windowsVirtualKeyCode", key.KeyCode);
-				w.WriteNumber("nativeVirtualKeyCode", key.KeyCode);
-			}
+				w.WriteString("type", type);
+				w.WriteString("key", key.Name);
+				if (key.Code.Length > 0)
+					w.WriteString("code", key.Code);
+				if (key.KeyCode != 0)
+				{
+					w.WriteNumber("windowsVirtualKeyCode", key.KeyCode);
+					w.WriteNumber("nativeVirtualKeyCode", key.KeyCode);
+				}
 
-			w.WriteNumber("modifiers", modifiers);
-			if (withText && key.Text is { } text)
-			{
-				w.WriteString("text", text);
-				w.WriteString("unmodifiedText", text);
-			}
-		}, cancellationToken).ConfigureAwait(false);
+				w.WriteNumber("modifiers", modifiers);
+				if (withText && key.Text is { } text)
+				{
+					w.WriteString("text", text);
+					w.WriteString("unmodifiedText", text);
+				}
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 }

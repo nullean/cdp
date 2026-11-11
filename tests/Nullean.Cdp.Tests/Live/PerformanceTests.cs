@@ -91,19 +91,27 @@ public class PerformanceTests(ChromeFixture chrome)
 	[Test]
 	public async Task JourneysPrintRawReadingsOrBudgets()
 	{
-		var journey = Journey.Parse("""
+		var journey = Journey.Parse(
+			"""
 			open perf.html
 			wait --text "Late banner"
 			wait 300
 			timings
 			vitals --budget lcp=60000 cls=1
 			metrics --budget Nodes=100000
-			""");
+			"""
+		);
 
 		var result = await JourneyRunner.RunAsync(journey, chrome.Browser, new JourneyOptions { BaseUrl = Site });
 
 		result.Failure.Should().BeNull();
-		result.Checkpoints[0].Output.Split('\n').Select(l => l.Split(':')[0]).Should().Equal("ttfb", "first-paint", "fcp", "dom-interactive", "dom-content-loaded", "load");
+		result
+			.Checkpoints[0]
+			.Output
+			.Split('\n')
+			.Select(l => l.Split(':')[0])
+			.Should()
+			.Equal("ttfb", "first-paint", "fcp", "dom-interactive", "dom-content-loaded", "load");
 		result.Checkpoints[0].Output.Should().MatchRegex(@"^ttfb: [\d.]+ms\n");
 		result.Checkpoints[1].Output.Should().Be("lcp ok (<= 60000ms)\ncls ok (<= 1)");
 		result.Checkpoints[2].Output.Should().Be("Nodes ok (<= 100000)");
