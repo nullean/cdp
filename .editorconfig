@@ -18,8 +18,8 @@ indent_size = 4
 indent_style = space
 indent_size = 2
 
-# Snapshots are compared byte for byte after normalisation; an editor must not touch them.
-[*.{verified,received}.*]
+# Golden-file fixtures are byte-exact: never let an editor touch them.
+[*.test]
 trim_trailing_whitespace = false
 insert_final_newline = false
 
@@ -93,10 +93,12 @@ csharp_style_expression_bodied_properties = true:suggestion
 csharp_style_expression_bodied_accessors = true:suggestion
 csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
 csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
-csharp_prefer_braces = when_multiline:suggestion
+csharp_prefer_braces = false:suggestion
 csharp_using_directive_placement = outside_namespace:error
 
 # --- Formatting (IDE0055) -------------------------------------------------
+# Curb's own source is formatted to these. Once Curb can format itself, this
+# section is also the dogfooding fixture: `curb check .` must be clean.
 
 csharp_new_line_before_open_brace = all
 csharp_new_line_before_else = true
@@ -146,13 +148,23 @@ dotnet_diagnostic.IDE0058.severity = none
 dotnet_diagnostic.CA1848.severity = none
 dotnet_diagnostic.CA1707.severity = none
 
-# Switches over enums use `default:`; listing every member at every site is noise.
+# The document IR switches over DocKind exhaustively via `default:`; listing every member at every
+# site is noise, and a new kind should fall through to the default rather than break the build.
 dotnet_diagnostic.IDE0010.severity = none
 # Same reasoning for switch expressions: wildcard arms handle future enum values without breaking.
 dotnet_diagnostic.IDE0072.severity = none
+# Several types rent pooled buffers in their constructor, which a primary constructor cannot express.
 dotnet_diagnostic.IDE0290.severity = suggestion
+# Hot-path counters stay as fields; `Count => _count` reads better than an auto property here.
 dotnet_diagnostic.IDE0032.severity = none
 
 [tests/**/*.cs]
 dotnet_diagnostic.IDE0058.severity = none
 dotnet_diagnostic.IDE0022.severity = none
+
+# --- repo-specific overrides -----------------------------------------------
+
+# Snapshots are compared byte for byte after normalisation; an editor must not touch them.
+[*.{verified,received}.*]
+trim_trailing_whitespace = false
+insert_final_newline = false

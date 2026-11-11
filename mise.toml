@@ -17,6 +17,10 @@ node = "24"
 gh = "latest"
 zizmor = "1"
 
+[tasks.setup]
+description = "Restore the local .NET tools (curb)"
+run = "dotnet tool restore"
+
 [tasks.build]
 description = "Build the solution"
 run = "dotnet build -c Release"
@@ -25,9 +29,15 @@ run = "dotnet build -c Release"
 description = "Build, then run the tests"
 run = ["dotnet build -c Release", "dotnet test -c Release --no-build"]
 
+[tasks.format]
+description = "Format the repository with curb"
+depends = ["setup"]
+run = "dotnet curb format ."
+
 [tasks.check]
-description = "Fail on workflow findings (zizmor)"
-run = "zizmor --min-severity medium ."
+description = "Fail on formatting drift (curb) and on workflow findings (zizmor)"
+depends = ["setup"]
+run = ["dotnet curb check .", "zizmor --min-severity medium ."]
 
 [tasks.pack]
 description = "Build and pack the libraries, as CI's build job does (the CLI is a native AOT tool CI packs per RID)"
@@ -47,9 +57,11 @@ description = "Build the documentation and serve it locally (needs docs-builder;
 run = "scripts/docs.sh"
 
 [tasks.ci]
-description = "What CI runs on every push: the build job (build, test, pack the libraries) and the journeys-js job"
+description = "What CI runs on every push: the build job (build, curb check, test, pack the libraries) and the journeys-js job"
+depends = ["setup"]
 run = [
   "dotnet build -c Release",
+  "dotnet curb check .",
   "dotnet test -c Release --no-build",
   '''
   for project in src/*/*.csproj; do
