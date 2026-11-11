@@ -5,13 +5,15 @@ on:
   push:
     branches:
       - main
-    tags:
-      - "*.*.*"
+  # Publishing the release-drafter draft creates the tag and releases: every gate below runs on the released commit
+  # first. nuget.org's and npm's trusted publishing name this file, so releasing stays here.
+  release:
+    types: [published]
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  cancel-in-progress: ${{ github.event_name != 'release' }}
 
 permissions:
   contents: read
@@ -250,19 +252,19 @@ jobs:
           "$GITHUB_WORKSPACE/build/smoke-cli.sh" "$temp/tool/$cdp"
           "$GITHUB_WORKSPACE/build/smoke-cli.sh" dotnet dnx "Nullean.Cdp.Cli@$root" --add-source "$feed" --yes
 
-  # Publishing to nuget.org: a pushed tag (X.Y.Z or X.Y.Z-pre.N) publishes, and only once every gate above has passed.
-  # Pushing the tag is the release decision. A failed run can be re-run: pushing is skipped for packages already there.
-  # The 'release' environment only lets tags deploy, and nuget.org's trusted publishing policy names it, so no API key
-  # is stored.
+  # Publishing to nuget.org: a published release (its tag X.Y.Z or X.Y.Z-pre.N) publishes, and only once every gate
+  # above has passed. Publishing the release-drafter draft is the release decision; pushing a tag alone does nothing.
+  # A failed run can be re-run: pushing is skipped for packages already there. The 'release' environment only lets tags
+  # deploy, and nuget.org's trusted publishing policy names it, so no API key is stored.
   release:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'release'
     needs: [build, aot-pack, tool-pack, tool-smoke]
     runs-on: ubuntu-latest
     name: Publish to nuget.org
     timeout-minutes: 20
     environment: release
     permissions:
-      contents: write   # the GitHub release
+      contents: write   # attach the packages to the release
       id-token: write   # trusted publishing: exchange the workflow's OIDC token for a short-lived key
 
     steps:
@@ -316,23 +318,18 @@ jobs:
           done
           push "$root"
 
-      # A GitHub release for the tag, with notes generated from the pull requests since the previous one, and the
-      # packages attached. After publishing, so a release always means the packages are on nuget.org.
-      - name: GitHub release
+      # The release already exists (it is the published draft); attach the packages to it. After publishing, so the
+      # attached packages are always the ones on nuget.org. --clobber makes a re-run safe.
+      - name: Attach the packages to the release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          pre=""
-          case "$GITHUB_REF_NAME" in *-*) pre="--prerelease" ;; esac
-          gh release create "$GITHUB_REF_NAME" packages/*.nupkg --repo "$GITHUB_REPOSITORY" --verify-tag $pre \
-            --title "$GITHUB_REF_NAME" --generate-notes \
-            --notes "Packages: https://www.nuget.org/packages?q=Nullean.Cdp"
+        run: gh release upload "$GITHUB_REF_NAME" packages/*.nupkg --repo "$GITHUB_REPOSITORY" --clobber
 
-  # The npm package is published like the NuGet ones: from a pushed tag, in the `release` environment,
-  # through trusted publishing (the workflow's OIDC token; no token is stored). The tag gives the version.
+  # The npm package is published like the NuGet ones: from a published release, in the `release` environment,
+  # through trusted publishing (the workflow's OIDC token; no token is stored). The release's tag gives the version.
   publish-npm:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'release'
     needs: [build, journeys-js]
     runs-on: ubuntu-latest
     name: Publish @nullean/journeys to npm

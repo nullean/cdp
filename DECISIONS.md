@@ -494,18 +494,20 @@ and where data can go is what holds.
 
 ## Releasing
 
-As nullean/entities and nullean/curb do it: push a tag (`0.1.0`; MinVer takes the version from it). The `release`
-job runs for a pushed tag, needs every other job including the tool smoke tests, checks that every package carries
+As every nullean repository does it: release-drafter keeps a draft release current from the labels of merged pull
+requests (`.github/release-drafter.yml`; in 0.x `breaking` bumps the minor version), and **publishing the draft** is
+the release decision. Publishing creates the tag (`0.1.0`; MinVer takes the version from it) and fires
+`release: published` on `ci.yml`, which runs every job on the released commit. Pushing a tag on its own releases
+nothing. The `release` job needs every other job including the tool smoke tests, checks that every package carries
 the tag's version, and publishes through nuget.org trusted publishing (`NuGet/login` with the organisation's
-`NUGET_USER`; no API key is stored). Pushing the tag is the release decision, so tag only what is meant to ship; a
-failed run is fixed and re-run (the pushes skip what is already there). It was a manual run on the tag, as in
-nullean/snapshots, until the repositories were aligned. The `release` environment only lets tags deploy. The root
-tool package is pushed last, after the per-RID and `any` packages it points at. Once the packages are on nuget.org the job creates the GitHub release
-for the tag (`gh release create --generate-notes`, notes from the pull requests since the previous tag, the
-packages attached, a `-` version marked as a prerelease); the job needs `contents: write` for it. Versions stay 0.x
-until the owner says otherwise.
+`NUGET_USER`; no API key is stored). The policy names `ci.yml`, which is why releasing stays in it rather than in a
+workflow of its own. A failed run is fixed and re-run (the pushes skip what is already there). The `release`
+environment only lets tags deploy; a published release's ref is its tag. The root tool package is pushed last, after
+the per-RID and `any` packages it points at. Once the packages are on nuget.org the job attaches them to the release
+(`gh release upload --clobber`, so a re-run is safe); the notes are the draft's. The job needs `contents: write` for
+it. Versions stay 0.x until the owner says otherwise.
 
-`@nullean/journeys` (js/journeys) goes out in the same tag run, as the `publish-npm` job: same `release` environment,
+`@nullean/journeys` (js/journeys) goes out in the same release run, as the `publish-npm` job: same `release` environment,
 no stored token, npm trusted publishing (`id-token: write`; npm 11.5.1 or later, checked; provenance is automatic for a
 public repository). The tag is the version (`npm pkg set version`; package.json keeps a placeholder), a `-` version
 publishes under the `next` dist-tag, and a version already on npm is skipped so a re-run is safe. The trusted publisher

@@ -16,6 +16,7 @@ mise run pack             # build and pack the libraries (CI packs the native AO
 mise run ci               # what CI runs on every push: build, test, pack, and the js/journeys job
 mise run docs             # build the docs and serve them (needs docs-builder, see scripts/docs.sh)
 mise run check            # workflow security checks (zizmor)
+mise run release          # show the release draft; `mise run release publish` releases
 ```
 
 Without mise:
@@ -31,6 +32,16 @@ a real Chrome skip with a reason when none is found; CI sets `CDP_BROWSER_REQUIR
 
 The CLI: `dotnet run --project src/Nullean.Cdp.Cli -- run <journey> --base-url <url or folder>`.
 `build/smoke-cli.sh <command that runs cdp>` smoke-tests a built or installed tool against the fixture site.
+
+## Releasing
+
+release-drafter keeps a draft release current from the labels of merged pull requests; every pull request carries
+exactly one release label (`pr-labels.yml` enforces it). **Publishing the draft** releases: it creates the tag and runs
+`ci.yml` on it, whose `release` and `publish-npm` jobs push the NuGet packages and `@nullean/journeys` with trusted
+publishing once every other job has passed, then attach the packages to the release. Pushing a tag on its own does
+nothing. In 0.x a `breaking` label bumps the minor version; 1.0 is the maintainer's call. See the
+[releasing](.claude/skills/releasing/SKILL.md) and [breaking-changes](.claude/skills/breaking-changes/SKILL.md)
+skills, and `mise run release` for the current draft.
 
 ## Rules
 
