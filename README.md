@@ -1,4 +1,19 @@
-# Nullean.Cdp
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/brand/lockup.svg">
+    <img src="docs/images/brand/lockup-light.svg" width="196" height="96" alt="Nullean.Cdp">
+  </picture>
+</p>
+
+<p align="center">A small Chrome DevTools Protocol client for .NET, and the synthetic journeys built on it: plain text browser checks that replay in agent-browser, <code>dotnet test</code> and a CLI.</p>
+
+<p align="center">
+  <a href="https://www.nuget.org/packages/Nullean.Cdp"><img src="https://img.shields.io/nuget/v/Nullean.Cdp?style=flat-square" alt="NuGet"></a>
+  <a href="https://github.com/nullean/cdp/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/nullean/cdp/ci.yml?branch=main&style=flat-square&label=ci" alt="CI"></a>
+  <a href="https://cdp.nullean.net"><img src="https://img.shields.io/badge/docs-cdp.nullean.net-20a0a0?style=flat-square" alt="Docs"></a>
+</p>
+
+![cdp run on a five-step journey against a local page: the journey, then each checkpoint's output between nonce-fenced PAGE_CONTENT markers, then "ok search.journey: 5 steps, 2 checkpoints"](docs/images/cdp-run.png)
 
 A small Chrome DevTools Protocol client for .NET: find and launch Chrome, drive pages with agent-browser style
 locators, and read the accessibility tree. Native AOT and trim clean, with no dependencies beyond the BCL.
@@ -16,11 +31,22 @@ wait main
 snapshot -c -s main
 ```
 
-Documentation: **[cdp.nullean.net](https://cdp.nullean.net)**. Status: early, 0.x. See [ROADMAP.md](ROADMAP.md).
+Status: early, 0.x. See [ROADMAP.md](ROADMAP.md).
 
-## Use
+## Install
+
+```sh
+dotnet add package Nullean.Cdp               # the CDP client
+dotnet add package Nullean.Cdp.Journeys      # parse and run journeys from .NET
+dotnet tool install -g Nullean.Cdp.Cli       # the cdp command
+```
+
+## Quick start
 
 ```csharp
+using Nullean.Cdp;
+using Nullean.Cdp.Accessibility;
+
 await using var browser = await Browser.LaunchAsync();      // headless, temporary profile
 await using var context = await browser.NewContextAsync();  // own cookies and storage
 var page = await context.NewPageAsync();
@@ -60,6 +86,8 @@ get text .basket-count       # another
 ```
 
 ```csharp
+using Nullean.Cdp.Journeys;
+
 var journey = Journey.Load("journeys/checkout.journey");
 var result = await JourneyRunner.RunAsync(journey, browser, new JourneyOptions { BaseUrl = new("http://localhost:5000/") });
 foreach (var checkpoint in result.Checkpoints)
@@ -109,3 +137,21 @@ The command name `cdp` is a working name.
 `CDP_CHROME`, then `CHROME_PATH`, then the standard install locations for Chrome, Chrome for Testing, Chromium and
 Edge on each OS, then `google-chrome`, `chromium` and `chrome` on the `PATH`. When nothing is found, the error lists
 every place it looked.
+
+## Packages
+
+| Package | What it is | |
+|---|---|---|
+| [`Nullean.Cdp`](src/Nullean.Cdp/README.md) | the CDP client: find and launch Chrome, locators, the accessibility tree. No dependencies beyond the BCL | [![NuGet](https://img.shields.io/nuget/v/Nullean.Cdp?style=flat-square)](https://www.nuget.org/packages/Nullean.Cdp) |
+| [`Nullean.Cdp.Journeys`](src/Nullean.Cdp.Journeys/README.md) | synthetic journeys: parse, run with Nullean.Cdp, export to agent-browser batch JSON | [![NuGet](https://img.shields.io/nuget/v/Nullean.Cdp.Journeys?style=flat-square)](https://www.nuget.org/packages/Nullean.Cdp.Journeys) |
+| [`Nullean.Cdp.Cli`](src/Nullean.Cdp.Cli/README.md) | the `cdp` command: `check`, `run`, `snapshot`, `screenshot`, `batch`, `parse`, `chrome` | [![NuGet](https://img.shields.io/nuget/v/Nullean.Cdp.Cli?style=flat-square)](https://www.nuget.org/packages/Nullean.Cdp.Cli) |
+| [`@nullean/journeys`](js/journeys/README.md) (npm) | the same journeys on Playwright Test and Elastic Synthetics | [![npm](https://img.shields.io/npm/v/@nullean/journeys?style=flat-square)](https://www.npmjs.com/package/@nullean/journeys) |
+
+## Learn more
+
+- Documentation: https://cdp.nullean.net
+- [ROADMAP.md](ROADMAP.md) and [DECISIONS.md](DECISIONS.md)
+- [Releases](https://github.com/nullean/cdp/releases)
+- [Contributing](https://github.com/nullean/.github/blob/main/CONTRIBUTING.md)
+
+MIT licensed, see [LICENSE.txt](LICENSE.txt). Copyright Nullean and contributors.

@@ -35,10 +35,14 @@
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
-  <!-- The org icon, the README and each project's agent skill (skills/<name>/SKILL.md) go into every package. -->
+  <!-- The org icon, a README and each project's agent skill (skills/<name>/SKILL.md) go into every package. A project
+       with its own README.md ships that one; the others ship the repository README. -->
   <ItemGroup Condition="$(MSBuildProjectDirectory.Replace('\','/').Contains('/src/'))">
     <None Include="$(MSBuildThisFileDirectory)nuget-icon.png" Pack="true" PackagePath="\" Visible="false" />
-    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="README.md" Visible="false" />
+    <None Include="$(MSBuildProjectDirectory)/README.md" Pack="true" PackagePath="README.md"
+          Condition="Exists('$(MSBuildProjectDirectory)/README.md')" />
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="README.md" Visible="false"
+          Condition="!Exists('$(MSBuildProjectDirectory)/README.md')" />
     <!-- https://devblogs.microsoft.com/dotnet/delivering-skills-in-nuget-packages/ -->
     <None Include="$(MSBuildProjectDirectory)/skills/**/*" Pack="true" PackagePath="skills/" Visible="false" />
   </ItemGroup>
