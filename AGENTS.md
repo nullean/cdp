@@ -5,13 +5,28 @@ A Chrome DevTools Protocol client for .NET, the journey language on top of it, a
 
 ## Build and test
 
+`mise install` provides the toolchain: the .NET 11 SDK pinned in `global.json`, the net10.0 runtime the projects and
+tests target, and the Node CI builds `js/journeys` with. The everyday tasks have the same names as in every nullean
+repository, and run the commands CI runs:
+
+```sh
+mise run build            # build the solution
+mise run test             # build, then run the tests
+mise run pack             # build and pack the libraries (CI packs the native AOT CLI per RID)
+mise run ci               # what CI runs on every push: build, test, pack, and the js/journeys job
+mise run docs             # build the docs and serve them (needs docs-builder, see scripts/docs.sh)
+mise run check            # workflow security checks (zizmor)
+```
+
+Without mise:
+
 ```sh
 dotnet build -c Release
 dotnet test -c Release
 dotnet test -c Release --project tests/Nullean.Cdp.Tests --treenode-filter "/*/*/ChromeLocatorTests/*"
 ```
 
-Requires the .NET 10 SDK (pinned in `global.json`). Tests run on Microsoft.Testing.Platform with TUnit. Tests that need
+Requires the .NET 11 SDK (pinned in `global.json`). Tests run on Microsoft.Testing.Platform with TUnit. Tests that need
 a real Chrome skip with a reason when none is found; CI sets `CDP_BROWSER_REQUIRED=1` so they fail instead.
 
 The CLI: `dotnet run --project src/Nullean.Cdp.Cli -- run <journey> --base-url <url or folder>`.
