@@ -15,15 +15,32 @@ public class JourneyBlockTests
 	}
 
 	public static IEnumerable<Func<(string Name, string Text, int Version, string? Blocks, int?[] StepBlocks)>> Valid() =>
-		Fixture("valid").EnumerateArray().Select(c => (Func<(string, string, int, string?, int?[])>)(() =>
-			(c.GetProperty("name").GetString()!, c.GetProperty("text").GetString()!, c.GetProperty("version").GetInt32(),
-				c.GetProperty("blocks").ValueKind == JsonValueKind.Null ? null : c.GetProperty("blocks").GetRawText(),
-				[.. c.GetProperty("stepBlocks").EnumerateArray().Select(b => b.ValueKind == JsonValueKind.Null ? (int?)null : b.GetInt32())])));
+		Fixture("valid")
+			.EnumerateArray()
+			.Select(
+				c =>
+					(Func<(string, string, int, string?, int?[])>)(() =>
+						(c.GetProperty("name").GetString()!, c.GetProperty("text").GetString()!, c.GetProperty("version").GetInt32(), c.GetProperty(
+							"blocks"
+						).ValueKind == JsonValueKind.Null ? null : c.GetProperty("blocks").GetRawText(), [
+							.. c.GetProperty("stepBlocks").EnumerateArray().Select(b => b.ValueKind == JsonValueKind.Null ? (int?)null : b.GetInt32())
+						]))
+			);
 
 	public static IEnumerable<Func<(string Name, string Text, string Expected)>> Invalid() =>
-		Fixture("invalid").EnumerateArray().Select(c => (Func<(string, string, string)>)(() =>
-			(c.GetProperty("name").GetString()!, c.GetProperty("text").GetString()!,
-				string.Join('\n', c.GetProperty("errors").EnumerateArray().Select(e => $"x.journey:{e.GetProperty("line").GetInt32()}: {e.GetProperty("message").GetString()}")))));
+		Fixture("invalid")
+			.EnumerateArray()
+			.Select(
+				c =>
+					(Func<(string, string, string)>)(() =>
+						(c.GetProperty("name").GetString()!, c.GetProperty("text").GetString()!, string.Join(
+							'\n',
+							c
+								.GetProperty("errors")
+								.EnumerateArray()
+								.Select(e => $"x.journey:{e.GetProperty("line").GetInt32()}: {e.GetProperty("message").GetString()}")
+						)))
+			);
 
 	[Test]
 	[MethodDataSource(nameof(Valid))]
@@ -36,8 +53,13 @@ public class JourneyBlockTests
 		json.RootElement.GetProperty("version").GetInt32().Should().Be(version);
 		(json.RootElement.TryGetProperty("blocks", out var actual) ? Compact(actual.GetRawText()) : null).Should().Be(Compact(blocks));
 		journey.Steps.Select(s => s.Block?.Line).Should().Equal(stepBlocks);
-		json.RootElement.GetProperty("steps").EnumerateArray().Select(s => s.TryGetProperty("block", out var b) ? b.GetInt32() : (int?)null)
-			.Should().Equal(stepBlocks);
+		json
+			.RootElement
+			.GetProperty("steps")
+			.EnumerateArray()
+			.Select(s => s.TryGetProperty("block", out var b) ? b.GetInt32() : (int?)null)
+			.Should()
+			.Equal(stepBlocks);
 	}
 
 	[Test]
@@ -70,9 +92,14 @@ public class JourneyBlockTests
 	[Test]
 	public void AgentBrowserExportRefusesBlocks()
 	{
-		FluentActions.Invoking(() => Journey.Parse("open /\nfeature a\nclick #a\nend\n", "x.journey").ToAgentBrowserBatch(new Uri("http://localhost/")))
-			.Should().Throw<JourneyParseException>().Which.Message.Should().Be(
-				"x.journey:2: feature blocks are not part of agent-browser, which runs every line; use one journey file per flag state to export");
+		FluentActions
+			.Invoking(() => Journey.Parse("open /\nfeature a\nclick #a\nend\n", "x.journey").ToAgentBrowserBatch(new Uri("http://localhost/")))
+			.Should()
+			.Throw<JourneyParseException>()
+			.Which
+			.Message
+			.Should()
+			.Be("x.journey:2: feature blocks are not part of agent-browser, which runs every line; use one journey file per flag state to export");
 	}
 
 	private static string? Compact(string? json) => json is null ? null : JsonSerializer.Serialize(JsonDocument.Parse(json).RootElement);

@@ -56,7 +56,28 @@ namespace Nullean.Cdp.Cli
 			int maxOutput = CdpCli.DefaultMaxOutput,
 			double? timeout = null,
 			CancellationToken cancellationToken = default
-		) => Cli().RunAsync(files, baseUrl, allow ?? [], fileRoot, headed, json, maxOutput, timeout, cancellationToken, artifacts, feature, buildType, env, readOnly, writable, header, userAgent, viewport, screenshotOnFailure);
+		) =>
+			Cli().RunAsync(
+				files,
+				baseUrl,
+				allow ?? [],
+				fileRoot,
+				headed,
+				json,
+				maxOutput,
+				timeout,
+				cancellationToken,
+				artifacts,
+				feature,
+				buildType,
+				env,
+				readOnly,
+				writable,
+				header,
+				userAgent,
+				viewport,
+				screenshotOnFailure
+			);
 
 		/// <summary>Parse journeys without running them, and report every error with its line.</summary>
 		/// <param name="files">Journey files.</param>
@@ -70,8 +91,7 @@ namespace Nullean.Cdp.Cli
 		/// <param name="file">The journey file.</param>
 		/// <param name="baseUrl">-b, --base-url, What relative 'open' URLs resolve against.</param>
 		/// <param name="resolveSecrets">Write the values of $env: secrets into the output. Off by default.</param>
-		public static int Batch([Argument] string file, string? baseUrl = null, bool resolveSecrets = false) =>
-			Cli().Batch(file, baseUrl, resolveSecrets);
+		public static int Batch([Argument] string file, string? baseUrl = null, bool resolveSecrets = false) => Cli().Batch(file, baseUrl, resolveSecrets);
 
 		/// <summary>Open one page and print its accessibility tree. Only the page's host is reachable unless allowed.</summary>
 		/// <param name="url">A URL, or a local HTML file.</param>
@@ -93,8 +113,15 @@ namespace Nullean.Cdp.Cli
 			bool headed = false,
 			int maxOutput = CdpCli.DefaultMaxOutput,
 			CancellationToken cancellationToken = default
-		) => Cli().SnapshotAsync(url, new AxSnapshotOptions { Compact = compact, Interactive = interactive, Depth = depth, Selector = selector },
-			allow ?? [], headed, maxOutput, cancellationToken);
+		) =>
+			Cli().SnapshotAsync(
+				url,
+				new AxSnapshotOptions { Compact = compact, Interactive = interactive, Depth = depth, Selector = selector },
+				allow ?? [],
+				headed,
+				maxOutput,
+				cancellationToken
+			);
 
 		/// <summary>Open one page and save a PNG of it. Only the page's host is reachable unless allowed.</summary>
 		/// <param name="url">A URL, or a local HTML file.</param>
@@ -121,8 +148,12 @@ namespace Nullean.Cdp.Cli
 		/// <summary>Show which Chrome would be used, or every place that was searched.</summary>
 		public static int Chrome() => Cli().Chrome();
 
-		private static CdpCli Cli() => new(Console.Out, Console.Error,
-			(headed, ct) => Browser.LaunchAsync(new BrowserLaunchOptions { Headless = !headed }, ct),
-			Environment.GetEnvironmentVariable);
+		private static CdpCli Cli() =>
+			new(
+				Console.Out,
+				Console.Error,
+				(headed, ct) => Browser.LaunchAsync(new BrowserLaunchOptions { Headless = !headed }, ct),
+				Environment.GetEnvironmentVariable
+			);
 	}
 }

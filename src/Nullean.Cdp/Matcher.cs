@@ -156,10 +156,12 @@ public sealed record Matcher(MatcherKind Kind, string? Expected = null, string? 
 			MatcherKind.Value => $"{Verb("have", "contain", "match")} value {Quote(Expected!)}",
 			MatcherKind.Attribute when Expected is null => $"have attribute {Name}",
 			MatcherKind.Attribute => $"{Verb("have", "contain", "match")} attribute {Name} {Quote(Expected)}",
-			MatcherKind.Class => Match == TextMatch.Contains ? $"contain the classes {Quote(Expected!)}" : $"{Verb("have", "contain", "match")} class {Quote(Expected!)}",
+			MatcherKind.Class =>
+				Match == TextMatch.Contains ? $"contain the classes {Quote(Expected!)}" : $"{Verb("have", "contain", "match")} class {Quote(Expected!)}",
 			MatcherKind.Count => $"have count {Number!.Value.ToString(CultureInfo.InvariantCulture)}",
 			MatcherKind.Title => $"{Verb("have", "contain", "match")} title {Quote(Expected!)}",
-			MatcherKind.Url => Match == TextMatch.Exact ? $"have a URL matching {Quote(Expected!)}" : $"{Verb("have", "contain", "match")} URL {Quote(Expected!)}",
+			MatcherKind.Url =>
+				Match == TextMatch.Exact ? $"have a URL matching {Quote(Expected!)}" : $"{Verb("have", "contain", "match")} URL {Quote(Expected!)}",
 			_ => Kind.ToString(),
 		};
 		if (!negate)
@@ -212,17 +214,17 @@ public sealed record ExpectOptions
 public sealed record ExpectationResult(bool Passed, string Subject, string Expectation, string? Received, TimeSpan Timeout, TimeSpan Elapsed)
 {
 	/// <summary>Empty when it passed; else <c>Timed out after 5s waiting for #count to have text "3": received "2".</c></summary>
-	public string Message => Passed
-		? string.Empty
-		: $"Timed out after {Timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s waiting for {Subject} to {Expectation}: received {Received}.";
+	public string Message =>
+		Passed
+			? string.Empty
+			: $"Timed out after {Timeout.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s waiting for {Subject} to {Expectation}: received {Received}.";
 }
 
 /// <summary>An assertion did not hold within its timeout. It is a <see cref="TimeoutException"/>, so a journey fails at the step.</summary>
 public sealed class ExpectationException : TimeoutException
 {
 	/// <summary>Wraps a failed <paramref name="result"/>; the message is <see cref="ExpectationResult.Message"/>.</summary>
-	public ExpectationException(ExpectationResult result)
-		: base(result?.Message ?? throw new ArgumentNullException(nameof(result)))
+	public ExpectationException(ExpectationResult result) : base(result?.Message ?? throw new ArgumentNullException(nameof(result)))
 	{
 		Result = result;
 	}

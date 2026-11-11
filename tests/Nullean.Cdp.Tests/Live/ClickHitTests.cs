@@ -33,8 +33,13 @@ public class ClickHitTests(ChromeFixture chrome)
 		var act = () => page.Role("button", "Covered").ClickAsync();
 
 		var failure = await act.Should().ThrowAsync<LocatorTimeoutException>();
-		failure.Which.Message.Should().StartWith("Timed out after 2s waiting for role button --name Covered to receive a click at (")
-			.And.EndWith("): <div#curtain.cover.modal> would receive it instead.");
+		failure
+			.Which
+			.Message
+			.Should()
+			.StartWith("Timed out after 2s waiting for role button --name Covered to receive a click at (")
+			.And
+			.EndWith("): <div#curtain.cover.modal> would receive it instead.");
 		(await Log(page)).Should().Be("nothing", "the click was never sent");
 	}
 
@@ -97,8 +102,10 @@ public class ClickHitTests(ChromeFixture chrome)
 	public async Task AJourneyClickOnACoveredButtonFailsTheStepAtTheClick()
 	{
 		var result = await JourneyRunner.RunAsync(
-			Journey.Parse("open cover.html\nfind role button click --name Covered\nget text #log\n", "cover.journey"), chrome.Browser,
-			new JourneyOptions { BaseUrl = new Uri(new Uri(ChromeFixture.Site("cover.html")), "./"), ActionTimeout = TimeSpan.FromSeconds(1) });
+			Journey.Parse("open cover.html\nfind role button click --name Covered\nget text #log\n", "cover.journey"),
+			chrome.Browser,
+			new JourneyOptions { BaseUrl = new Uri(new Uri(ChromeFixture.Site("cover.html")), "./"), ActionTimeout = TimeSpan.FromSeconds(1) }
+		);
 
 		result.Failure!.Line.Should().Be(2);
 		result.Failure.Message.Should().Contain("<div#curtain.cover.modal> would receive it instead");

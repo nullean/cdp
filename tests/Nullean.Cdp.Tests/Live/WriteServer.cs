@@ -10,7 +10,8 @@ namespace Nullean.Cdp.Tests.Live;
 /// </summary>
 internal sealed class WriteServer : IAsyncDisposable
 {
-	private const string Page = """
+	private const string Page =
+		"""
 		<!doctype html><title>Writes</title><link rel="icon" href="data:,">
 		<button onclick="fetch('/write', {method: 'POST', body: 'x'})">Save with fetch</button>
 		<button onclick="fetch('/telemetry', {method: 'POST', body: 'x'})">Send telemetry</button>
@@ -55,13 +56,13 @@ internal sealed class WriteServer : IAsyncDisposable
 				if (context.Request.HttpMethod != "GET")
 					Interlocked.Increment(ref _writes);
 				response.ContentType = "text/html; charset=utf-8";
-				var title = context.Request.Url!.AbsolutePath == "/next" ? "<title>Next</title><h1>Next</h1>" : context.Request.HttpMethod == "GET" ? Page : "<title>Saved</title><h1>Saved</h1>";
+				var title = context.Request.Url!.AbsolutePath == "/next"
+					? "<title>Next</title><h1>Next</h1>"
+					: context.Request.HttpMethod == "GET" ? Page : "<title>Saved</title><h1>Saved</h1>";
 				await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(title));
 				response.Close();
 			}
-			catch (Exception e) when (e is HttpListenerException or ObjectDisposedException or IOException)
-			{
-			}
+			catch (Exception e) when (e is HttpListenerException or ObjectDisposedException or IOException) { }
 		}
 	}
 

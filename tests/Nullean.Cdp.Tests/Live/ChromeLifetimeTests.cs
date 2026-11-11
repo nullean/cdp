@@ -35,7 +35,9 @@ public class ChromeLifetimeTests(ChromeFixture chrome)
 		var profile = browser.UserDataDirectory!;
 		var (pid, started) = DeadOwner();
 		var ownerFile = Path.Combine(profile, ChromeProcesses.OwnerFile);
-		var chromeLines = string.Concat((await File.ReadAllLinesAsync(ownerFile)).Where(l => l.StartsWith("chrome", StringComparison.Ordinal)).Select(l => l + "\n"));
+		var chromeLines = string.Concat(
+			(await File.ReadAllLinesAsync(ownerFile)).Where(l => l.StartsWith("chrome", StringComparison.Ordinal)).Select(l => l + "\n")
+		);
 		await File.WriteAllTextAsync(ownerFile, ChromeProcesses.Owner(pid, started) + chromeLines);
 
 		var reaped = await ChromeProcesses.ReapOrphansAsync(Path.GetDirectoryName(profile));
@@ -78,7 +80,9 @@ public class ChromeLifetimeTests(ChromeFixture chrome)
 		// This process's id, but a start time an hour off: the owner that wrote it is gone.
 		var profile = browser.UserDataDirectory!;
 		var ownerFile = Path.Combine(profile, ChromeProcesses.OwnerFile);
-		var chromeLines = string.Concat((await File.ReadAllLinesAsync(ownerFile)).Where(l => l.StartsWith("chrome", StringComparison.Ordinal)).Select(l => l + "\n"));
+		var chromeLines = string.Concat(
+			(await File.ReadAllLinesAsync(ownerFile)).Where(l => l.StartsWith("chrome", StringComparison.Ordinal)).Select(l => l + "\n")
+		);
 		await File.WriteAllTextAsync(ownerFile, ChromeProcesses.Owner(self.Id, self.StartTime.AddHours(-1)) + chromeLines);
 
 		await ChromeProcesses.ReapOrphansAsync(Path.GetDirectoryName(profile));

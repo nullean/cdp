@@ -19,14 +19,18 @@ public class RunDefaultsTests(ChromeFixture chrome)
 	private async Task<string[]> Run(string text, JourneyOptions defaults)
 	{
 		await using var server = new EchoServer();
-		var result = await JourneyRunner.RunAsync(Journey.Parse(text, "defaults.journey"), chrome.Browser, new JourneyOptions
-		{
-			BaseUrl = new Uri(server.Url),
-			Headers = defaults.Headers,
-			UserAgent = defaults.UserAgent,
-			Viewport = defaults.Viewport,
-			ActionTimeout = TimeSpan.FromSeconds(3),
-		});
+		var result = await JourneyRunner.RunAsync(
+			Journey.Parse(text, "defaults.journey"),
+			chrome.Browser,
+			new JourneyOptions
+			{
+				BaseUrl = new Uri(server.Url),
+				Headers = defaults.Headers,
+				UserAgent = defaults.UserAgent,
+				Viewport = defaults.Viewport,
+				ActionTimeout = TimeSpan.FromSeconds(3),
+			}
+		);
 		result.Failure.Should().BeNull();
 		return [.. result.Checkpoints.Where(c => c.Command.StartsWith("get text", StringComparison.Ordinal)).Select(c => c.Output)];
 	}
@@ -47,8 +51,13 @@ public class RunDefaultsTests(ChromeFixture chrome)
 
 	[Test]
 	public async Task AJourneysHeadersAddToTheRunsAndWinWhenTheyNameTheSame() =>
-		(await Run("set headers '{\"x-journey\": \"1\", \"X-Docs-Synthetic-Monitor\": \"override\"}'\n" + Reads, Monitor))
-			.Should().Equal("Elastic/Synthetics", "1111", "override", "1", "Elastic/Synthetics");
+		(await Run("set headers '{\"x-journey\": \"1\", \"X-Docs-Synthetic-Monitor\": \"override\"}'\n" + Reads, Monitor)).Should().Equal(
+			"Elastic/Synthetics",
+			"1111",
+			"override",
+			"1",
+			"Elastic/Synthetics"
+		);
 
 	[Test]
 	public async Task AJourneysHeadersKeepTheRunsOthers() =>
@@ -59,8 +68,7 @@ public class RunDefaultsTests(ChromeFixture chrome)
 		(await Run("set useragent Other/1.0\n" + Reads, Monitor)).Should().Equal("Other/1.0", "1111", "true", "none", "Other/1.0");
 
 	[Test]
-	public async Task AJourneysViewportReplacesTheRuns() =>
-		(await Run("set viewport 800 600\n" + Reads, Monitor))[1].Should().Be("800");
+	public async Task AJourneysViewportReplacesTheRuns() => (await Run("set viewport 800 600\n" + Reads, Monitor))[1].Should().Be("800");
 
 	[Test]
 	public async Task ADeviceKeepsTheRunsUserAgentButWithoutOneBringsItsOwn()

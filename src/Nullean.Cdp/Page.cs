@@ -6,8 +6,7 @@ using Nullean.Cdp.Protocol;
 namespace Nullean.Cdp;
 
 /// <summary>A navigation failed: the browser reported an error, such as an unreachable host or a missing file.</summary>
-public sealed class PageNavigationException(string url, string error)
-	: Exception($"Navigating to {url} failed: {error}")
+public sealed class PageNavigationException(string url, string error) : Exception($"Navigating to {url} failed: {error}")
 {
 	/// <summary>The URL that was opened.</summary>
 	public string Url { get; } = url;
@@ -20,8 +19,7 @@ public sealed class PageNavigationException(string url, string error)
 public sealed class PageScriptException(string message) : Exception(message);
 
 /// <summary>A selector matched nothing.</summary>
-public sealed class PageSelectorException(string selector)
-	: Exception($"Selector '{selector}' did not match any element")
+public sealed class PageSelectorException(string selector) : Exception($"Selector '{selector}' did not match any element")
 {
 	/// <summary>The selector.</summary>
 	public string Selector { get; } = selector;
@@ -58,8 +56,7 @@ public sealed class Page
 	/// Records the page's requests from now on, for a request list or a HAR file (<see cref="NetworkRecording"/>).
 	/// Opt-in: nothing is collected until asked.
 	/// </summary>
-	public Task<NetworkRecording> RecordNetworkAsync(CancellationToken cancellationToken = default) =>
-		NetworkRecording.StartAsync(this, cancellationToken);
+	public Task<NetworkRecording> RecordNetworkAsync(CancellationToken cancellationToken = default) => NetworkRecording.StartAsync(this, cancellationToken);
 
 	/// <summary>Forgets the console messages collected so far.</summary>
 	public void ClearConsole() => _log.ClearConsole();
@@ -172,8 +169,10 @@ public sealed class Page
 		if (index < 0 || index >= entries.GetArrayLength())
 			return;
 		var id = entries[index].GetProperty("id").GetInt32();
-		await WithNavigationAsync(() => SendAsync("Page.navigateToHistoryEntry", w => w.WriteNumber("entryId", id), cancellationToken), cancellationToken)
-			.ConfigureAwait(false);
+		await WithNavigationAsync(
+			() => SendAsync("Page.navigateToHistoryEntry", w => w.WriteNumber("entryId", id), cancellationToken),
+			cancellationToken
+		).ConfigureAwait(false);
 	}
 
 	/// <summary>Sets the viewport size in CSS pixels, and the device pixel ratio.</summary>
@@ -182,13 +181,17 @@ public sealed class Page
 		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
 		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(height);
 		ArgumentOutOfRangeException.ThrowIfNegativeOrZero(scale);
-		await SendAsync("Emulation.setDeviceMetricsOverride", w =>
-		{
-			w.WriteNumber("width", width);
-			w.WriteNumber("height", height);
-			w.WriteNumber("deviceScaleFactor", scale);
-			w.WriteBoolean("mobile", false);
-		}, cancellationToken).ConfigureAwait(false);
+		await SendAsync(
+			"Emulation.setDeviceMetricsOverride",
+			w =>
+			{
+				w.WriteNumber("width", width);
+				w.WriteNumber("height", height);
+				w.WriteNumber("deviceScaleFactor", scale);
+				w.WriteBoolean("mobile", false);
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 	}
 
 	/// <summary>Emulates a device from <see cref="Devices"/>: viewport, pixel ratio, touch and user agent.</summary>
@@ -196,13 +199,17 @@ public sealed class Page
 	{
 		if (!Devices.All.TryGetValue(name, out var device))
 			throw new ArgumentException($"Unknown device '{name}'. Known: {string.Join(", ", Devices.All.Keys.Order(StringComparer.Ordinal))}.", nameof(name));
-		await SendAsync("Emulation.setDeviceMetricsOverride", w =>
-		{
-			w.WriteNumber("width", device.Width);
-			w.WriteNumber("height", device.Height);
-			w.WriteNumber("deviceScaleFactor", device.Scale);
-			w.WriteBoolean("mobile", device.Mobile);
-		}, cancellationToken).ConfigureAwait(false);
+		await SendAsync(
+			"Emulation.setDeviceMetricsOverride",
+			w =>
+			{
+				w.WriteNumber("width", device.Width);
+				w.WriteNumber("height", device.Height);
+				w.WriteNumber("deviceScaleFactor", device.Scale);
+				w.WriteBoolean("mobile", device.Mobile);
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 		await SendAsync("Emulation.setTouchEmulationEnabled", w => w.WriteBoolean("enabled", device.Mobile), cancellationToken).ConfigureAwait(false);
 		if (device.UserAgent.Length > 0)
 			await SendAsync("Emulation.setUserAgentOverride", w => w.WriteString("userAgent", device.UserAgent), cancellationToken).ConfigureAwait(false);
@@ -225,33 +232,45 @@ public sealed class Page
 		ArgumentOutOfRangeException.ThrowIfGreaterThan(latitude, 90);
 		ArgumentOutOfRangeException.ThrowIfLessThan(longitude, -180);
 		ArgumentOutOfRangeException.ThrowIfGreaterThan(longitude, 180);
-		await Connection.SendAsync("Browser.grantPermissions", w =>
-		{
-			w.WriteStartArray("permissions");
-			w.WriteStringValue("geolocation");
-			w.WriteEndArray();
-			if (ContextId is not null)
-				w.WriteString("browserContextId", ContextId);
-		}, cancellationToken: cancellationToken).ConfigureAwait(false);
-		await SendAsync("Emulation.setGeolocationOverride", w =>
-		{
-			w.WriteNumber("latitude", latitude);
-			w.WriteNumber("longitude", longitude);
-			w.WriteNumber("accuracy", 1);
-		}, cancellationToken).ConfigureAwait(false);
+		await Connection.SendAsync(
+			"Browser.grantPermissions",
+			w =>
+			{
+				w.WriteStartArray("permissions");
+				w.WriteStringValue("geolocation");
+				w.WriteEndArray();
+				if (ContextId is not null)
+					w.WriteString("browserContextId", ContextId);
+			},
+			cancellationToken: cancellationToken
+		).ConfigureAwait(false);
+		await SendAsync(
+			"Emulation.setGeolocationOverride",
+			w =>
+			{
+				w.WriteNumber("latitude", latitude);
+				w.WriteNumber("longitude", longitude);
+				w.WriteNumber("accuracy", 1);
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 	}
 
 	/// <summary>Takes the page off the network, or puts it back.</summary>
 	public async Task SetOfflineAsync(bool offline, CancellationToken cancellationToken = default)
 	{
 		await SendAsync("Network.enable", null, cancellationToken).ConfigureAwait(false);
-		await SendAsync("Network.emulateNetworkConditions", w =>
-		{
-			w.WriteBoolean("offline", offline);
-			w.WriteNumber("latency", 0);
-			w.WriteNumber("downloadThroughput", -1);
-			w.WriteNumber("uploadThroughput", -1);
-		}, cancellationToken).ConfigureAwait(false);
+		await SendAsync(
+			"Network.emulateNetworkConditions",
+			w =>
+			{
+				w.WriteBoolean("offline", offline);
+				w.WriteNumber("latency", 0);
+				w.WriteNumber("downloadThroughput", -1);
+				w.WriteNumber("uploadThroughput", -1);
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 	}
 
 	/// <summary>Sends these headers with every request of the page; an empty set clears them.</summary>
@@ -259,13 +278,17 @@ public sealed class Page
 	{
 		ArgumentNullException.ThrowIfNull(headers);
 		await SendAsync("Network.enable", null, cancellationToken).ConfigureAwait(false);
-		await SendAsync("Network.setExtraHTTPHeaders", w =>
-		{
-			w.WriteStartObject("headers");
-			foreach (var (name, value) in headers)
-				w.WriteString(name, value);
-			w.WriteEndObject();
-		}, cancellationToken).ConfigureAwait(false);
+		await SendAsync(
+			"Network.setExtraHTTPHeaders",
+			w =>
+			{
+				w.WriteStartObject("headers");
+				foreach (var (name, value) in headers)
+					w.WriteString(name, value);
+				w.WriteEndObject();
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 	}
 
 	/// <summary>Scrolls the page with the mouse wheel at the centre of the viewport.</summary>
@@ -298,8 +321,11 @@ public sealed class Page
 	public async Task WaitForUrlAsync(string pattern, CancellationToken cancellationToken = default)
 	{
 		var glob = UrlGlob(pattern);
-		await PollAsync(async () => glob.IsMatch(await UrlAsync(cancellationToken).ConfigureAwait(false)), $"the URL to match '{pattern}'", cancellationToken)
-			.ConfigureAwait(false);
+		await PollAsync(
+			async () => glob.IsMatch(await UrlAsync(cancellationToken).ConfigureAwait(false)),
+			$"the URL to match '{pattern}'",
+			cancellationToken
+		).ConfigureAwait(false);
 	}
 
 	/// <summary>A URL glob as agent-browser takes it: <c>**</c> matches anything, <c>*</c> anything but <c>/</c>, <c>?</c> one character.</summary>
@@ -340,15 +366,19 @@ public sealed class Page
 	{
 		if (scheme is not ("dark" or "light" or "no-preference"))
 			throw new ArgumentException($"Unknown color scheme '{scheme}': use dark, light or no-preference.", nameof(scheme));
-		await SendAsync("Emulation.setEmulatedMedia", w =>
-		{
-			w.WriteStartArray("features");
-			w.WriteStartObject();
-			w.WriteString("name", "prefers-color-scheme");
-			w.WriteString("value", scheme);
-			w.WriteEndObject();
-			w.WriteEndArray();
-		}, cancellationToken).ConfigureAwait(false);
+		await SendAsync(
+			"Emulation.setEmulatedMedia",
+			w =>
+			{
+				w.WriteStartArray("features");
+				w.WriteStartObject();
+				w.WriteString("name", "prefers-color-scheme");
+				w.WriteString("value", scheme);
+				w.WriteEndObject();
+				w.WriteEndArray();
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 	}
 
 	internal async Task InitializeAsync(CancellationToken cancellationToken)
@@ -461,15 +491,15 @@ public sealed class Page
 			var main = e.Params.StringOrNull("frameId") == _page.TargetId;
 			switch (e.Method)
 			{
-				case "Page.lifecycleEvent" when e.Params.StringOrNull("name") == "load"
-					&& e.Params.StringOrNull("frameId") is { } frame && e.Params.StringOrNull("loaderId") is { } loader:
+				case "Page.lifecycleEvent" when e.Params.StringOrNull("name") == "load" && e.Params.StringOrNull("frameId") is { } frame &&
+					e.Params.StringOrNull("loaderId") is { } loader:
 					Signal(frame, loader).TrySetResult();
 					break;
 				case "Page.frameRequestedNavigation" or "Page.frameScheduledNavigation" or "Page.frameStartedNavigating" or "Page.frameStartedLoading" when main:
 					Volatile.Write(ref _started, 1);
 					break;
-				case "Page.frameNavigated" when e.Params.TryGetProperty("frame", out var f) && f.StringOrNull("id") == _page.TargetId
-					&& f.StringOrNull("loaderId") is { } committed:
+				case "Page.frameNavigated" when e.Params.TryGetProperty("frame", out var f) && f.StringOrNull("id") == _page.TargetId &&
+					f.StringOrNull("loaderId") is { } committed:
 					Volatile.Write(ref _started, 1);
 					_committed.TrySetResult(committed);
 					break;
@@ -489,8 +519,10 @@ public sealed class Page
 
 		/// <summary>Waits for the load of one loader, or fails when the connection closes.</summary>
 		public async Task LoadedAsync(string frameId, string loaderId, CancellationToken cancellationToken) =>
-			await (await Task.WhenAny(Signal(frameId, loaderId).Task, _page.Connection.Closed).WaitAsync(cancellationToken).ConfigureAwait(false))
-				.ConfigureAwait(false);
+			await (await Task
+				.WhenAny(Signal(frameId, loaderId).Task, _page.Connection.Closed)
+				.WaitAsync(cancellationToken)
+				.ConfigureAwait(false)).ConfigureAwait(false);
 
 		/// <summary>Waits until a started navigation committed and loaded, stayed within the document, or stopped.</summary>
 		public async Task SettledAsync(CancellationToken cancellationToken)
@@ -507,12 +539,16 @@ public sealed class Page
 	/// <summary>Evaluates <paramref name="expression"/> and returns its value as JSON; promises are awaited.</summary>
 	public async Task<JsonElement> EvaluateAsync(string expression, CancellationToken cancellationToken = default)
 	{
-		var result = await SendAsync("Runtime.evaluate", w =>
-		{
-			w.WriteString("expression", expression);
-			w.WriteBoolean("returnByValue", true);
-			w.WriteBoolean("awaitPromise", true);
-		}, cancellationToken).ConfigureAwait(false);
+		var result = await SendAsync(
+			"Runtime.evaluate",
+			w =>
+			{
+				w.WriteString("expression", expression);
+				w.WriteBoolean("returnByValue", true);
+				w.WriteBoolean("awaitPromise", true);
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 		if (result.TryGetProperty("exceptionDetails", out var details))
 		{
 			var text = details.TryGetProperty("exception", out var exception) && exception.StringOrNull("description") is { } description
@@ -554,11 +590,15 @@ public sealed class Page
 	{
 		var document = await SendAsync("DOM.getDocument", w => w.WriteNumber("depth", 0), cancellationToken).ConfigureAwait(false);
 		var rootId = document.GetProperty("root").GetProperty("nodeId").GetInt32();
-		var found = await SendAsync("DOM.querySelector", w =>
-		{
-			w.WriteNumber("nodeId", rootId);
-			w.WriteString("selector", selector);
-		}, cancellationToken).ConfigureAwait(false);
+		var found = await SendAsync(
+			"DOM.querySelector",
+			w =>
+			{
+				w.WriteNumber("nodeId", rootId);
+				w.WriteString("selector", selector);
+			},
+			cancellationToken
+		).ConfigureAwait(false);
 		var nodeId = found.GetProperty("nodeId").GetInt32();
 		if (nodeId == 0)
 			throw new PageSelectorException(selector);

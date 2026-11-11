@@ -17,9 +17,13 @@ public class CliTests
 	private static readonly Lazy<Task<Browser>> Shared = new(() => Browser.LaunchAsync());
 
 	private CdpCli Cli(Func<string, string?>? environment = null, bool noBrowser = false) =>
-		new(_out, _err,
+		new(
+			_out,
+			_err,
 			noBrowser ? (_, _) => throw new BrowserLaunchException("No Chrome found. Looked in: nowhere") : (_, _) => Borrowed(),
-			environment ?? (_ => null), Nonce);
+			environment ?? (_ => null),
+			Nonce
+		);
 
 	// The tests share one browser; the command disposes what it is given, so give it a connection of its own.
 	private static async Task<Browser> Borrowed()
@@ -77,10 +81,13 @@ public class CliTests
 
 		// "source" is the path as given, which differs per machine; JSON escapes a Windows path's backslashes.
 		var folder = Site("journeys") + Path.DirectorySeparatorChar;
-		_out.ToString().Replace("\r\n", "\n", StringComparison.Ordinal)
+		_out
+			.ToString()
+			.Replace("\r\n", "\n", StringComparison.Ordinal)
 			.Replace(folder.Replace("\\", "\\\\", StringComparison.Ordinal), "", StringComparison.Ordinal)
 			.Replace(folder, "", StringComparison.Ordinal)
-			.Should().MatchSnapshot();
+			.Should()
+			.MatchSnapshot();
 	}
 
 	[Test]
@@ -110,8 +117,9 @@ public class CliTests
 	[Test]
 	public async Task NoChromeExitsThree()
 	{
-		(await Cli(noBrowser: true).RunAsync([Site("journeys", "everything.journey")], Site(), [], null, false, false, 0, null, default))
-			.Should().Be(ExitCode.Browser);
+		(await Cli(noBrowser: true).RunAsync([Site("journeys", "everything.journey")], Site(), [], null, false, false, 0, null, default)).Should().Be(
+			ExitCode.Browser
+		);
 		_err.ToString().Should().StartWith("No Chrome found.");
 	}
 
@@ -123,7 +131,9 @@ public class CliTests
 		code.Should().Be(ExitCode.Ok);
 		var text = Out;
 		text.Should().StartWith($"# Page content is fenced with nonce={Nonce}.");
-		text.Should().Contain($"-- {Site("journeys", "everything.journey")}:7: get text #log\n--- PAGE_CONTENT nonce={Nonce} origin=file: ---\nurl: {{site}}/actions.html\nclicked hello\n--- END_PAGE_CONTENT nonce={Nonce} ---\n");
+		text.Should().Contain(
+			$"-- {Site("journeys", "everything.journey")}:7: get text #log\n--- PAGE_CONTENT nonce={Nonce} origin=file: ---\nurl: {{site}}/actions.html\nclicked hello\n--- END_PAGE_CONTENT nonce={Nonce} ---\n"
+		);
 		text.Should().EndWith("everything.journey: 40 steps, 16 checkpoints\n");
 	}
 
@@ -203,10 +213,12 @@ public class CliTests
 			var code = await Cli().RunAsync([file], Site(), [], null, false, false, 0, null, default);
 
 			code.Should().Be(ExitCode.Failed);
-			Out.Should().Contain($"FAILED {file}:2: find role link click --name \"Leave the site\"\n--- PAGE_CONTENT nonce={Nonce} origin=chrome-error: ---\n" +
-				"url: chrome-error://chromewebdata/\n" +
-				"The page navigated to https://leave.example/, which is refused: leave.example is not in the journey's allow list (add: allow leave.example).\n" +
-				$"--- END_PAGE_CONTENT nonce={Nonce} ---\n");
+			Out.Should().Contain(
+				$"FAILED {file}:2: find role link click --name \"Leave the site\"\n--- PAGE_CONTENT nonce={Nonce} origin=chrome-error: ---\n" +
+					"url: chrome-error://chromewebdata/\n" +
+					"The page navigated to https://leave.example/, which is refused: leave.example is not in the journey's allow list (add: allow leave.example).\n" +
+					$"--- END_PAGE_CONTENT nonce={Nonce} ---\n"
+			);
 			Out.Should().Contain("request(s) outside the allow list were refused").And.Contain("Image https://tracker.example/pixel.png");
 		}
 		finally

@@ -10,8 +10,7 @@ public class CommandLineTests
 
 	[Test]
 	public void JoinThenSplitGivesTheArgumentsBack() =>
-		Gen.String[Gen.Char[" \t\"'\\#ab@é-"], 0, 6].Array[1, 6]
-			.Sample(args => Split(CommandLine.Join(args)).Should().Equal(args));
+		Gen.String[Gen.Char[" \t\"'\\#ab@é-"], 0, 6].Array[1, 6].Sample(args => Split(CommandLine.Join(args)).Should().Equal(args));
 
 	[Test]
 	[Arguments("open /", new[] { "open", "/" })]
@@ -40,8 +39,10 @@ public class CommandLineTests
 
 	[Test]
 	public void JoinQuotesOnlyWhatNeedsIt() =>
-		CommandLine.Join(["find", "role", "button", "--name", "Say \"hi\"", "", "#x", "#"])
-			.Should().Be("find role button --name \"Say \\\"hi\\\"\" \"\" #x \"#\"");
+		CommandLine
+			.Join(["find", "role", "button", "--name", "Say \"hi\"", "", "#x", "#"])
+			.Should()
+			.Be("find role button --name \"Say \\\"hi\\\"\" \"\" #x \"#\"");
 
 	[Test]
 	public void LineBreaksCannotBeJoined()

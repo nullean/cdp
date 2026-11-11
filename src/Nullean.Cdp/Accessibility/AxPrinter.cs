@@ -9,12 +9,39 @@ namespace Nullean.Cdp.Accessibility;
 /// </summary>
 public static class AxPrinter
 {
-	private static readonly FrozenSet<string> InteractiveRoles = FrozenSet.Create(StringComparer.Ordinal,
-		"button", "checkbox", "combobox", "link", "listbox", "menuitem", "menuitemcheckbox", "menuitemradio", "option", "radio",
-		"searchbox", "slider", "spinbutton", "switch", "tab", "textbox", "treeitem", "heading");
+	private static readonly FrozenSet<string> InteractiveRoles = FrozenSet.Create(
+		StringComparer.Ordinal,
+		"button",
+		"checkbox",
+		"combobox",
+		"link",
+		"listbox",
+		"menuitem",
+		"menuitemcheckbox",
+		"menuitemradio",
+		"option",
+		"radio",
+		"searchbox",
+		"slider",
+		"spinbutton",
+		"switch",
+		"tab",
+		"textbox",
+		"treeitem",
+		"heading"
+	);
 
-	private static readonly FrozenSet<string> Landmarks = FrozenSet.Create(StringComparer.Ordinal,
-		"banner", "complementary", "contentinfo", "form", "main", "navigation", "region", "search");
+	private static readonly FrozenSet<string> Landmarks = FrozenSet.Create(
+		StringComparer.Ordinal,
+		"banner",
+		"complementary",
+		"contentinfo",
+		"form",
+		"main",
+		"navigation",
+		"region",
+		"search"
+	);
 
 	// States printed bare when true and left out otherwise; the rest print as name=value.
 	private static readonly FrozenSet<string> Flags = FrozenSet.Create(StringComparer.Ordinal, "selected", "disabled", "required");

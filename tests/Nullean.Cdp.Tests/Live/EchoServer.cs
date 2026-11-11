@@ -41,17 +41,19 @@ internal sealed class EchoServer : IAsyncDisposable
 			try
 			{
 				string Header(string name) => WebUtility.HtmlEncode(context.Request.Headers[name] ?? "none");
+
 				response.ContentType = "text/html; charset=utf-8";
-				await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(
-					"<!doctype html><title>Echo</title><link rel=\"icon\" href=\"data:,\">"
-					+ $"<p id=\"header\">{Header("x-docs-synthetic-monitor")}</p><p id=\"journey\">{Header("x-journey")}</p><p id=\"request-ua\">{Header("user-agent")}</p>"
-					+ "<p id=\"ua\"></p><p id=\"width\"></p>"
-					+ "<script>document.getElementById('ua').textContent = navigator.userAgent; document.getElementById('width').textContent = String(innerWidth);</script>"));
+				await response.OutputStream.WriteAsync(
+					Encoding.UTF8.GetBytes(
+						"<!doctype html><title>Echo</title><link rel=\"icon\" href=\"data:,\">" +
+							$"<p id=\"header\">{Header("x-docs-synthetic-monitor")}</p><p id=\"journey\">{Header("x-journey")}</p><p id=\"request-ua\">{Header("user-agent")}</p>" +
+							"<p id=\"ua\"></p><p id=\"width\"></p>" +
+							"<script>document.getElementById('ua').textContent = navigator.userAgent; document.getElementById('width').textContent = String(innerWidth);</script>"
+					)
+				);
 				response.Close();
 			}
-			catch (Exception e) when (e is HttpListenerException or ObjectDisposedException or IOException)
-			{
-			}
+			catch (Exception e) when (e is HttpListenerException or ObjectDisposedException or IOException) { }
 		}
 	}
 

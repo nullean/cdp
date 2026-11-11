@@ -56,7 +56,11 @@ public class MoreCommandTests(ChromeFixture chrome)
 			var result = await JourneyRunner.RunAsync(Journey.Load(outside), chrome.Browser, new JourneyOptions { BaseUrl = Site });
 			result.Failure!.Message.Should().Be("'files/missing.txt' does not exist next to the journey.");
 
-			var fromText = await JourneyRunner.RunAsync(Journey.Parse("open more.html\nupload #file files/note.txt"), chrome.Browser, new JourneyOptions { BaseUrl = Site });
+			var fromText = await JourneyRunner.RunAsync(
+				Journey.Parse("open more.html\nupload #file files/note.txt"),
+				chrome.Browser,
+				new JourneyOptions { BaseUrl = Site }
+			);
 			fromText.Failure!.Message.Should().Be("upload needs a journey loaded from a file: files are read relative to its folder.");
 		}
 		finally
@@ -74,8 +78,10 @@ public class MoreCommandTests(ChromeFixture chrome)
 		await page.GotoAsync(ChromeFixture.Site("more.html"));
 
 		// screen.width: a mobile page without a viewport meta tag lays out at 980 CSS pixels whatever the device.
-		(await page.EvaluateAsync("[screen.width, devicePixelRatio, navigator.userAgent.includes('iPhone'), 'ontouchstart' in window]")).GetRawText()
-			.Should().Be("[393,3,true,true]");
+		(await page.EvaluateAsync("[screen.width, devicePixelRatio, navigator.userAgent.includes('iPhone'), 'ontouchstart' in window]"))
+			.GetRawText()
+			.Should()
+			.Be("[393,3,true,true]");
 	}
 
 	[Test]
@@ -83,12 +89,14 @@ public class MoreCommandTests(ChromeFixture chrome)
 	{
 		_ = chrome.Browser;
 		await using var server = new SlowServer(TimeSpan.Zero);
-		var journey = Journey.Parse("""
+		var journey = Journey.Parse(
+			"""
 			set useragent "Mozilla/5.0 (journey) docs-test-marker"
 			open /headers
 			get text #ua
 			get title
-			""");
+			"""
+		);
 
 		var result = await JourneyRunner.RunAsync(journey, chrome.Browser, new JourneyOptions { BaseUrl = new Uri(server.Url) });
 
@@ -102,20 +110,22 @@ public class MoreCommandTests(ChromeFixture chrome)
 	{
 		_ = chrome.Browser; // skips without a Chrome
 		await using var server = new SlowServer(TimeSpan.Zero);
-		var journey = Journey.Parse("""
+		var journey = Journey.Parse(
+			"""
 			set headers '{"x-test": "from journey"}'
 			open /headers
 			get text #x
 			set credentials admin $env:PRIVATE_PASSWORD
 			open /private
 			get title
-			""");
+			"""
+		);
 
-		var result = await JourneyRunner.RunAsync(journey, chrome.Browser, new JourneyOptions
-		{
-			BaseUrl = new Uri(server.Url),
-			Secrets = name => name == "PRIVATE_PASSWORD" ? "hunter22" : null,
-		});
+		var result = await JourneyRunner.RunAsync(
+			journey,
+			chrome.Browser,
+			new JourneyOptions { BaseUrl = new Uri(server.Url), Secrets = name => name == "PRIVATE_PASSWORD" ? "hunter22" : null, }
+		);
 
 		result.Failure.Should().BeNull();
 		result.Checkpoints.Select(c => c.Output).Should().Equal("from journey", "Private");
@@ -127,7 +137,11 @@ public class MoreCommandTests(ChromeFixture chrome)
 		_ = chrome.Browser;
 		await using var server = new SlowServer(TimeSpan.Zero);
 
-		var result = await JourneyRunner.RunAsync(Journey.Parse("open /private\nget title"), chrome.Browser, new JourneyOptions { BaseUrl = new Uri(server.Url) });
+		var result = await JourneyRunner.RunAsync(
+			Journey.Parse("open /private\nget title"),
+			chrome.Browser,
+			new JourneyOptions { BaseUrl = new Uri(server.Url) }
+		);
 
 		result.Checkpoints.Should().NotContain(c => c.Output == "Private");
 	}
@@ -158,7 +172,10 @@ public class MoreCommandTests(ChromeFixture chrome)
 		await page.WaitForLoadStateAsync("networkidle");
 		await page.WaitForUrlAsync("http://localhost:*/");
 		page.NavigationTimeout = TimeSpan.FromMilliseconds(300);
-		await FluentActions.Awaiting(() => page.WaitForUrlAsync("**/never")).Should().ThrowAsync<TimeoutException>()
+		await FluentActions
+			.Awaiting(() => page.WaitForUrlAsync("**/never"))
+			.Should()
+			.ThrowAsync<TimeoutException>()
 			.WithMessage("Timed out after 0s waiting for the URL to match '**/never'.");
 		await FluentActions.Awaiting(() => page.WaitForLoadStateAsync("idle")).Should().ThrowAsync<ArgumentException>();
 	}

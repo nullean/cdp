@@ -56,19 +56,25 @@ public sealed class Browser : IAsyncDisposable
 	private async Task<Browser> StartAsync(CancellationToken cancellationToken)
 	{
 		_attaching = Connection.On(null, OnBrowserEvent);
-		await Connection.SendAsync("Target.setAutoAttach", w =>
-		{
-			w.WriteBoolean("autoAttach", true);
-			w.WriteBoolean("waitForDebuggerOnStart", true);
-			w.WriteBoolean("flatten", true);
-		}, cancellationToken: cancellationToken).ConfigureAwait(false);
+		await Connection.SendAsync(
+			"Target.setAutoAttach",
+			w =>
+			{
+				w.WriteBoolean("autoAttach", true);
+				w.WriteBoolean("waitForDebuggerOnStart", true);
+				w.WriteBoolean("flatten", true);
+			},
+			cancellationToken: cancellationToken
+		).ConfigureAwait(false);
 		return this;
 	}
 
 	private void OnBrowserEvent(CdpEvent e)
 	{
-		if (e.Method != "Target.attachedToTarget" || e.Params.StringOrNull("sessionId") is not { } sessionId
-			|| !e.Params.TryGetProperty("targetInfo", out var info) || info.StringOrNull("targetId") is not { } targetId)
+		if (
+			e.Method != "Target.attachedToTarget" || e.Params.StringOrNull("sessionId") is not { } sessionId ||
+			!e.Params.TryGetProperty("targetInfo", out var info) || info.StringOrNull("targetId") is not { } targetId
+		)
 			return;
 		var waiting = e.Params.TryGetProperty("waitingForDebugger", out var w) && w.ValueKind == JsonValueKind.True;
 		var type = info.StringOrNull("type");
@@ -162,12 +168,7 @@ public sealed class Browser : IAsyncDisposable
 		}
 
 		var userData = Directory.CreateTempSubdirectory(ChromeProcesses.ProfilePrefix).FullName;
-		var start = new ProcessStartInfo(executable)
-		{
-			UseShellExecute = false,
-			RedirectStandardError = true,
-			RedirectStandardOutput = true,
-		};
+		var start = new ProcessStartInfo(executable) { UseShellExecute = false, RedirectStandardError = true, RedirectStandardOutput = true, };
 		foreach (var argument in Arguments(options, userData))
 			start.ArgumentList.Add(argument);
 
@@ -184,6 +185,7 @@ public sealed class Browser : IAsyncDisposable
 
 		// Chrome writes to both streams; drain them so it never blocks on a full pipe, and keep the tail for errors.
 		var output = new ConcurrentQueue<string>();
+
 		void Keep(object? sender, DataReceivedEventArgs e)
 		{
 			if (e.Data is null)
@@ -218,7 +220,8 @@ public sealed class Browser : IAsyncDisposable
 	/// <summary>Connects to a browser that is already running, from its DevTools web socket URL.</summary>
 	public static async Task<Browser> ConnectAsync(Uri webSocketUrl, CancellationToken cancellationToken = default) =>
 		await new Browser(await CdpConnection.ConnectAsync(webSocketUrl, cancellationToken).ConfigureAwait(false), null, null, webSocketUrl)
-			.StartAsync(cancellationToken).ConfigureAwait(false);
+			.StartAsync(cancellationToken)
+			.ConfigureAwait(false);
 
 	internal static IEnumerable<string> Arguments(BrowserLaunchOptions options, string userDataDirectory)
 	{
@@ -304,8 +307,11 @@ public sealed class Browser : IAsyncDisposable
 
 	internal static Uri? ParseDevToolsActivePort(IReadOnlyList<string> lines)
 	{
-		if (lines.Count < 2 || !int.TryParse(lines[0], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var port)
-			|| port is <= 0 or > 65535 || !lines[1].StartsWith("/devtools/browser/", StringComparison.Ordinal))
+		if (
+			lines.Count < 2 ||
+			!int.TryParse(lines[0], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var port) ||
+			port is <= 0 or > 65535 || !lines[1].StartsWith("/devtools/browser/", StringComparison.Ordinal)
+		)
 			return null;
 		return new Uri($"ws://127.0.0.1:{port}{lines[1].Trim()}");
 	}
@@ -321,16 +327,23 @@ public sealed class Browser : IAsyncDisposable
 	/// </summary>
 	public async Task<BrowserContext> NewContextAsync(CancellationToken cancellationToken = default)
 	{
-		var result = await Connection.SendAsync("Target.createBrowserContext", w => w.WriteBoolean("disposeOnDetach", true), cancellationToken: cancellationToken)
-			.ConfigureAwait(false);
+		var result = await Connection.SendAsync(
+			"Target.createBrowserContext",
+			w => w.WriteBoolean("disposeOnDetach", true),
+			cancellationToken: cancellationToken
+		).ConfigureAwait(false);
 		var id = result.GetProperty("browserContextId").GetString()!;
 		// Nothing a page offers is saved to disk.
-		await Connection.SendAsync("Browser.setDownloadBehavior", w =>
-		{
-			w.WriteString("behavior", "deny");
-			w.WriteString("browserContextId", id);
-			w.WriteBoolean("eventsEnabled", true);
-		}, cancellationToken: cancellationToken).ConfigureAwait(false);
+		await Connection.SendAsync(
+			"Browser.setDownloadBehavior",
+			w =>
+			{
+				w.WriteString("behavior", "deny");
+				w.WriteString("browserContextId", id);
+				w.WriteBoolean("eventsEnabled", true);
+			},
+			cancellationToken: cancellationToken
+		).ConfigureAwait(false);
 		return new BrowserContext(this, id);
 	}
 
@@ -353,9 +366,7 @@ public sealed class Browser : IAsyncDisposable
 				using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
 				await Connection.SendAsync("Browser.close", cancellationToken: timeout.Token).ConfigureAwait(false);
 			}
-			catch (Exception e) when (e is CdpException or CdpDisconnectedException or OperationCanceledException)
-			{
-			}
+			catch (Exception e) when (e is CdpException or CdpDisconnectedException or OperationCanceledException) { }
 		}
 
 		_attaching?.Dispose();
@@ -386,9 +397,7 @@ public sealed class Browser : IAsyncDisposable
 			if (!process.HasExited)
 				process.Kill(entireProcessTree: true);
 		}
-		catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception)
-		{
-		}
+		catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
 	}
 
 	// Chrome's helpers can hold files in the profile for a moment after the main process exits, on Windows especially.
@@ -436,11 +445,15 @@ public sealed class BrowserContext : IAsyncDisposable
 	public async Task<Page> NewPageAsync(CancellationToken cancellationToken = default)
 	{
 		var connection = _browser.Connection;
-		var created = await connection.SendAsync("Target.createTarget", w =>
-		{
-			w.WriteString("url", "about:blank");
-			w.WriteString("browserContextId", Id);
-		}, cancellationToken: cancellationToken).ConfigureAwait(false);
+		var created = await connection.SendAsync(
+			"Target.createTarget",
+			w =>
+			{
+				w.WriteString("url", "about:blank");
+				w.WriteString("browserContextId", Id);
+			},
+			cancellationToken: cancellationToken
+		).ConfigureAwait(false);
 		var targetId = created.GetProperty("targetId").GetString()!;
 		// Chrome attached the new page, paused; set it up, then let it run.
 		var sessionId = await _browser.ClaimAsync(targetId, cancellationToken).ConfigureAwait(false);

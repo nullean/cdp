@@ -21,8 +21,10 @@ internal interface ICdpTransport : IAsyncDisposable
 internal sealed class WebSocketTransport : ICdpTransport
 {
 	private readonly ClientWebSocket _socket;
-	private readonly Channel<(ReadOnlyMemory<byte> Message, TaskCompletionSource Sent)> _outgoing =
-		Channel.CreateUnbounded<(ReadOnlyMemory<byte>, TaskCompletionSource)>(new UnboundedChannelOptions { SingleReader = true });
+	private readonly Channel<(ReadOnlyMemory<byte> Message, TaskCompletionSource Sent)> _outgoing = Channel.CreateUnbounded<(ReadOnlyMemory<byte>, TaskCompletionSource)>(new UnboundedChannelOptions
+	{
+		SingleReader = true
+	});
 	private readonly CancellationTokenSource _closing = new();
 	private readonly Task _writer;
 	private readonly ArrayBufferWriter<byte> _incoming = new(64 * 1024);
@@ -107,9 +109,7 @@ internal sealed class WebSocketTransport : ICdpTransport
 		{
 			await _writer.ConfigureAwait(false);
 		}
-		catch (OperationCanceledException)
-		{
-		}
+		catch (OperationCanceledException) { }
 
 		if (_socket.State == WebSocketState.Open)
 		{
@@ -118,9 +118,7 @@ internal sealed class WebSocketTransport : ICdpTransport
 				using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
 				await _socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, timeout.Token).ConfigureAwait(false);
 			}
-			catch (Exception e) when (e is WebSocketException or OperationCanceledException)
-			{
-			}
+			catch (Exception e) when (e is WebSocketException or OperationCanceledException) { }
 		}
 
 		_socket.Dispose();

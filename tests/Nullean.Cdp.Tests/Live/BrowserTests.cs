@@ -15,8 +15,7 @@ public class BrowserTests(ChromeFixture chrome)
 	}
 
 	[Test]
-	public async Task ReportsItsVersion() =>
-		(await chrome.Browser.VersionAsync()).Should().MatchRegex(@"^(Headless)?Chrom(e|ium)/\d+\.");
+	public async Task ReportsItsVersion() => (await chrome.Browser.VersionAsync()).Should().MatchRegex(@"^(Headless)?Chrom(e|ium)/\d+\.");
 
 	[Test]
 	public async Task NavigatesAndReadsUrlAndTitle()
@@ -37,12 +36,10 @@ public class BrowserTests(ChromeFixture chrome)
 		var snapshot = await page.SnapshotAsync(new AxSnapshotOptions { Compact = true, Selector = "form" });
 
 		// Asserted by line, not as a whole, so a new Chrome that adds detail elsewhere does not fail it.
-		snapshot.Split('\n').Should().Contain([
-			"- form",
-			"  - textbox \"Search\"",
-			"  - checkbox \"Only in stock\" [checked=true]",
-			"  - button \"Disabled\" [disabled]",
-		]);
+		snapshot
+			.Split('\n')
+			.Should()
+			.Contain(["- form", "  - textbox \"Search\"", "  - checkbox \"Only in stock\" [checked=true]", "  - button \"Disabled\" [disabled]",]);
 		snapshot.Should().NotContain("ref=").And.NotContain("Not shown");
 	}
 

@@ -73,9 +73,7 @@ internal sealed class PageLog
 			column = details.GetProperty("columnNumber").GetInt32();
 		}
 
-		var location = string.IsNullOrEmpty(url)
-			? string.Empty
-			: string.Create(CultureInfo.InvariantCulture, $"{url}:{line + 1}:{column + 1}");
+		var location = string.IsNullOrEmpty(url) ? string.Empty : string.Create(CultureInfo.InvariantCulture, $"{url}:{line + 1}:{column + 1}");
 		return new PageError(message, location);
 	}
 

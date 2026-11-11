@@ -1,5 +1,5 @@
-using Nullean.Cdp.Accessibility;
 using System.Globalization;
+using Nullean.Cdp.Accessibility;
 using Nullean.Cdp.Protocol;
 
 namespace Nullean.Cdp.Journeys;
@@ -99,7 +99,11 @@ public sealed class JourneyOptions
 	internal NetworkGuardOptions GuardOptions()
 	{
 		var writable = WritableUrls.Select(Page.UrlGlob).ToArray();
-		return new NetworkGuardOptions { ReadOnly = ReadOnly, AllowWrites = writable.Length == 0 ? null : uri => writable.Any(g => g.IsMatch(uri.AbsoluteUri)) };
+		return new NetworkGuardOptions
+		{
+			ReadOnly = ReadOnly,
+			AllowWrites = writable.Length == 0 ? null : uri => writable.Any(g => g.IsMatch(uri.AbsoluteUri))
+		};
 	}
 
 	internal JourneyAllowList AllowList(Journey journey)
@@ -165,7 +169,12 @@ public sealed record JourneyResult(string Source, IReadOnlyList<Checkpoint> Chec
 public static class JourneyRunner
 {
 	/// <summary>Runs <paramref name="journey"/> in a new context of <paramref name="browser"/>, disposed afterwards.</summary>
-	public static async Task<JourneyResult> RunAsync(Journey journey, Browser browser, JourneyOptions? options = null, CancellationToken cancellationToken = default)
+	public static async Task<JourneyResult> RunAsync(
+		Journey journey,
+		Browser browser,
+		JourneyOptions? options = null,
+		CancellationToken cancellationToken = default
+	)
 	{
 		ArgumentNullException.ThrowIfNull(browser);
 		await using var context = await browser.NewContextAsync(cancellationToken).ConfigureAwait(false);
@@ -192,7 +201,9 @@ public static class JourneyRunner
 		var blocked = new List<BlockedRequest>();
 		// Without the guard, a guard that allows everything is still started when a step needs one (credentials).
 		await using var guard = options.GuardNetwork || options.ReadOnly || journey.Steps.Any(s => s.Command is SetCommand { Setting: "credentials" })
-			? await page.GuardNetworkAsync(options.GuardNetwork ? run.AllowList.Allows : _ => true, options.GuardOptions(), cancellationToken).ConfigureAwait(false)
+			? await page.GuardNetworkAsync(options.GuardNetwork ? run.AllowList.Allows : _ => true, options.GuardOptions(), cancellationToken).ConfigureAwait(
+				false
+			)
 			: null;
 		run.Guard = guard;
 		await ApplyDefaultsAsync(page, options, cancellationToken).ConfigureAwait(false);
@@ -313,7 +324,8 @@ public static class JourneyRunner
 		{
 			if (request.RefusedWrite is { } method)
 			{
-				failure ??= $"Blocked {method} {request.Url}: this run is read-only, so only GET, HEAD and OPTIONS requests are sent (JourneyOptions.WritableUrls, or --writable on the CLI, allows a URL).";
+				failure ??=
+					$"Blocked {method} {request.Url}: this run is read-only, so only GET, HEAD and OPTIONS requests are sent (JourneyOptions.WritableUrls, or --writable on the CLI, allows a URL).";
 				continue;
 			}
 
@@ -334,9 +346,8 @@ public static class JourneyRunner
 	private static bool IsStepFailure(Exception e, CancellationToken cancellationToken) => e switch
 	{
 		OperationCanceledException when cancellationToken.IsCancellationRequested => false,
-		LocatorTimeoutException or LocatorException or PageNavigationException or PageScriptException or PageSelectorException
-			or TimeoutException or CdpException or CdpDisconnectedException or ArgumentException or JourneyParseException
-			or InvalidOperationException => true,
+		LocatorTimeoutException or LocatorException or PageNavigationException or PageScriptException or PageSelectorException or TimeoutException or CdpException or CdpDisconnectedException or ArgumentException or JourneyParseException or InvalidOperationException =>
+			true,
 		_ => false,
 	};
 
@@ -517,27 +528,25 @@ public static class JourneyRunner
 				lines.Add($"{budget.Name} ok (<= {limit})");
 		}
 
-		return over.Count > 0
-			? throw new ArgumentException($"Over budget: {string.Join("; ", over)}.")
-			: string.Join('\n', lines);
+		return over.Count > 0 ? throw new ArgumentException($"Over budget: {string.Join("; ", over)}.") : string.Join('\n', lines);
 	}
 
 	private static IEnumerable<NetworkRequest> Filter(IReadOnlyList<NetworkRequest> requests, RequestsCommand filter)
 	{
 		var glob = filter.Filter is { } f && f.Contains('*') ? Page.UrlGlob(f) : null;
-		return requests.Where(r =>
-			(filter.Filter is null || (glob?.IsMatch(r.Url) ?? r.Url.Contains(filter.Filter, StringComparison.Ordinal)))
-			&& (filter.Types.Count == 0 || filter.Types.Contains(r.ResourceType, StringComparer.OrdinalIgnoreCase))
-			&& (filter.Method is null || r.Method == filter.Method)
-			&& (filter.Status is null || StatusMatches(r.Status, filter.Status))
-			&& (!filter.Failed || Failed(r)));
+		return requests.Where(
+			r => (filter.Filter is null || (glob?.IsMatch(r.Url) ?? r.Url.Contains(filter.Filter, StringComparison.Ordinal))) &&
+				(filter.Types.Count == 0 || filter.Types.Contains(r.ResourceType, StringComparer.OrdinalIgnoreCase)) &&
+				(filter.Method is null || r.Method == filter.Method) && (filter.Status is null || StatusMatches(r.Status, filter.Status)) &&
+				(!filter.Failed || Failed(r))
+		);
 	}
 
 	// A failed request: 400 or more, or no answer, except what the allow list refused or a navigation cancelled.
 	internal static bool Failed(NetworkRequest request) =>
-		request.Status is >= 400
-		|| (request.Status is null && request.Error is { } error
-			&& !error.Contains("ERR_BLOCKED_BY_CLIENT", StringComparison.Ordinal) && !error.Contains("ERR_ABORTED", StringComparison.Ordinal));
+		request.Status is >= 400 ||
+			(request.Status is null && request.Error is { } error && !error.Contains("ERR_BLOCKED_BY_CLIENT", StringComparison.Ordinal) &&
+				!error.Contains("ERR_ABORTED", StringComparison.Ordinal));
 
 	private static async Task<string> LinksAsync(Run run, LinksCommand command, CancellationToken ct)
 	{
@@ -560,9 +569,8 @@ public static class JourneyRunner
 
 		var results = await page.CheckLinksAsync(check, cancellationToken: ct).ConfigureAwait(false);
 		var broken = results.Where(r => r.Broken).ToList();
-		var summary = $"links: {results.Count} checked, {broken.Count} broken"
-			+ (external > 0 ? $", {external} on other sites not checked (--external)" : "")
-			+ (refused > 0 ? $", {refused} outside the allow list" : "");
+		var summary = $"links: {results.Count} checked, {broken.Count} broken" + (external > 0 ? $", {external} on other sites not checked (--external)" : "") +
+			(refused > 0 ? $", {refused} outside the allow list" : "");
 		var lines = (command.All ? results : broken).Select(r => $"{r.Outcome} {Display(run, here, r.Url)}");
 		if (command.Strict && broken.Count > 0)
 			throw new ArgumentException($"{broken.Count} broken link(s):\n{string.Join('\n', broken.Take(10).Select(r => $"{r.Outcome} {r.Url}"))}");
@@ -640,19 +648,26 @@ public static class JourneyRunner
 			throw new ArgumentException("upload needs a journey loaded from a file: files are read relative to its folder.");
 		var folder = Path.TrimEndingDirectorySeparator(Path.GetDirectoryName(Path.GetFullPath(journey.Source))!) + Path.DirectorySeparatorChar;
 		var comparison = OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
-		return [.. files.Select(file =>
-		{
-			var full = Path.GetFullPath(Path.Combine(folder, file));
-			if (!full.StartsWith(folder, comparison))
-				throw new ArgumentException($"'{file}' is outside the journey's folder.");
-			return File.Exists(full) ? full : throw new ArgumentException($"'{file}' does not exist next to the journey.");
-		})];
+		return [
+			.. files.Select(file =>
+			{
+				var full = Path.GetFullPath(Path.Combine(folder, file));
+				if (!full.StartsWith(folder, comparison))
+					throw new ArgumentException($"'{file}' is outside the journey's folder.");
+				return File.Exists(full) ? full : throw new ArgumentException($"'{file}' does not exist next to the journey.");
+			})
+		];
 	}
 
 	private static async Task ActAsync(ActCommand act, Locator locator, JourneySecrets secrets, CancellationToken ct)
 	{
-		if (act.Action is "fill" or "type" && !JourneySecrets.IsReference(act.Values[0])
-			&& string.Equals(await locator.AttributeAsync("type", ct).ConfigureAwait(false), "password", StringComparison.OrdinalIgnoreCase))
+		if (
+			act.Action is "fill" or "type" && !JourneySecrets.IsReference(act.Values[0]) && string.Equals(
+				await locator.AttributeAsync("type", ct).ConfigureAwait(false),
+				"password",
+				StringComparison.OrdinalIgnoreCase
+			)
+		)
 			throw new ArgumentException($"{locator} is a password field: fill it with a secret reference ($env:NAME), not a literal.");
 		var values = act.Values.Select(secrets.Resolve).ToArray();
 		switch (act.Action)
@@ -710,23 +725,37 @@ public static class JourneyRunner
 		var timeout = command.Options.Timeout ?? run.Page.ActionTimeout;
 		var glob = Page.UrlGlob(command.Url);
 		var contains = command.BodyContains is { } text ? run.Secrets.Resolve(text) : null;
-		var regex = command.BodyRegex is { } pattern ? new System.Text.RegularExpressions.Regex(run.Secrets.Resolve(pattern), System.Text.RegularExpressions.RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1)) : null;
+		var regex = command.BodyRegex is { } pattern
+			? new System.Text.RegularExpressions.Regex(
+				run.Secrets.Resolve(pattern),
+				System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+				TimeSpan.FromSeconds(1)
+			)
+			: null;
 		var types = command.Types ?? [];
 		var started = System.Diagnostics.Stopwatch.StartNew();
 		while (true)
 		{
-			var scoped = run.Network!.Requests
-				.Where(r => glob.IsMatch(r.Url)
-					&& (types.Count == 0 || types.Contains(r.ResourceType, StringComparer.OrdinalIgnoreCase))
-					&& (command.Method is null || r.Method == command.Method))
+			var scoped = run.Network!
+				.Requests
+				.Where(
+					r => glob.IsMatch(r.Url) && (types.Count == 0 || types.Contains(r.ResourceType, StringComparer.OrdinalIgnoreCase)) &&
+						(command.Method is null || r.Method == command.Method)
+				)
 				.ToList();
 			var pending = scoped.Where(r => !r.IsFinished).ToList();
 			var matching = new List<NetworkRequest>();
 			foreach (var request in scoped.Where(r => r.IsFinished))
 			{
-				if ((command.Status is null || StatusMatches(request.Status, command.Status))
-					&& (!command.Failed || Failed(request))
-					&& await BodyMatchesAsync(request, command.LargerThan, contains, regex, ct).ConfigureAwait(false))
+				if (
+					(command.Status is null || StatusMatches(request.Status, command.Status)) && (!command.Failed || Failed(request)) && await BodyMatchesAsync(
+						request,
+						command.LargerThan,
+						contains,
+						regex,
+						ct
+					).ConfigureAwait(false)
+				)
 					matching.Add(request);
 			}
 
@@ -740,16 +769,31 @@ public static class JourneyRunner
 					? matching.Count > 0 ? "found " + ListRequests(matching, command) : $"{pending.Count} still in flight: " + ListRequests(pending, command)
 					: scoped.Count == 0
 						? $"no request with that URL among the {run.Network!.Requests.Count} so far"
-						: $"{scoped.Count} with that URL, none matching the other filters" + (pending.Count > 0 ? $" ({pending.Count} still in flight)" : "") + ": " + ListRequests(scoped, command);
-				throw new ExpectationException(new ExpectationResult(false, "the requests",
-					(command.Options.Negate ? "include no request " : "include a request ") + describe, received, timeout, started.Elapsed));
+						: $"{scoped.Count} with that URL, none matching the other filters" + (pending.Count > 0 ? $" ({pending.Count} still in flight)" : "") +
+							": " + ListRequests(scoped, command);
+				throw new ExpectationException(
+					new ExpectationResult(
+						false,
+						"the requests",
+						(command.Options.Negate ? "include no request " : "include a request ") + describe,
+						received,
+						timeout,
+						started.Elapsed
+					)
+				);
 			}
 
 			await Task.Delay(command.Options.PollInterval, ct).ConfigureAwait(false);
 		}
 	}
 
-	private static async Task<bool> BodyMatchesAsync(NetworkRequest request, long? largerThan, string? contains, System.Text.RegularExpressions.Regex? regex, CancellationToken ct)
+	private static async Task<bool> BodyMatchesAsync(
+		NetworkRequest request,
+		long? largerThan,
+		string? contains,
+		System.Text.RegularExpressions.Regex? regex,
+		CancellationToken ct
+	)
 	{
 		if (largerThan is null && contains is null && regex is null)
 			return true;
@@ -802,9 +846,18 @@ public static class JourneyRunner
 			if (replaced == 0 != command.Options.Negate)
 				return;
 			if (started.Elapsed >= timeout)
-				throw new ExpectationException(new ExpectationResult(false, "the page",
-					command.Options.Negate ? "have been replaced by a new document since the last action" : "still be the document the last action began on",
-					replaced == 0 ? "the same document" : $"{replaced} new document(s) since the last action", timeout, started.Elapsed));
+				throw new ExpectationException(
+					new ExpectationResult(
+						false,
+						"the page",
+						command.Options.Negate
+							? "have been replaced by a new document since the last action"
+							: "still be the document the last action began on",
+						replaced == 0 ? "the same document" : $"{replaced} new document(s) since the last action",
+						timeout,
+						started.Elapsed
+					)
+				);
 			await Task.Delay(command.Options.PollInterval, ct).ConfigureAwait(false);
 		}
 	}

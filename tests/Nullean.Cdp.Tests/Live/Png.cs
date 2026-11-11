@@ -57,15 +57,16 @@ internal sealed class Png
 				int left = x >= _channels ? pixels[(y * stride) + x - _channels] : 0;
 				int up = y > 0 ? pixels[((y - 1) * stride) + x] : 0;
 				int upLeft = x >= _channels && y > 0 ? pixels[((y - 1) * stride) + x - _channels] : 0;
-				pixels[(y * stride) + x] = (byte)(value + filter switch
-				{
-					0 => 0,
-					1 => left,
-					2 => up,
-					3 => (left + up) / 2,
-					4 => Paeth(left, up, upLeft),
-					_ => throw new NotSupportedException($"filter {filter}"),
-				});
+				pixels[(y * stride) + x] =
+					(byte)(value + filter switch
+					{
+						0 => 0,
+						1 => left,
+						2 => up,
+						3 => (left + up) / 2,
+						4 => Paeth(left, up, upLeft),
+						_ => throw new NotSupportedException($"filter {filter}"),
+					});
 			}
 		}
 

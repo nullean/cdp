@@ -42,8 +42,13 @@ public class AwesomeAssertionsAdapterTests(ChromeFixture chrome)
 		var act = () => page.Css("#count").Should().HaveTextAsync("3", Quick, "the basket was filled");
 
 		var thrown = await act.Should().ThrowAsync<Exception>();
-		thrown.Which.Message.Should().Contain("Timed out after 0.2s waiting for css #count to have text \"3\": received \"2 results\".")
-			.And.Contain("because the basket was filled");
+		thrown
+			.Which
+			.Message
+			.Should()
+			.Contain("Timed out after 0.2s waiting for css #count to have text \"3\": received \"2 results\".")
+			.And
+			.Contain("because the basket was filled");
 	}
 
 	[Test]

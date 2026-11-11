@@ -19,12 +19,10 @@ public class AuditTests(ChromeFixture chrome)
 	}
 
 	[Test]
-	public async Task FindsTheCommonProblems() =>
-		AccessibilityAudit.Format(await Audit("a11y.html")).Should().MatchSnapshot();
+	public async Task FindsTheCommonProblems() => AccessibilityAudit.Format(await Audit("a11y.html")).Should().MatchSnapshot();
 
 	[Test]
-	public async Task ACleanPageHasNone() =>
-		AccessibilityAudit.Format(await Audit("about.html")).Should().Be("violations: 0");
+	public async Task ACleanPageHasNone() => AccessibilityAudit.Format(await Audit("about.html")).Should().Be("violations: 0");
 
 	[Test]
 	public async Task DisabledControlsAreExemptFromContrast() =>
@@ -35,8 +33,7 @@ public class AuditTests(ChromeFixture chrome)
 		AccessibilityAudit.Format(await Audit("generated.html")).Should().Be("violations: 0", "Chrome repeats the ids of generated text");
 
 	[Test]
-	public async Task ASelectorLimitsTheAuditToItsElement() =>
-		(await Audit("a11y.html", "a[href='/x']")).Select(v => v.Rule).Should().Equal("link-name");
+	public async Task ASelectorLimitsTheAuditToItsElement() => (await Audit("a11y.html", "a[href='/x']")).Select(v => v.Rule).Should().Equal("link-name");
 
 	[Test]
 	public async Task ContrastFollowsWcagAa()

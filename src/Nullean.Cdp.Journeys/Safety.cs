@@ -45,8 +45,10 @@ public sealed partial class JourneyAllowList
 				var host = uri.IdnHost.ToLowerInvariant();
 				foreach (var pattern in _patterns)
 				{
-					if (pattern == "*" || pattern == host
-						|| (pattern.StartsWith("*.", StringComparison.Ordinal) && (host == pattern[2..] || host.EndsWith(pattern[1..], StringComparison.Ordinal))))
+					if (
+						pattern == "*" || pattern == host ||
+						(pattern.StartsWith("*.", StringComparison.Ordinal) && (host == pattern[2..] || host.EndsWith(pattern[1..], StringComparison.Ordinal)))
+					)
 						return null;
 				}
 

@@ -32,15 +32,15 @@ public sealed class ChromeLocator
 	/// <summary>The environment variable that names the executable to use, ahead of everything else.</summary>
 	public const string Variable = "CDP_CHROME";
 
-	private static readonly string[] PathNames =
-		["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "chrome", "microsoft-edge"];
+	private static readonly string[] PathNames = ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "chrome", "microsoft-edge"];
 
 	private readonly Func<string, string?> _getVariable;
 	private readonly Func<string, bool> _fileExists;
 	private readonly OSPlatform _os;
 
 	/// <summary>A locator over the real environment and file system.</summary>
-	public ChromeLocator() : this(Environment.GetEnvironmentVariable, File.Exists, CurrentPlatform()) { }
+	public ChromeLocator() : this(Environment.GetEnvironmentVariable, File.Exists, CurrentPlatform())
+	{ }
 
 	internal ChromeLocator(Func<string, string?> getVariable, Func<string, bool> fileExists, OSPlatform os)
 	{
@@ -137,7 +137,5 @@ public sealed class ChromeLocator
 	}
 
 	private static OSPlatform CurrentPlatform() =>
-		OperatingSystem.IsWindows() ? OSPlatform.Windows
-		: OperatingSystem.IsMacOS() ? OSPlatform.OSX
-		: OSPlatform.Linux;
+		OperatingSystem.IsWindows() ? OSPlatform.Windows : OperatingSystem.IsMacOS() ? OSPlatform.OSX : OSPlatform.Linux;
 }

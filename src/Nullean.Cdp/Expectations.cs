@@ -20,7 +20,8 @@ internal static partial class Expectations
 		TimeSpan defaultTimeout,
 		string subject,
 		Func<CancellationToken, Task<Observation>> observe,
-		CancellationToken cancellationToken)
+		CancellationToken cancellationToken
+	)
 	{
 		ArgumentNullException.ThrowIfNull(matcher);
 		ArgumentNullException.ThrowIfNull(options);
@@ -79,7 +80,8 @@ internal static partial class Expectations
 			MatcherKind.Count => (seen.Count == m.Number, seen.Count.ToString(CultureInfo.InvariantCulture)),
 			MatcherKind.Text => Text(seen, Compare(text, m, o, collapse: true)),
 			MatcherKind.Value => Text(seen, Compare(text, m, o with { IgnoreCase = false }, collapse: false)),
-			MatcherKind.Class => Text(seen, m.Match == TextMatch.Contains ? HasClasses(text, m.Expected!) : Compare(text, m, o with { IgnoreCase = false }, collapse: false)),
+			MatcherKind.Class =>
+				Text(seen, m.Match == TextMatch.Contains ? HasClasses(text, m.Expected!) : Compare(text, m, o with { IgnoreCase = false }, collapse: false)),
 			MatcherKind.Attribute when seen.Found && seen.Text is null => (false, "no such attribute"),
 			MatcherKind.Attribute => Text(seen, m.Expected is null || Compare(text, m, o, collapse: false)),
 			MatcherKind.Title => (Compare(text, m, o with { IgnoreCase = false }, collapse: true), Quote(text)),
@@ -95,7 +97,12 @@ internal static partial class Expectations
 	{
 		var expected = m.Expected!;
 		if (m.Match == TextMatch.Regex)
-			return Regex.IsMatch(actual, expected, o.IgnoreCase ? RegexOptions.CultureInvariant | RegexOptions.IgnoreCase : RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
+			return Regex.IsMatch(
+				actual,
+				expected,
+				o.IgnoreCase ? RegexOptions.CultureInvariant | RegexOptions.IgnoreCase : RegexOptions.CultureInvariant,
+				TimeSpan.FromSeconds(1)
+			);
 		if (collapse)
 		{
 			actual = Collapse(actual);

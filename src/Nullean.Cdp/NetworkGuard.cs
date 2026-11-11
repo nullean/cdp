@@ -104,22 +104,32 @@ public sealed class NetworkGuard : IAsyncDisposable
 	// Fetch first, so nothing loads unguarded; then attach to whatever this target opens; then let it run.
 	private static async Task GuardSessionAsync(CdpConnection connection, string sessionId, CancellationToken cancellationToken)
 	{
-		await connection.SendAsync("Fetch.enable", w =>
-		{
-			w.WriteStartArray("patterns");
-			w.WriteStartObject();
-			w.WriteString("urlPattern", "*");
-			w.WriteString("requestStage", "Request");
-			w.WriteEndObject();
-			w.WriteEndArray();
-			w.WriteBoolean("handleAuthRequests", true);
-		}, sessionId, cancellationToken).ConfigureAwait(false);
-		await connection.SendAsync("Target.setAutoAttach", w =>
-		{
-			w.WriteBoolean("autoAttach", true);
-			w.WriteBoolean("waitForDebuggerOnStart", true);
-			w.WriteBoolean("flatten", true);
-		}, sessionId, cancellationToken).ConfigureAwait(false);
+		await connection.SendAsync(
+			"Fetch.enable",
+			w =>
+			{
+				w.WriteStartArray("patterns");
+				w.WriteStartObject();
+				w.WriteString("urlPattern", "*");
+				w.WriteString("requestStage", "Request");
+				w.WriteEndObject();
+				w.WriteEndArray();
+				w.WriteBoolean("handleAuthRequests", true);
+			},
+			sessionId,
+			cancellationToken
+		).ConfigureAwait(false);
+		await connection.SendAsync(
+			"Target.setAutoAttach",
+			w =>
+			{
+				w.WriteBoolean("autoAttach", true);
+				w.WriteBoolean("waitForDebuggerOnStart", true);
+				w.WriteBoolean("flatten", true);
+			},
+			sessionId,
+			cancellationToken
+		).ConfigureAwait(false);
 	}
 
 	private void OnEvent(string sessionId, string targetId, CdpEvent e)
@@ -132,8 +142,8 @@ public sealed class NetworkGuard : IAsyncDisposable
 			case "Fetch.authRequired" when e.Params.StringOrNull("requestId") is { } authId:
 				Authenticate(sessionId, authId, e);
 				break;
-			case "Target.attachedToTarget" when e.Params.StringOrNull("sessionId") is { } child
-				&& e.Params.TryGetProperty("targetInfo", out var info) && info.StringOrNull("targetId") is { } childTarget:
+			case "Target.attachedToTarget" when e.Params.StringOrNull("sessionId") is { } child && e.Params.TryGetProperty("targetInfo", out var info) &&
+				info.StringOrNull("targetId") is { } childTarget:
 				Watch(child, childTarget);
 				Observe(AttachAsync(child, info.StringOrNull("type")));
 				break;
@@ -163,13 +173,19 @@ public sealed class NetworkGuard : IAsyncDisposable
 		}
 
 		// The handler runs on the receive loop and must not wait for the reply; failures only mean the target is gone.
-		Observe(allowed
-			? _page.Connection.SendAsync("Fetch.continueRequest", w => w.WriteString("requestId", requestId), sessionId)
-			: _page.Connection.SendAsync("Fetch.failRequest", w =>
-			{
-				w.WriteString("requestId", requestId);
-				w.WriteString("errorReason", "BlockedByClient");
-			}, sessionId));
+		Observe(
+			allowed
+				? _page.Connection.SendAsync("Fetch.continueRequest", w => w.WriteString("requestId", requestId), sessionId)
+				: _page.Connection.SendAsync(
+					"Fetch.failRequest",
+					w =>
+					{
+						w.WriteString("requestId", requestId);
+						w.WriteString("errorReason", "BlockedByClient");
+					},
+					sessionId
+				)
+		);
 	}
 
 	// The method of a request a read-only guard refuses, or null.
@@ -186,19 +202,25 @@ public sealed class NetworkGuard : IAsyncDisposable
 		var url = e.Params.TryGetProperty("request", out var request) ? request.StringOrNull("url") ?? string.Empty : string.Empty;
 		var credentials = _credentials;
 		var answer = credentials is { } c && Uri.TryCreate(url, UriKind.Absolute, out var uri) && _allow(uri) ? c : ((string, string)?)null;
-		Observe(_page.Connection.SendAsync("Fetch.continueWithAuth", w =>
-		{
-			w.WriteString("requestId", requestId);
-			w.WriteStartObject("authChallengeResponse");
-			w.WriteString("response", answer is null ? "CancelAuth" : "ProvideCredentials");
-			if (answer is { } a)
-			{
-				w.WriteString("username", a.Item1);
-				w.WriteString("password", a.Item2);
-			}
+		Observe(
+			_page.Connection.SendAsync(
+				"Fetch.continueWithAuth",
+				w =>
+				{
+					w.WriteString("requestId", requestId);
+					w.WriteStartObject("authChallengeResponse");
+					w.WriteString("response", answer is null ? "CancelAuth" : "ProvideCredentials");
+					if (answer is { } a)
+					{
+						w.WriteString("username", a.Item1);
+						w.WriteString("password", a.Item2);
+					}
 
-			w.WriteEndObject();
-		}, sessionId));
+					w.WriteEndObject();
+				},
+				sessionId
+			)
+		);
 	}
 
 	private static void Observe(Task task) =>
@@ -225,8 +247,6 @@ public sealed class NetworkGuard : IAsyncDisposable
 				w.WriteBoolean("waitForDebuggerOnStart", false);
 			}).ConfigureAwait(false);
 		}
-		catch (Exception e) when (e is CdpException or CdpDisconnectedException)
-		{
-		}
+		catch (Exception e) when (e is CdpException or CdpDisconnectedException) { }
 	}
 }

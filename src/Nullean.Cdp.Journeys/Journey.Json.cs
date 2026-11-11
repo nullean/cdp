@@ -27,7 +27,10 @@ public sealed partial class Journey
 	{
 		var buffer = new ArrayBufferWriter<byte>();
 		// The relaxed encoder writes quotes as \" rather than "; the output is for people and runners, never HTML.
-		using (var json = new Utf8JsonWriter(buffer, new JsonWriterOptions { Indented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
+		using (var json = new Utf8JsonWriter(
+			buffer,
+			new JsonWriterOptions { Indented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }
+		))
 		{
 			json.WriteStartObject();
 			json.WriteNumber("version", Blocks.Count > 0 ? JsonVersionWithBlocks : JsonVersion);

@@ -11,7 +11,8 @@ namespace Nullean.Cdp.Tests.Live;
 internal sealed class SlowServer : IAsyncDisposable
 {
 	private static readonly byte[] Pixel = Convert.FromBase64String(
-		"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
+		"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+	);
 
 	private readonly HttpListener _listener = new();
 	private readonly Task _serving;
@@ -50,27 +51,36 @@ internal sealed class SlowServer : IAsyncDisposable
 					if (context.Request.Url!.AbsolutePath == "/headers")
 					{
 						response.ContentType = "text/html; charset=utf-8";
-						await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(
-							$"<!doctype html><title>Headers</title><p id=\"x\">{WebUtility.HtmlEncode(context.Request.Headers["x-test"] ?? "none")}</p><p id=\"ua\">{WebUtility.HtmlEncode(context.Request.UserAgent ?? "none")}</p><script>document.title = navigator.userAgent</script>"));
+						await response.OutputStream.WriteAsync(
+							Encoding.UTF8.GetBytes(
+								$"<!doctype html><title>Headers</title><p id=\"x\">{WebUtility.HtmlEncode(context.Request.Headers["x-test"] ?? "none")}</p><p id=\"ua\">{WebUtility.HtmlEncode(context.Request.UserAgent ?? "none")}</p><script>document.title = navigator.userAgent</script>"
+							)
+						);
 					}
 					else if (context.Request.Url.AbsolutePath == "/telemetry")
 					{
 						// What the browser SDK does: JSON posted to a collector, some of it slow, one refused, one large.
 						response.ContentType = "text/html; charset=utf-8";
-						await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(
-							"<!doctype html><title>Telemetry</title><link rel=\"icon\" href=\"data:,\"><h1>Telemetry</h1><script>"
-							+ "const post = (path, body) => fetch(path, { method: 'POST', body });"
-							+ "post('/collect/l', JSON.stringify({ resourceLogs: [{ resource: { attributes: [{ key: 'service.name', value: { stringValue: 'docs-frontend' } }] },"
-							+ " scopeLogs: [{ logRecords: [{ eventName: 'browser.navigation_timing' }] }] }] }));"
-							+ "post('/collect/big', 'x'.repeat(100000)); post('/collect/deny', '{}'); post('/collect/slow', '{}'); post('/collect/blob', new Blob(['blob-body-text']));</script>"));
+						await response.OutputStream.WriteAsync(
+							Encoding.UTF8.GetBytes(
+								"<!doctype html><title>Telemetry</title><link rel=\"icon\" href=\"data:,\"><h1>Telemetry</h1><script>" +
+									"const post = (path, body) => fetch(path, { method: 'POST', body });" +
+									"post('/collect/l', JSON.stringify({ resourceLogs: [{ resource: { attributes: [{ key: 'service.name', value: { stringValue: 'docs-frontend' } }] }," +
+									" scopeLogs: [{ logRecords: [{ eventName: 'browser.navigation_timing' }] }] }] }));" +
+									"post('/collect/big', 'x'.repeat(100000)); post('/collect/deny', '{}'); post('/collect/slow', '{}'); post('/collect/blob', new Blob(['blob-body-text']));</script>"
+							)
+						);
 					}
 					else if (context.Request.Url.AbsolutePath == "/spa")
 					{
 						// One button that changes the URL without a new document, and one link that is a full navigation.
 						response.ContentType = "text/html; charset=utf-8";
-						await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(
-							"<!doctype html><title>Spa</title><link rel=\"icon\" href=\"data:,\"><h1>Spa</h1>"
-							+ "<button id=\"push\" onclick=\"history.pushState(null, '', '/spa/inner')\">Push</button> <a id=\"full\" href=\"/next\">Full</a>"));
+						await response.OutputStream.WriteAsync(
+							Encoding.UTF8.GetBytes(
+								"<!doctype html><title>Spa</title><link rel=\"icon\" href=\"data:,\"><h1>Spa</h1>" +
+									"<button id=\"push\" onclick=\"history.pushState(null, '', '/spa/inner')\">Push</button> <a id=\"full\" href=\"/next\">Full</a>"
+							)
+						);
 					}
 					else if (context.Request.Url.AbsolutePath.StartsWith("/collect/", StringComparison.Ordinal))
 					{
@@ -101,10 +111,13 @@ internal sealed class SlowServer : IAsyncDisposable
 						// ?other=, and a host that never resolves.
 						var other = context.Request.QueryString["other"] is { } o ? $"<a href=\"{WebUtility.HtmlEncode(o)}\">Other site</a> " : "";
 						response.ContentType = "text/html; charset=utf-8";
-						await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(
-							"<!doctype html><title>Links</title><link rel=\"icon\" href=\"data:,\"><main><h1>Links</h1><img src=\"/missing.png\" alt=\"gone\">"
-							+ "<nav><a href=\"/next\">Next</a> <a href=\"/next#top\">Next again</a> <a href=\"/missing-page\">Gone</a> <a href=\"mailto:x@example.com\">Mail</a></nav>"
-							+ $"<footer>{other}<a href=\"https://no-such-host.invalid/\">Nowhere</a></footer></main>"));
+						await response.OutputStream.WriteAsync(
+							Encoding.UTF8.GetBytes(
+								"<!doctype html><title>Links</title><link rel=\"icon\" href=\"data:,\"><main><h1>Links</h1><img src=\"/missing.png\" alt=\"gone\">" +
+									"<nav><a href=\"/next\">Next</a> <a href=\"/next#top\">Next again</a> <a href=\"/missing-page\">Gone</a> <a href=\"mailto:x@example.com\">Mail</a></nav>" +
+									$"<footer>{other}<a href=\"https://no-such-host.invalid/\">Nowhere</a></footer></main>"
+							)
+						);
 					}
 					else if (context.Request.Url.AbsolutePath == "/slow.png")
 					{
@@ -116,15 +129,16 @@ internal sealed class SlowServer : IAsyncDisposable
 					{
 						response.ContentType = "text/html; charset=utf-8";
 						var title = context.Request.Url.AbsolutePath == "/next" ? "Next" : "Slow";
-						await response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(
-							$"<!doctype html><title>{title}</title><link rel=\"icon\" href=\"data:,\"><h1>{title}</h1><img src=\"/slow.png\" alt=\"late\"><a href=\"/next\">Next page</a>"));
+						await response.OutputStream.WriteAsync(
+							Encoding.UTF8.GetBytes(
+								$"<!doctype html><title>{title}</title><link rel=\"icon\" href=\"data:,\"><h1>{title}</h1><img src=\"/slow.png\" alt=\"late\"><a href=\"/next\">Next page</a>"
+							)
+						);
 					}
 
 					response.Close();
 				}
-				catch (Exception e) when (e is HttpListenerException or ObjectDisposedException or IOException)
-				{
-				}
+				catch (Exception e) when (e is HttpListenerException or ObjectDisposedException or IOException) { }
 			});
 		}
 	}

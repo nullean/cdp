@@ -15,7 +15,8 @@ public class ExpectJourneyTests(ChromeFixture chrome)
 	[Test]
 	public async Task PassingAssertionsRecordNothing()
 	{
-		var result = await RunAsync("""
+		var result = await RunAsync(
+			"""
 			open assertions.html
 			expect visible #go
 			expect text #count "2 results"
@@ -25,7 +26,8 @@ public class ExpectJourneyTests(ChromeFixture chrome)
 			expect count li 3
 			expect visible find role button --name Go --exact
 			get text #count
-			""");
+			"""
+		);
 
 		result.Failure.Should().BeNull();
 		// Only the read is a checkpoint: a passing assertion changes no verified transcript.
@@ -35,12 +37,14 @@ public class ExpectJourneyTests(ChromeFixture chrome)
 	[Test]
 	public async Task AFailingAssertionStopsTheJourneyAtItsLine()
 	{
-		var result = await RunAsync("""
+		var result = await RunAsync(
+			"""
 			open assertions.html
 			get text #count
 			expect --timeout 200 text #count 3
 			get title
-			""");
+			"""
+		);
 
 		result.Checkpoints.Select(c => c.Command).Should().Equal("get text #count");
 		result.Failure.Should().NotBeNull();
@@ -52,8 +56,11 @@ public class ExpectJourneyTests(ChromeFixture chrome)
 	[Test]
 	public async Task TheJourneyTimeoutIsThePagesActionTimeoutUnlessGiven()
 	{
-		var result = await JourneyRunner.RunAsync(Journey.Parse("open assertions.html\nexpect visible #nothing"), chrome.Browser,
-			new JourneyOptions { BaseUrl = Site, ActionTimeout = TimeSpan.FromMilliseconds(300) });
+		var result = await JourneyRunner.RunAsync(
+			Journey.Parse("open assertions.html\nexpect visible #nothing"),
+			chrome.Browser,
+			new JourneyOptions { BaseUrl = Site, ActionTimeout = TimeSpan.FromMilliseconds(300) }
+		);
 
 		result.Failure!.Message.Should().Be("Timed out after 0.3s waiting for css #nothing to be visible: received no element matches.");
 	}
@@ -61,12 +68,15 @@ public class ExpectJourneyTests(ChromeFixture chrome)
 	[Test]
 	public async Task SecretsInExpectedValuesAreResolvedAndRedacted()
 	{
-		var result = await RunAsync("""
+		var result = await RunAsync(
+			"""
 			open assertions.html
 			fill #name $env:NJ_SECRET
 			expect value #name $env:NJ_SECRET
 			expect --timeout 200 value #name nope
-			""", name => name == "NJ_SECRET" ? "Ada-secret-value" : null);
+			""",
+			name => name == "NJ_SECRET" ? "Ada-secret-value" : null
+		);
 
 		result.Failure!.Line.Should().Be(4);
 		result.Failure.Message.Should().Be("Timed out after 0.2s waiting for css #name to have value \"nope\": received \"$env:NJ_SECRET\".");

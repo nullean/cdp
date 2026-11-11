@@ -23,8 +23,7 @@ public sealed record JourneyContext(IReadOnlySet<string> Features, string? Build
 public sealed record JourneyRequirement(string Kind, IReadOnlyList<string> Values, bool Negated)
 {
 	/// <summary>The condition as written: <c>flag</c>, <c>!flag</c>, <c>build-type:assembler,codex</c>.</summary>
-	public override string ToString() =>
-		(Negated ? "!" : "") + (Kind == "feature" ? Values[0] : $"{Kind}:{string.Join(',', Values)}");
+	public override string ToString() => (Negated ? "!" : "") + (Kind == "feature" ? Values[0] : $"{Kind}:{string.Join(',', Values)}");
 
 	/// <summary>Whether <paramref name="context"/> meets the condition.</summary>
 	public bool IsMetBy(JourneyContext context)
@@ -111,7 +110,13 @@ public sealed partial class Journey
 {
 	// Handles a feature or end line and returns the block that is open afterwards. Errors keep the structure intact
 	// (a bad feature line still opens its block) so one mistake is not reported again at every later line.
-	private static JourneyBlock? ParseBlockLine(IReadOnlyList<string> arguments, int line, JourneyBlock? open, List<JourneyBlock> blocks, List<JourneyError> errors)
+	private static JourneyBlock? ParseBlockLine(
+		IReadOnlyList<string> arguments,
+		int line,
+		JourneyBlock? open,
+		List<JourneyBlock> blocks,
+		List<JourneyError> errors
+	)
 	{
 		if (arguments[0] == "end")
 		{
@@ -208,7 +213,11 @@ public sealed partial class Journey
 				case "tags":
 					NeedsWords(name, words, "@tags <name...>, e.g. @tags navigation smoke");
 					foreach (var tag in words)
-						_tags.Add(TagName().IsMatch(tag) ? tag : throw new JourneySyntaxException($"'{tag}' is not a tag name: use lower case letters, digits, '.', '_' or '-'"));
+						_tags.Add(
+							TagName().IsMatch(tag)
+								? tag
+								: throw new JourneySyntaxException($"'{tag}' is not a tag name: use lower case letters, digits, '.', '_' or '-'")
+						);
 					break;
 				case "requires":
 					NeedsWords(name, words, "@requires <condition...>, e.g. @requires navigation-preview !env:prod build-type:assembler,codex");
@@ -220,7 +229,11 @@ public sealed partial class Journey
 				case "alert":
 					NeedsWords(name, words, "@alert <channel...>, e.g. @alert pagerduty");
 					foreach (var channel in words)
-						_alerts.Add(FeatureName().IsMatch(channel) ? channel : throw new JourneySyntaxException($"'{channel}' is not an alert channel: use lower case letters, digits and '-'"));
+						_alerts.Add(
+							FeatureName().IsMatch(channel)
+								? channel
+								: throw new JourneySyntaxException($"'{channel}' is not an alert channel: use lower case letters, digits and '-'")
+						);
 					break;
 				case "mutates":
 					_mutates = words.Length == 0 ? true : throw new JourneySyntaxException("usage: @mutates, with nothing after it");
@@ -236,14 +249,17 @@ public sealed partial class Journey
 				throw new JourneySyntaxException($"@{name} needs a value: {usage}");
 		}
 
-		public JourneyMetadata Build() => !_any ? JourneyMetadata.None : new JourneyMetadata
-		{
-			Tags = [.. _tags.Distinct(StringComparer.Ordinal)],
-			Requires = _requires,
-			Monitor = _monitor,
-			Alerts = [.. _alerts.Distinct(StringComparer.Ordinal)],
-			Mutates = _mutates,
-		};
+		public JourneyMetadata Build() =>
+			!_any
+				? JourneyMetadata.None
+				: new JourneyMetadata
+				{
+					Tags = [.. _tags.Distinct(StringComparer.Ordinal)],
+					Requires = _requires,
+					Monitor = _monitor,
+					Alerts = [.. _alerts.Distinct(StringComparer.Ordinal)],
+					Mutates = _mutates,
+				};
 	}
 
 	private static JourneyRequirement ParseRequirement(string text)
@@ -254,7 +270,9 @@ public sealed partial class Journey
 		if (colon < 0)
 			return FeatureName().IsMatch(body)
 				? new JourneyRequirement("feature", [body], negated)
-				: throw new JourneySyntaxException($"'{text}' is not a condition: use a feature flag (navigation-preview), build-type:<a,b> or env:<a,b>, each optionally with a leading '!'");
+				: throw new JourneySyntaxException(
+					$"'{text}' is not a condition: use a feature flag (navigation-preview), build-type:<a,b> or env:<a,b>, each optionally with a leading '!'"
+				);
 		var kind = body[..colon];
 		var values = body[(colon + 1)..].Split(',');
 		if (kind is not ("build-type" or "env"))
@@ -275,9 +293,12 @@ public sealed partial class Journey
 			switch (key)
 			{
 				case "schedule":
-					schedule = int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var minutes) && minutes > 0
-						? minutes
-						: throw new JourneySyntaxException($"'{word}' needs a number of minutes: schedule=10");
+					schedule = int.TryParse(
+						value,
+						System.Globalization.NumberStyles.None,
+						System.Globalization.CultureInfo.InvariantCulture,
+						out var minutes
+					) && minutes > 0 ? minutes : throw new JourneySyntaxException($"'{word}' needs a number of minutes: schedule=10");
 					break;
 				case "locations":
 					locations.AddRange(value.Split(',', StringSplitOptions.RemoveEmptyEntries));

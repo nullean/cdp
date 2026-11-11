@@ -47,8 +47,12 @@ public class LocatorAssertions(Locator subject, AssertionChain chain) : Referenc
 	public Task<AndConstraint<LocatorAssertions>> BeHiddenAsync(ExpectOptions? options = null, string because = "", params object[] becauseArgs) =>
 		CheckAsync(Matcher.Hidden, options, because, becauseArgs);
 
-	public Task<AndConstraint<LocatorAssertions>> HaveTextAsync(string expected, ExpectOptions? options = null, string because = "", params object[] becauseArgs) =>
-		CheckAsync(Matcher.Text(expected), options, because, becauseArgs);
+	public Task<AndConstraint<LocatorAssertions>> HaveTextAsync(
+		string expected,
+		ExpectOptions? options = null,
+		string because = "",
+		params object[] becauseArgs
+	) => CheckAsync(Matcher.Text(expected), options, because, becauseArgs);
 
 	public Task<AndConstraint<LocatorAssertions>> HaveCountAsync(int count, ExpectOptions? options = null, string because = "", params object[] becauseArgs) =>
 		CheckAsync(Matcher.Count(count), options, because, becauseArgs);
@@ -65,7 +69,12 @@ public class PageAssertions(Page subject, AssertionChain chain) : ReferenceTypeA
 {
 	protected override string Identifier => "page";
 
-	public async Task<AndConstraint<PageAssertions>> HaveTitleAsync(string expected, ExpectOptions? options = null, string because = "", params object[] becauseArgs)
+	public async Task<AndConstraint<PageAssertions>> HaveTitleAsync(
+		string expected,
+		ExpectOptions? options = null,
+		string because = "",
+		params object[] becauseArgs
+	)
 	{
 		var result = await Subject.CheckAsync(Matcher.Title(expected), options);
 		Reporting.Report(CurrentAssertionChain, result, because, becauseArgs);

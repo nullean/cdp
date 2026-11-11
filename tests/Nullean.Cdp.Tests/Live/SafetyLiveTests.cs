@@ -9,21 +9,20 @@ public class SafetyLiveTests(ChromeFixture chrome)
 	private static Uri Site => new(new Uri(ChromeFixture.Site("index.html")), "./");
 
 	private Task<JourneyResult> Run(string journey, Func<string, string?>? secrets = null, bool guard = true) =>
-		JourneyRunner.RunAsync(Journey.Parse(journey, "safety.journey"), chrome.Browser, new JourneyOptions
-		{
-			BaseUrl = Site,
-			Secrets = secrets ?? (_ => null),
-			GuardNetwork = guard,
-			ActionTimeout = TimeSpan.FromSeconds(3),
-		});
+		JourneyRunner.RunAsync(
+			Journey.Parse(journey, "safety.journey"),
+			chrome.Browser,
+			new JourneyOptions { BaseUrl = Site, Secrets = secrets ?? (_ => null), GuardNetwork = guard, ActionTimeout = TimeSpan.FromSeconds(3), }
+		);
 
 	[Test]
 	public async Task ALinkOffTheAllowListFailsTheStep()
 	{
 		var result = await Run("open safety.html\nfind role link click --name \"Leave the site\"\nget title");
 
-		(result.Failure!.Line, result.Failure.Command, result.Failure.Message).Should().Be((2, "find role link click --name \"Leave the site\"",
-			"The page navigated to https://leave.example/, which is refused: leave.example is not in the journey's allow list (add: allow leave.example)."));
+		(result.Failure!.Line, result.Failure.Command, result.Failure.Message).Should().Be(
+			(2, "find role link click --name \"Leave the site\"", "The page navigated to https://leave.example/, which is refused: leave.example is not in the journey's allow list (add: allow leave.example).")
+		);
 	}
 
 	[Test]
@@ -41,8 +40,13 @@ public class SafetyLiveTests(ChromeFixture chrome)
 
 		result.Failure.Should().NotBeNull();
 		result.Failure!.Line.Should().BeOneOf(2, 3);
-		result.Failure.Message.Should().Be(
-			"The page navigated to https://leave.example/popup, which is refused: leave.example is not in the journey's allow list (add: allow leave.example).");
+		result
+			.Failure
+			.Message
+			.Should()
+			.Be(
+				"The page navigated to https://leave.example/popup, which is refused: leave.example is not in the journey's allow list (add: allow leave.example)."
+			);
 	}
 
 	[Test]
@@ -83,8 +87,16 @@ public class SafetyLiveTests(ChromeFixture chrome)
 	[Test]
 	public async Task SecretsAreTypedAndRedactedFromEveryOutput()
 	{
-		var result = await Run("open safety.html\nfill #user $env:SHOP_USER\nget value #user\nsnapshot -s main -c\nfill #pw $env:SHOP_PASSWORD\nget value #pw",
-			name => name switch { "SHOP_USER" => "grace-hopper", "SHOP_PASSWORD" => "hunter22", _ => null });
+		var result = await Run(
+			"open safety.html\nfill #user $env:SHOP_USER\nget value #user\nsnapshot -s main -c\nfill #pw $env:SHOP_PASSWORD\nget value #pw",
+			name =>
+				name switch
+				{
+					"SHOP_USER" => "grace-hopper",
+					"SHOP_PASSWORD" => "hunter22",
+					_ => null
+				}
+		);
 
 		result.Failure.Should().BeNull();
 		result.Checkpoints[0].Output.Should().Be("$env:SHOP_USER");
@@ -97,8 +109,9 @@ public class SafetyLiveTests(ChromeFixture chrome)
 	{
 		var result = await Run("open safety.html\nfill #pw hunter22");
 
-		(result.Failure!.Line, result.Failure.Command, result.Failure.Message).Should().Be((2, "fill #pw hunter22",
-			"css #pw is a password field: fill it with a secret reference ($env:NAME), not a literal."));
+		(result.Failure!.Line, result.Failure.Command, result.Failure.Message).Should().Be(
+			(2, "fill #pw hunter22", "css #pw is a password field: fill it with a secret reference ($env:NAME), not a literal.")
+		);
 	}
 
 	[Test]
@@ -114,13 +127,16 @@ public class SafetyLiveTests(ChromeFixture chrome)
 	{
 		await using var context = await chrome.Browser.NewContextAsync();
 		var canceled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-		using var _ = chrome.Browser.Connection.On(null, e =>
-		{
-			if (e.Method == "Browser.downloadProgress" && e.Params.GetProperty("state").GetString() == "canceled")
-				canceled.TrySetResult();
-			if (e.Method == "Browser.downloadProgress" && e.Params.GetProperty("state").GetString() == "completed")
-				canceled.TrySetException(new InvalidOperationException("The download completed."));
-		});
+		using var _ = chrome
+			.Browser
+			.Connection
+			.On(null, e =>
+			{
+				if (e.Method == "Browser.downloadProgress" && e.Params.GetProperty("state").GetString() == "canceled")
+					canceled.TrySetResult();
+				if (e.Method == "Browser.downloadProgress" && e.Params.GetProperty("state").GetString() == "completed")
+					canceled.TrySetException(new InvalidOperationException("The download completed."));
+			});
 		var page = await context.NewPageAsync();
 		await page.GotoAsync(ChromeFixture.Site("safety.html"));
 

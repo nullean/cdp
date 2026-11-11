@@ -22,9 +22,21 @@ public class JourneyRunnerTests(ChromeFixture chrome)
 		var reads = result.Checkpoints.Where(c => !c.Command.StartsWith("snapshot", StringComparison.Ordinal)).Select(c => (c.Line, c.Output));
 		// The same values agent-browser 0.41.0 printed for the exported batch (DECISIONS.md, "Journeys").
 		reads.Should().Equal(
-			(7, "clicked hello"), (10, "hovered"), (13, "Grace Hopper"), (17, "true"), (21, "b"), (25, "Actions"),
-			(26, "Ada Lovelace"), (28, "7"), (29, "Your name"), (30, "true"), (31, "true"), (36, "About"),
-			(38, Site + "actions.html"), (41, "About"));
+			(7, "clicked hello"),
+			(10, "hovered"),
+			(13, "Grace Hopper"),
+			(17, "true"),
+			(21, "b"),
+			(25, "Actions"),
+			(26, "Ada Lovelace"),
+			(28, "7"),
+			(29, "Your name"),
+			(30, "true"),
+			(31, "true"),
+			(36, "About"),
+			(38, Site + "actions.html"),
+			(41, "About")
+		);
 		result.Checkpoints.Single(c => c.Line == 34).Output.Should().StartWith("- form\n  - LabelText\n  - textbox \"Your name\": Ada");
 		result.Checkpoints.Should().AllSatisfy(c => c.Url.Should().StartWith(Site.AbsoluteUri));
 		result.Checkpoints.Single(c => c.Line == 38).Command.Should().Be("get url");
@@ -35,19 +47,27 @@ public class JourneyRunnerTests(ChromeFixture chrome)
 	{
 		var journey = Journey.Parse("open actions.html\nget title\nclick #missing\nget url", "fail.journey");
 
-		var result = await JourneyRunner.RunAsync(journey, chrome.Browser,
-			new JourneyOptions { BaseUrl = Site, ActionTimeout = TimeSpan.FromMilliseconds(200) });
+		var result = await JourneyRunner.RunAsync(
+			journey,
+			chrome.Browser,
+			new JourneyOptions { BaseUrl = Site, ActionTimeout = TimeSpan.FromMilliseconds(200) }
+		);
 
 		result.Passed.Should().BeFalse();
 		result.Checkpoints.Select(c => c.Output).Should().Equal("Actions");
 		var failure = result.Failure!;
-		(failure.Line, failure.Command, failure.Message).Should().Be((3, "click #missing",
-			"Timed out after 0.2s waiting for css #missing to be visible and enabled: no element matches."));
+		(failure.Line, failure.Command, failure.Message).Should().Be(
+			(3, "click #missing", "Timed out after 0.2s waiting for css #missing to be visible and enabled: no element matches.")
+		);
 		failure.Url.Should().Be(Site + "actions.html");
 		failure.Screenshot.Should().BeNull("a screenshot is opt-in");
-		failure.Describe(result.Source).Should().Be(
-			"fail.journey:3: click #missing\nTimed out after 0.2s waiting for css #missing to be visible and enabled: no element matches.\n" +
-			$"Page:       {Site}actions.html");
+		failure
+			.Describe(result.Source)
+			.Should()
+			.Be(
+				"fail.journey:3: click #missing\nTimed out after 0.2s waiting for css #missing to be visible and enabled: no element matches.\n" +
+					$"Page:       {Site}actions.html"
+			);
 	}
 
 	[Test]
@@ -55,8 +75,11 @@ public class JourneyRunnerTests(ChromeFixture chrome)
 	{
 		var journey = Journey.Parse("open actions.html\nclick #missing", "fail.journey");
 
-		var result = await JourneyRunner.RunAsync(journey, chrome.Browser,
-			new JourneyOptions { BaseUrl = Site, ActionTimeout = TimeSpan.FromMilliseconds(200), ScreenshotOnFailure = true });
+		var result = await JourneyRunner.RunAsync(
+			journey,
+			chrome.Browser,
+			new JourneyOptions { BaseUrl = Site, ActionTimeout = TimeSpan.FromMilliseconds(200), ScreenshotOnFailure = true }
+		);
 
 		result.Failure!.Screenshot.Should().NotBeNull().And.StartWith(new byte[] { 0x89, 0x50, 0x4E, 0x47 }, "a PNG");
 		result.Failure.ScreenshotPath.Should().BeNull("there is no artifacts folder to write into");
@@ -70,8 +93,11 @@ public class JourneyRunnerTests(ChromeFixture chrome)
 		{
 			var journey = Journey.Parse("open actions.html\nclick #missing", "fail.journey");
 
-			var result = await JourneyRunner.RunAsync(journey, chrome.Browser,
-				new JourneyOptions { BaseUrl = Site, ActionTimeout = TimeSpan.FromMilliseconds(200), ArtifactsDirectory = folder, ScreenshotOnFailure = true });
+			var result = await JourneyRunner.RunAsync(
+				journey,
+				chrome.Browser,
+				new JourneyOptions { BaseUrl = Site, ActionTimeout = TimeSpan.FromMilliseconds(200), ArtifactsDirectory = folder, ScreenshotOnFailure = true }
+			);
 
 			var path = Path.Combine(folder, "failure.png");
 			result.Failure!.ScreenshotPath.Should().Be(path);
@@ -89,8 +115,11 @@ public class JourneyRunnerTests(ChromeFixture chrome)
 	{
 		var journey = Journey.Parse("open actions.html\nclick #missing", "fail.journey");
 
-		var result = await JourneyRunner.RunAsync(journey, chrome.Browser,
-			new JourneyOptions { BaseUrl = Site, ActionTimeout = TimeSpan.FromMilliseconds(200), ArtifactsDirectory = Path.GetTempPath() });
+		var result = await JourneyRunner.RunAsync(
+			journey,
+			chrome.Browser,
+			new JourneyOptions { BaseUrl = Site, ActionTimeout = TimeSpan.FromMilliseconds(200), ArtifactsDirectory = Path.GetTempPath() }
+		);
 
 		result.Failure!.Screenshot.Should().BeNull();
 		result.Failure.Url.Should().Be(Site + "actions.html", "the page's address is still recorded");

@@ -19,9 +19,7 @@ public class NetworkTests(ChromeFixture chrome)
 		await page.SetExtraHeadersAsync(new Dictionary<string, string> { ["Authorization"] = "Bearer secret-token" });
 		await page.GotoAsync(server.Url);
 
-		recording.Requests.Select(r => r.ToString()).Should().Equal(
-			$"GET {server.Url} (Document) 200",
-			$"GET {server.Url}slow.png (Image) 200");
+		recording.Requests.Select(r => r.ToString()).Should().Equal($"GET {server.Url} (Document) 200", $"GET {server.Url}slow.png (Image) 200");
 		var har = recording.ToHar();
 		using var document = JsonDocument.Parse(har);
 		var entries = document.RootElement.GetProperty("log").GetProperty("entries");
@@ -40,23 +38,25 @@ public class NetworkTests(ChromeFixture chrome)
 	{
 		_ = chrome.Browser;
 		await using var server = new SlowServer(TimeSpan.Zero);
-		var journey = Journey.Parse("""
+		var journey = Journey.Parse(
+			"""
 			open /
 			network requests
 			network requests --type image --status 2xx
 			network requests --filter **/next
 			network requests --clear
 			network requests
-			""");
+			"""
+		);
 
 		var result = await JourneyRunner.RunAsync(journey, chrome.Browser, new JourneyOptions { BaseUrl = new Uri(server.Url) });
 
 		result.Failure.Should().BeNull();
-		result.Checkpoints.Select(c => c.Output).Should().Equal(
-			$"GET {server.Url} (Document) 200\nGET {server.Url}slow.png (Image) 200",
-			$"GET {server.Url}slow.png (Image) 200",
-			"",
-			"");
+		result
+			.Checkpoints
+			.Select(c => c.Output)
+			.Should()
+			.Equal($"GET {server.Url} (Document) 200\nGET {server.Url}slow.png (Image) 200", $"GET {server.Url}slow.png (Image) 200", "", "");
 	}
 
 	[Test]
@@ -67,25 +67,32 @@ public class NetworkTests(ChromeFixture chrome)
 		var artifacts = Directory.CreateTempSubdirectory("cdp-artifacts-").FullName;
 		try
 		{
-			var journey = Journey.Parse("""
+			var journey = Journey.Parse(
+				"""
 				open /
 				network har start
 				set headers '{"x-token": "$env:TOKEN"}'
 				open /next
 				network har stop runs/next.har
-				""");
-			var result = await JourneyRunner.RunAsync(journey, chrome.Browser, new JourneyOptions
-			{
-				BaseUrl = new Uri(server.Url),
-				ArtifactsDirectory = artifacts,
-				Secrets = name => name == "TOKEN" ? "hunter22" : null,
-			});
+				"""
+			);
+			var result = await JourneyRunner.RunAsync(
+				journey,
+				chrome.Browser,
+				new JourneyOptions { BaseUrl = new Uri(server.Url), ArtifactsDirectory = artifacts, Secrets = name => name == "TOKEN" ? "hunter22" : null, }
+			);
 
 			result.Failure.Should().BeNull();
 			var har = await File.ReadAllTextAsync(Path.Combine(artifacts, "runs", "next.har"));
 			using var document = JsonDocument.Parse(har);
-			document.RootElement.GetProperty("log").GetProperty("entries").EnumerateArray()
-				.Select(e => e.GetProperty("request").GetProperty("url").GetString()).Should().Equal($"{server.Url}next", $"{server.Url}slow.png");
+			document
+				.RootElement
+				.GetProperty("log")
+				.GetProperty("entries")
+				.EnumerateArray()
+				.Select(e => e.GetProperty("request").GetProperty("url").GetString())
+				.Should()
+				.Equal($"{server.Url}next", $"{server.Url}slow.png");
 		}
 		finally
 		{

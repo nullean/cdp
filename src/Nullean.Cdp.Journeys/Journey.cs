@@ -13,8 +13,9 @@ namespace Nullean.Cdp.Journeys;
 public sealed record JourneyError(int Line, string Message);
 
 /// <summary>A journey has errors; the message lists every one as <c>file:line: message</c>.</summary>
-public sealed class JourneyParseException(string source, IReadOnlyList<JourneyError> errors)
-	: Exception(string.Join('\n', errors.Select(e => $"{source}:{e.Line}: {e.Message}")))
+public sealed class JourneyParseException(string source, IReadOnlyList<JourneyError> errors) : Exception(
+	string.Join('\n', errors.Select(e => $"{source}:{e.Line}: {e.Message}"))
+)
 {
 	/// <summary>The file, or <c>journey</c> for text without one.</summary>
 	public string File { get; } = source;
@@ -108,8 +109,7 @@ public sealed record PerformanceCommand(string Kind, IReadOnlyList<PerformanceBu
 	public override bool IsCheckpoint => true;
 
 	/// <inheritdoc />
-	public bool Equals(PerformanceCommand? other) =>
-		other is not null && Kind == other.Kind && Budgets.SequenceEqual(other.Budgets);
+	public bool Equals(PerformanceCommand? other) => other is not null && Kind == other.Kind && Budgets.SequenceEqual(other.Budgets);
 
 	/// <inheritdoc />
 	public override int GetHashCode() => HashCode.Combine(Kind, Budgets.Count);
@@ -127,15 +127,24 @@ public sealed record HarCommand(string Action, string? Path = null) : JourneyCom
 /// requests that got no answer, except those the allow list refused or a navigation cancelled; <c>--strict</c> fails
 /// the step when any request is listed.
 /// </summary>
-public sealed record RequestsCommand(bool Clear, string? Filter, IReadOnlyList<string> Types, string? Method, string? Status, bool Failed = false, bool Strict = false) : JourneyCommand
+public sealed record RequestsCommand(
+	bool Clear,
+	string? Filter,
+	IReadOnlyList<string> Types,
+	string? Method,
+	string? Status,
+	bool Failed = false,
+	bool Strict = false
+) : JourneyCommand
 {
 	/// <inheritdoc />
 	public override bool IsCheckpoint => !Clear;
 
 	/// <inheritdoc />
 	public bool Equals(RequestsCommand? other) =>
-		other is not null && Clear == other.Clear && Filter == other.Filter && Types.SequenceEqual(other.Types) && Method == other.Method
-		&& Status == other.Status && Failed == other.Failed && Strict == other.Strict;
+		other is not null && Clear == other.Clear && Filter == other.Filter && Types.SequenceEqual(
+			other.Types
+		) && Method == other.Method && Status == other.Status && Failed == other.Failed && Strict == other.Strict;
 
 	/// <inheritdoc />
 	public override int GetHashCode() => HashCode.Combine(Clear, Filter, Method, Status, Failed, Strict);
@@ -213,7 +222,13 @@ public sealed record JourneyStep(int Line, IReadOnlyList<string> Arguments, Jour
 /// </summary>
 public sealed partial class Journey
 {
-	private Journey(string source, IReadOnlyList<JourneyStep> steps, IReadOnlyList<string> allowedHosts, JourneyMetadata metadata, IReadOnlyList<JourneyBlock> blocks)
+	private Journey(
+		string source,
+		IReadOnlyList<JourneyStep> steps,
+		IReadOnlyList<string> allowedHosts,
+		JourneyMetadata metadata,
+		IReadOnlyList<JourneyBlock> blocks
+	)
 	{
 		Source = source;
 		Steps = steps;
@@ -306,22 +321,53 @@ public sealed partial class Journey
 	/// <summary>The commands journeys support, for error messages and docs.</summary>
 	public static IReadOnlyList<string> SupportedCommands { get; } =
 	[
-		"allow <host pattern...>", "feature <condition...>", "end", "open <url>", "back", "forward", "reload",
-		"click <selector>", "dblclick <selector>", "hover <selector>", "focus <selector>", "scrollintoview <selector>",
-		"fill <selector> <text>", "type <selector> <text>", "check <selector>", "uncheck <selector>",
-		"select <selector> <value...>", "upload <selector> <files...>", "drag <source> <target>",
-		"scroll [up|down|left|right] [pixels] [-s <selector>]", "press <key>", "keyboard type|inserttext <text>",
+		"allow <host pattern...>",
+		"feature <condition...>",
+		"end",
+		"open <url>",
+		"back",
+		"forward",
+		"reload",
+		"click <selector>",
+		"dblclick <selector>",
+		"hover <selector>",
+		"focus <selector>",
+		"scrollintoview <selector>",
+		"fill <selector> <text>",
+		"type <selector> <text>",
+		"check <selector>",
+		"uncheck <selector>",
+		"select <selector> <value...>",
+		"upload <selector> <files...>",
+		"drag <source> <target>",
+		"scroll [up|down|left|right] [pixels] [-s <selector>]",
+		"press <key>",
+		"keyboard type|inserttext <text>",
 		"find role|text|label|placeholder|alt|title|testid <value> | first|last <selector> | nth <n> <selector> [click|fill|check|hover|text] [text] [--name <name>] [--exact]",
 		"wait <selector>|<ms>|--text <text>|--url <glob>|--load <state>",
-		"set viewport <w> <h> [scale]", "set media dark|light", "set device <name>", "set geo <lat> <lng>",
-		"set offline [on|off]", "set headers <json>", "set credentials <user> <password>",
+		"set viewport <w> <h> [scale]",
+		"set media dark|light",
+		"set device <name>",
+		"set geo <lat> <lng>",
+		"set offline [on|off]",
+		"set headers <json>",
+		"set credentials <user> <password>",
 		"snapshot [-i] [-c] [-u] [-d <n>] [-s <selector>]",
-		"get text|html|value|count|box|styles <selector>", "get attr <selector> <name>", "get title", "get url",
-		"console [--clear]", "errors [--clear]",
+		"get text|html|value|count|box|styles <selector>",
+		"get attr <selector> <name>",
+		"get title",
+		"get url",
+		"console [--clear]",
+		"errors [--clear]",
 		"network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>] [--failed] [--strict]",
-		"links [-s <selector>] [--external] [--all] [--strict]", "screenshot [selector] <path.png> [--full]",
-		"network har start", "network har stop <path>", "a11y [-s <selector>] [--strict]",
-		"timings [--budget <name>=<ms>...]", "vitals [--budget <name>=<limit>...]", "metrics [--budget <name>=<limit>...]",
+		"links [-s <selector>] [--external] [--all] [--strict]",
+		"screenshot [selector] <path.png> [--full]",
+		"network har start",
+		"network har stop <path>",
+		"a11y [-s <selector>] [--strict]",
+		"timings [--budget <name>=<ms>...]",
+		"vitals [--budget <name>=<limit>...]",
+		"metrics [--budget <name>=<limit>...]",
 		"is visible|enabled|checked <selector>",
 		"expect [--not] [--timeout <ms>] <matcher> <target> [<value>] [--contains] [--regex] [--ignore-case] [--inner-text]",
 	];
@@ -344,14 +390,15 @@ public sealed partial class Journey
 		{
 			"open" or "goto" or "navigate" => rest.Length == 1 ? new OpenCommand(rest[0]) : throw Usage("open <url>"),
 			"back" or "forward" or "reload" => rest.Length == 0 ? new HistoryCommand(command) : throw Usage(command),
-			"click" or "dblclick" or "hover" or "focus" or "check" or "uncheck" => rest.Length == 1
-				? new ActCommand(command, Css(rest[0]), [])
-				: throw Usage($"{command} <selector>"),
+			"click" or "dblclick" or "hover" or "focus" or "check" or "uncheck" =>
+				rest.Length == 1 ? new ActCommand(command, Css(rest[0]), []) : throw Usage($"{command} <selector>"),
 			"scrollintoview" or "scrollinto" => rest.Length == 1 ? new ActCommand("scrollintoview", Css(rest[0]), []) : throw Usage($"{command} <selector>"),
-			"upload" => rest.Length >= 2 ? new ActCommand("upload", Css(rest[0]), [.. rest[1..].Select(UploadPath)]) : throw Usage("upload <selector> <files...>"),
+			"upload" =>
+				rest.Length >= 2 ? new ActCommand("upload", Css(rest[0]), [.. rest[1..].Select(UploadPath)]) : throw Usage("upload <selector> <files...>"),
 			"drag" => rest.Length == 2 ? new DragCommand(Css(rest[0]), Css(rest[1])) : throw Usage("drag <source> <target>"),
 			"scroll" => ParseScroll(rest),
-			"keyboard" => rest is ["type" or "inserttext", var text] ? new KeyboardCommand(rest[0], Value(text)) : throw Usage("keyboard type|inserttext <text>"),
+			"keyboard" =>
+				rest is ["type" or "inserttext", var text] ? new KeyboardCommand(rest[0], Value(text)) : throw Usage("keyboard type|inserttext <text>"),
 			"fill" or "type" => rest.Length == 2 ? new ActCommand(command, Css(rest[0]), [Value(rest[1])]) : throw Usage($"{command} <selector> <text>"),
 			"select" => rest.Length >= 2 ? new ActCommand(command, Css(rest[0]), [.. rest[1..].Select(Value)]) : throw Usage("select <selector> <value...>"),
 			"press" or "key" => rest.Length == 1 ? new PressCommand(rest[0]) : throw Usage("press <key>"),
@@ -372,17 +419,21 @@ public sealed partial class Journey
 				_ => throw Usage($"{command} [--clear]"),
 			},
 			"expect" => ParseExpect(rest),
-			"is" => rest.Length == 2 && rest[0] is "visible" or "enabled" or "checked"
-				? new ReadCommand("is " + rest[0], Css(rest[1]))
-				: throw Usage("is visible|enabled|checked <selector>"),
-			_ => throw new JourneySyntaxException(
-				$"'{command}' is not supported in journeys. Supported: {string.Join(", ", SupportedCommands.Select(c => c.Split(' ')[0]).Distinct())}."),
+			"is" =>
+				rest.Length == 2 && rest[0] is "visible" or "enabled" or "checked"
+					? new ReadCommand("is " + rest[0], Css(rest[1]))
+					: throw Usage("is visible|enabled|checked <selector>"),
+			_ =>
+				throw new JourneySyntaxException(
+					$"'{command}' is not supported in journeys. Supported: {string.Join(", ", SupportedCommands.Select(c => c.Split(' ')[0]).Distinct())}."
+				),
 		};
 	}
 
-	private static string Value(string value) => JourneySecrets.IsMalformedReference(value)
-		? throw new JourneySyntaxException($"'{value}' is not a secret reference: write $env:NAME with letters, digits and _.")
-		: value;
+	private static string Value(string value) =>
+		JourneySecrets.IsMalformedReference(value)
+			? throw new JourneySyntaxException($"'{value}' is not a secret reference: write $env:NAME with letters, digits and _.")
+			: value;
 
 	// Upload paths are relative to the journey's folder and may not leave it; checked again when the step runs.
 	private static string UploadPath(string path) =>
@@ -424,13 +475,15 @@ public sealed partial class Journey
 	{
 		if (Ref().IsMatch(selector))
 			throw new JourneySyntaxException(
-				$"'{selector}' is an agent-browser ref, which changes from run to run; use find role <role> --name <name>, find text, or a CSS selector.");
+				$"'{selector}' is an agent-browser ref, which changes from run to run; use find role <role> --name <name>, find text, or a CSS selector."
+			);
 		return new JourneyTarget(LocatorKind.Css, selector);
 	}
 
 	private static JourneyCommand ParseFind(string[] rest)
 	{
-		const string usage = "find role|text|label|placeholder|alt|title|testid <value> | first|last <selector> | nth <n> <selector> [click|fill|check|hover|text] [text] [--name <name>] [--exact]";
+		const string usage =
+			"find role|text|label|placeholder|alt|title|testid <value> | first|last <selector> | nth <n> <selector> [click|fill|check|hover|text] [text] [--name <name>] [--exact]";
 		string? name = null;
 		var exact = false;
 		var positional = new List<string>();
@@ -480,9 +533,7 @@ public sealed partial class Journey
 		};
 		var skip = positional[0] == "nth" ? 1 : 0;
 		positional = [.. positional.Skip(skip)];
-		var target = index is null
-			? new JourneyTarget(kind, positional[1], name, exact)
-			: Css(positional[1]) with { Index = index };
+		var target = index is null ? new JourneyTarget(kind, positional[1], name, exact) : Css(positional[1]) with { Index = index };
 		var action = positional.Count > 2 ? positional[2] : "click";
 		return action switch
 		{
@@ -515,12 +566,19 @@ public sealed partial class Journey
 
 	private static SetCommand ParseSet(string[] rest)
 	{
-		const string all = "set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | useragent <ua> | credentials <user> <password>";
+		const string all =
+			"set viewport <w> <h> [scale] | media dark|light | device <name> | geo <lat> <lng> | offline [on|off] | headers <json> | useragent <ua> | credentials <user> <password>";
 		switch (rest)
 		{
 			case ["viewport", var width, var height, .. var scale] when scale.Length <= 1:
-				if (int.TryParse(width, NumberStyles.None, CultureInfo.InvariantCulture, out var w) && w > 0
-					&& int.TryParse(height, NumberStyles.None, CultureInfo.InvariantCulture, out var h) && h > 0)
+				if (
+					int.TryParse(width, NumberStyles.None, CultureInfo.InvariantCulture, out var w) && w > 0 && int.TryParse(
+						height,
+						NumberStyles.None,
+						CultureInfo.InvariantCulture,
+						out var h
+					) && h > 0
+				)
 				{
 					if (scale.Length == 0)
 						return new SetCommand("viewport", w, h);
@@ -540,8 +598,9 @@ public sealed partial class Journey
 					? new SetCommand("device") { Device = device }
 					: throw new JourneySyntaxException($"unknown device '{device}'; known: {string.Join(", ", Devices.All.Keys.Order(StringComparer.Ordinal))}");
 			case ["geo", var lat, var lng]:
-				return double.TryParse(lat, NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude) && latitude is >= -90 and <= 90
-					&& double.TryParse(lng, NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude) && longitude is >= -180 and <= 180
+				return double.TryParse(lat, NumberStyles.Float, CultureInfo.InvariantCulture, out var latitude) &&
+					latitude is >= -90 and <= 90 && double.TryParse(lng, NumberStyles.Float, CultureInfo.InvariantCulture, out var longitude) &&
+					longitude is >= -180 and <= 180
 					? new SetCommand("geo") { Position = (latitude, longitude) }
 					: throw Usage("set geo <latitude> <longitude>");
 			case ["offline"]:
@@ -549,7 +608,9 @@ public sealed partial class Journey
 			case ["offline", "on" or "off"]:
 				return new SetCommand("offline") { Offline = rest[1] == "on" };
 			case ["headers", var json]:
-				return ValidHeaders(json) ? new SetCommand("headers") { Headers = json } : throw new JourneySyntaxException("set headers needs a JSON object of string values, e.g. '{\"x-test\": \"1\"}'");
+				return ValidHeaders(json)
+					? new SetCommand("headers") { Headers = json }
+					: throw new JourneySyntaxException("set headers needs a JSON object of string values, e.g. '{\"x-test\": \"1\"}'");
 			case ["useragent", var userAgent] when userAgent.Length > 0:
 				return new SetCommand("useragent") { UserAgent = userAgent };
 			case ["credentials", var user, var password]:
@@ -580,10 +641,14 @@ public sealed partial class Journey
 			}
 
 			var parts = argument.Split('=', 2);
-			if (!inBudget || parts.Length != 2
-				|| !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var limit) || limit < 0)
+			if (!inBudget || parts.Length != 2 || !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var limit) || limit < 0)
 				throw Usage(usage);
-			var known = kind switch { "timings" => TimingNames, "vitals" => VitalNames, _ => null };
+			var known = kind switch
+			{
+				"timings" => TimingNames,
+				"vitals" => VitalNames,
+				_ => null
+			};
 			if (known is not null && !known.Contains(parts[0]))
 				throw new JourneySyntaxException($"{kind} has no '{parts[0]}'; budget one of: {string.Join(", ", known)}");
 			budgets.Add(new PerformanceBudget(parts[0], limit));
@@ -594,7 +659,8 @@ public sealed partial class Journey
 
 	private static JourneyCommand ParseNetwork(string[] rest)
 	{
-		const string usage = "network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>] [--failed] [--strict] | network har start | network har stop <path>";
+		const string usage =
+			"network requests [--clear] [--filter <url>] [--type <types>] [--method <method>] [--status <code>] [--failed] [--strict] | network har start | network har stop <path>";
 		switch (rest)
 		{
 			case ["har", "start"]:
@@ -640,11 +706,11 @@ public sealed partial class Journey
 					i++;
 				}
 
-				return clear && (failed || strict)
-					? throw Usage(usage)
-					: new RequestsCommand(clear, filter, types, method, status, failed, strict);
+				return clear && (failed || strict) ? throw Usage(usage) : new RequestsCommand(clear, filter, types, method, status, failed, strict);
 			case ["route" or "unroute" or "request", ..]:
-				throw new JourneySyntaxException($"network {rest[0]} is not supported in journeys: it changes or reads what the page receives outside the page.");
+				throw new JourneySyntaxException(
+					$"network {rest[0]} is not supported in journeys: it changes or reads what the page receives outside the page."
+				);
 			default:
 				throw Usage(usage);
 		}
@@ -722,9 +788,11 @@ public sealed partial class Journey
 					strict = true;
 					break;
 				default:
-					throw new JourneySyntaxException(rest[i].StartsWith("--tags", StringComparison.Ordinal)
-						? "a11y --tags is not supported in journeys: these are our own rules, not axe-core's."
-						: "usage: a11y [-s <selector>] [--strict]");
+					throw new JourneySyntaxException(
+						rest[i].StartsWith("--tags", StringComparison.Ordinal)
+							? "a11y --tags is not supported in journeys: these are our own rules, not axe-core's."
+							: "usage: a11y [-s <selector>] [--strict]"
+					);
 			}
 		}
 
@@ -736,8 +804,10 @@ public sealed partial class Journey
 		try
 		{
 			using var document = System.Text.Json.JsonDocument.Parse(json);
-			return document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
-				&& document.RootElement.EnumerateObject().All(p => p.Value.ValueKind == System.Text.Json.JsonValueKind.String);
+			return document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object && document
+				.RootElement
+				.EnumerateObject()
+				.All(p => p.Value.ValueKind == System.Text.Json.JsonValueKind.String);
 		}
 		catch (System.Text.Json.JsonException)
 		{
@@ -763,7 +833,9 @@ public sealed partial class Journey
 					options = options with { Urls = true };
 					break;
 				case "--delta" or "--full":
-					throw new JourneySyntaxException($"snapshot {rest[i]} is not supported in journeys: a checkpoint records the whole tree, and the transcript diff shows what changed.");
+					throw new JourneySyntaxException(
+						$"snapshot {rest[i]} is not supported in journeys: a checkpoint records the whole tree, and the transcript diff shows what changed."
+					);
 				case "-d" or "--depth":
 					if (!hasValue || !int.TryParse(rest[i + 1], NumberStyles.None, CultureInfo.InvariantCulture, out var depth))
 						throw new JourneySyntaxException("-d needs a number");
@@ -791,8 +863,8 @@ public sealed partial class Journey
 			["title" or "url"] => new ReadCommand(rest[0], null),
 			["text" or "html" or "value" or "count" or "box" or "styles", var selector] => new ReadCommand(rest[0], Css(selector)),
 			["attr", var selector, var name] => new ReadCommand("attr", Css(selector), name),
-			[var what, ..] when what is not ("title" or "url" or "text" or "html" or "value" or "count" or "attr" or "box" or "styles")
-				=> throw new JourneySyntaxException($"get {what} is not supported in journeys: {usage}"),
+			[var what, ..] when what is not ("title" or "url" or "text" or "html" or "value" or "count" or "attr" or "box" or "styles") =>
+				throw new JourneySyntaxException($"get {what} is not supported in journeys: {usage}"),
 			_ => throw Usage(usage),
 		};
 	}
@@ -809,13 +881,28 @@ public sealed partial class Journey
 	public string ToAgentBrowserBatch(Uri? baseUrl = null, Func<string, string?>? secrets = null)
 	{
 		if (Blocks.Count > 0)
-			throw new JourneyParseException(Source, [.. Blocks.Select(b =>
-				new JourneyError(b.Line, "feature blocks are not part of agent-browser, which runs every line; use one journey file per flag state to export"))]);
+			throw new JourneyParseException(
+				Source,
+				[
+					.. Blocks.Select(
+						b => new JourneyError(
+							b.Line,
+							"feature blocks are not part of agent-browser, which runs every line; use one journey file per flag state to export"
+						)
+					)
+				]
+			);
 		var resolver = secrets is null ? null : new JourneySecrets(secrets);
 		var unresolved = Steps.Where(s => s.Arguments.Any(JourneySecrets.IsReference)).ToArray();
 		if (resolver is null && unresolved.Length > 0)
-			throw new JourneyParseException(Source, [.. unresolved.Select(s =>
-				new JourneyError(s.Line, "uses a secret reference, which agent-browser cannot read; pass a secret resolver to export the value"))]);
+			throw new JourneyParseException(
+				Source,
+				[
+					.. unresolved.Select(
+						s => new JourneyError(s.Line, "uses a secret reference, which agent-browser cannot read; pass a secret resolver to export the value")
+					)
+				]
+			);
 
 		var buffer = new ArrayBufferWriter<byte>();
 		// The relaxed encoder writes \" rather than \u0022; the output is for people and agent-browser, never HTML.
@@ -825,7 +912,12 @@ public sealed partial class Journey
 			foreach (var step in Steps)
 			{
 				// timings, metrics and links are not agent-browser commands; vitals is, without our budgets.
-				if (step.Command is PerformanceCommand { Kind: not "vitals" } or LinksCommand or ExpectCommand or ExpectRequestCommand or ExpectSameDocumentCommand or SetCommand { Setting: "useragent" })
+				if (
+					step.Command is PerformanceCommand
+					{
+						Kind: not "vitals"
+					} or LinksCommand or ExpectCommand or ExpectRequestCommand or ExpectSameDocumentCommand or SetCommand { Setting: "useragent" }
+				)
 					continue;
 				json.WriteStartArray();
 				if (step.Command is PerformanceCommand)
