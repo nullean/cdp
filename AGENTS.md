@@ -5,9 +5,9 @@ A Chrome DevTools Protocol client for .NET, the journey language on top of it, a
 
 ## Build and test
 
-`mise install` provides the toolchain: the .NET 11 SDK pinned in `global.json`, the net10.0 runtime the projects and
-tests target, and the Node CI builds `js/journeys` with. The everyday tasks have the same names as in every nullean
-repository, and run the commands CI runs:
+`mise install` provides the toolchain: the .NET 11 SDK pinned in `global.json` and the Node CI builds
+`js/journeys` with. The libraries target net10.0 and net11.0, the CLI and the tests net11.0. The everyday tasks have
+the same names as in every nullean repository, and run the commands CI runs:
 
 ```sh
 mise run build            # build the solution

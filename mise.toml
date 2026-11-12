@@ -1,7 +1,7 @@
 # Bootstraps the toolchain and is the one entry point: `mise run <task>`, the same task names in every nullean repo.
 # The .NET SDK version lives only in global.json: the first dotnet entry reads it from there (sdk.version is the first
-# "version" key). The net10.0 runtime is listed after it because every project and test targets net10.0. Node is the
-# version CI builds and tests @nullean/journeys (js/journeys) with.
+# "version" key). The libraries also target net10.0, whose reference assemblies come from NuGet; nothing runs on the
+# .NET 10 runtime, so it is not installed. Node is the version CI builds and tests @nullean/journeys (js/journeys) with.
 #
 # The tasks run the commands CI runs; there is no build project. Browser tests need a local Chrome: without one they
 # skip (CI sets CDP_BROWSER_REQUIRED=1 on Linux so they fail instead).
@@ -12,7 +12,7 @@ DOTNET_CLI_TELEMETRY_OPTOUT = "1"
 DOTNET_SKIP_FIRST_TIME_EXPERIENCE = "1"
 
 [tools]
-dotnet = ["""{{ read_file(path='global.json') | split(pat='"version"') | nth(n=1) | split(pat='"') | nth(n=1) }}""", "10"]
+dotnet = ["""{{ read_file(path='global.json') | split(pat='"version"') | nth(n=1) | split(pat='"') | nth(n=1) }}"""]
 node = "26"
 gh = "latest"
 zizmor = "1"
