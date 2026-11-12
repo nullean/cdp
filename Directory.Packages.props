@@ -9,16 +9,16 @@
 
   <ItemGroup>
     <!-- The CLI's argument parsing: source generated, AOT-safe, help from XML docs. -->
-    <PackageVersion Include="Nullean.Argh" Version="0.21.0" />
+    <PackageVersion Include="Nullean.Argh" Version="0.27.2" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- Test dependencies. TUnit and AwesomeAssertions track the latest stable release only. -->
-    <PackageVersion Include="TUnit" Version="1.78.0" />
+    <PackageVersion Include="TUnit" Version="1.83.8" />
     <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
     <PackageVersion Include="CsCheck" Version="5.0.1" />
     <!-- Golden output for the tree printer. -->
-    <PackageVersion Include="Nullean.Snapshots.AwesomeAssertions" Version="0.1.0" />
-    <PackageVersion Include="Nullean.Snapshots.TUnit" Version="0.1.0" />
+    <PackageVersion Include="Nullean.Snapshots.AwesomeAssertions" Version="0.11.0" />
+    <PackageVersion Include="Nullean.Snapshots.TUnit" Version="0.11.0" />
   </ItemGroup>
 </Project>
