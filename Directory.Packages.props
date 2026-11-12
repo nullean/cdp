@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <!-- The CLI's argument parsing: source generated, AOT-safe, help from XML docs. -->
-    <PackageVersion Include="Nullean.Argh" Version="0.27.2" />
+    <PackageVersion Include="Nullean.Argh" Version="0.30.0" />
   </ItemGroup>
 
   <ItemGroup>
