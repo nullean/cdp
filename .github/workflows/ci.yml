@@ -5,8 +5,9 @@ on:
   push:
     branches:
       - main
-  # Publishing the release-drafter draft creates the tag and releases: every gate below runs on the released commit
-  # first. nuget.org's and npm's trusted publishing name this file, so releasing stays here.
+  # Publishing the release-drafter draft creates the tag and releases: main-green first waits for main's run of this
+  # workflow on the released commit to have passed. nuget.org's and npm's trusted publishing name this file, so
+  # releasing stays here.
   release:
     types: [published]
   workflow_dispatch:
@@ -18,8 +19,24 @@ concurrency:
 permissions:
   contents: read
 
+# macOS runners are severely constrained: macOS jobs run only on a push to main, plus the osx-arm64 AOT pack on a
+# release (macOS AOT only compiles on macOS). A release runs no tests of its own; main-green requires main's full run,
+# macOS included, to have passed on the released commit, and every release job needs it.
 jobs:
+  # A release ships a commit main has already proven: wait for main's push run of ci.yml on the released commit and
+  # stop unless it passed.
+  main-green:
+    if: github.event_name == 'release'
+    name: main is green
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    permissions:
+      actions: read # read main's ci.yml runs
+    steps:
+      - uses: nullean/.github/actions/require-green-main@f9eb30d28e48b3f6b8ff1f4e7dae1d2b7b2d544b # v1.6.0
+
   journeys-js:
+    if: github.event_name != 'release' # publish-npm builds and tests the package itself
     runs-on: ubuntu-latest
     name: "@nullean/journeys (node)"
     timeout-minutes: 15
@@ -57,11 +74,20 @@ jobs:
           npm test
           npm run test:live
 
+  # On a release only the Linux leg runs, and only to pack the libraries the release job publishes: the checks and
+  # tests ran in main's push run on this commit.
   build:
+    needs: main-green
+    # main-green is skipped on everything but a release, which would skip this job too without a status function.
+    if: ${{ !cancelled() && (github.event_name != 'release' || needs.main-green.result == 'success') }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: >-
+          ${{ fromJSON(
+            (github.event_name == 'push' && '["ubuntu-latest", "windows-latest", "macos-latest"]')
+            || (github.event_name == 'release' && '["ubuntu-latest"]')
+            || '["ubuntu-latest", "windows-latest"]') }}
     runs-on: ${{ matrix.os }}
     name: Build and test (${{ matrix.os }})
     timeout-minutes: 20
@@ -86,11 +112,13 @@ jobs:
         run: dotnet build -c Release
 
       - name: Check formatting (curb)
+        if: github.event_name != 'release'
         run: dotnet tool restore && dotnet curb check .
 
       # Fast PR checks: the browser suite runs on Linux; macOS and Windows build and run the tests that need no
       # browser. (On the small macOS runners a full browser suite with auto-attach made the runner unresponsive.)
       - name: Test
+        if: github.event_name != 'release'
         timeout-minutes: 10
         shell: bash
         run: |
@@ -115,18 +143,20 @@ jobs:
           path: .artifacts/package-output/*.nupkg
           if-no-files-found: error
 
-  # Native AOT cannot cross-compile between operating systems, so each RID packs on a matching runner.
+  # Native AOT cannot cross-compile between operating systems, so each RID packs on a matching runner. osx-arm64 runs
+  # on a push to main and on a release, where it is the one macOS job; workflow_dispatch packs the other four.
   aot-pack:
-    if: github.event_name != 'pull_request'
+    needs: main-green
+    if: >-
+      ${{ !cancelled() && github.event_name != 'pull_request'
+        && (github.event_name != 'release' || needs.main-green.result == 'success') }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { rid: linux-x64, runner: ubuntu-latest }
-          - { rid: linux-arm64, runner: ubuntu-24.04-arm }
-          - { rid: win-x64, runner: windows-latest }
-          - { rid: win-arm64, runner: windows-11-arm }
-          - { rid: osx-arm64, runner: macos-latest }
+        include: >-
+          ${{ fromJSON((github.event_name == 'push' || github.event_name == 'release')
+            && '[{"rid":"linux-x64","runner":"ubuntu-latest"},{"rid":"linux-arm64","runner":"ubuntu-24.04-arm"},{"rid":"win-x64","runner":"windows-latest"},{"rid":"win-arm64","runner":"windows-11-arm"},{"rid":"osx-arm64","runner":"macos-latest"}]'
+            || '[{"rid":"linux-x64","runner":"ubuntu-latest"},{"rid":"linux-arm64","runner":"ubuntu-24.04-arm"},{"rid":"win-x64","runner":"windows-latest"},{"rid":"win-arm64","runner":"windows-11-arm"}]') }}
     runs-on: ${{ matrix.runner }}
     name: AOT pack (${{ matrix.rid }})
     timeout-minutes: 20
@@ -167,7 +197,10 @@ jobs:
   # A plain pack emits the root package, the portable 'any' fallback and managed per-RID packages. Only the first two
   # are kept: the real per-RID packages are the AOT ones above.
   tool-pack:
-    if: github.event_name != 'pull_request'
+    needs: main-green
+    if: >-
+      ${{ !cancelled() && github.event_name != 'pull_request'
+        && (github.event_name != 'release' || needs.main-green.result == 'success') }}
     runs-on: ubuntu-latest
     name: Pack the root and portable tool packages
     timeout-minutes: 20
@@ -204,13 +237,18 @@ jobs:
           path: .artifacts/package-output/*.nupkg
           if-no-files-found: error
 
-  # Installs the packed tool from a local feed and runs the smoke test with it, installed and through dnx.
+  # Installs the packed tool from a local feed and runs the smoke test with it, installed and through dnx. Not on a
+  # release, which relies on main's run of it; macOS only on a push to main.
   tool-smoke:
+    if: github.event_name != 'release'
     needs: [aot-pack, tool-pack]
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: >-
+          ${{ fromJSON(github.event_name == 'push'
+            && '["ubuntu-latest", "windows-latest", "macos-latest"]'
+            || '["ubuntu-latest", "windows-latest"]') }}
     runs-on: ${{ matrix.os }}
     name: Tool smoke test (${{ matrix.os }})
     timeout-minutes: 15
@@ -255,13 +293,13 @@ jobs:
           "$GITHUB_WORKSPACE/build/smoke-cli.sh" "$temp/tool/$cdp"
           "$GITHUB_WORKSPACE/build/smoke-cli.sh" dotnet dnx "Nullean.Cdp.Cli@$root" --add-source "$feed" --yes
 
-  # Publishing to nuget.org: a published release (its tag X.Y.Z or X.Y.Z-pre.N) publishes, and only once every gate
-  # above has passed. Publishing the release-drafter draft is the release decision; pushing a tag alone does nothing.
+  # Publishing to nuget.org: a published release (its tag X.Y.Z or X.Y.Z-pre.N) publishes, and only once main-green has
+  # seen main's run on the released commit pass. Publishing the release-drafter draft is the release decision; pushing a tag alone does nothing.
   # A failed run can be re-run: pushing is skipped for packages already there. The 'release' environment only lets tags
   # deploy, and nuget.org's trusted publishing policy names it, so no API key is stored.
   release:
     if: github.event_name == 'release'
-    needs: [build, aot-pack, tool-pack, tool-smoke]
+    needs: [main-green, build, aot-pack, tool-pack]
     runs-on: ubuntu-latest
     name: Publish to nuget.org
     timeout-minutes: 20
@@ -331,9 +369,10 @@ jobs:
 
   # The npm package is published like the NuGet ones: from a published release, in the `release` environment,
   # through trusted publishing (the workflow's OIDC token; no token is stored). The release's tag gives the version.
+  # Only after main-green: journeys-js and the .NET build ran in main's push run on this commit.
   publish-npm:
     if: github.event_name == 'release'
-    needs: [build, journeys-js]
+    needs: main-green
     runs-on: ubuntu-latest
     name: Publish @nullean/journeys to npm
     timeout-minutes: 15
@@ -393,6 +432,6 @@ jobs:
 
   # Static analysis of these workflows (nullean/.github).
   zizmor:
-    uses: nullean/.github/.github/workflows/zizmor.yml@d850ce6eee9efa9f81b410d15fcd480409518d19 # v1.5.0
+    uses: nullean/.github/.github/workflows/zizmor.yml@e21d5f59405aa7078e51825cd4c407191e28562f # v1.6.1
     permissions:
       contents: read
