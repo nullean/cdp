@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <!-- The CLI's argument parsing: source generated, AOT-safe, help from XML docs. -->
-    <PackageVersion Include="Nullean.Argh" Version="0.27.2" />
+    <PackageVersion Include="Nullean.Argh" Version="0.30.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -20,5 +20,8 @@
     <!-- Golden output for the tree printer. -->
     <PackageVersion Include="Nullean.Snapshots.AwesomeAssertions" Version="0.12.0" />
     <PackageVersion Include="Nullean.Snapshots.TUnit" Version="0.12.0" />
+    <!-- Nullean.Snapshots 0.12 asks for Nullean.ScopedFileSystem 0.7.1, whose net10.0 build does not load on net11.0
+         (IFile gained CreateHardLink); 0.7.2 ships net11.0 -->
+    <PackageVersion Include="Nullean.ScopedFileSystem" Version="0.7.2" />
   </ItemGroup>
 </Project>
