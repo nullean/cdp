@@ -9,7 +9,7 @@ The same `.journey` file runs on [Playwright](https://playwright.dev): as a step
 npm install @nullean/journeys
 ```
 
-It needs `playwright-core` (any Playwright Test or `@elastic/synthetics` install has it), Node 20 or later (tested on 24), and
+It needs `playwright-core` (any Playwright Test or `@elastic/synthetics` install has it), Node 20 or later (tested on 26), and
 nothing from .NET.
 
 ## Playwright Test

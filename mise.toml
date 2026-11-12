@@ -13,7 +13,7 @@ DOTNET_SKIP_FIRST_TIME_EXPERIENCE = "1"
 
 [tools]
 dotnet = ["""{{ read_file(path='global.json') | split(pat='"version"') | nth(n=1) | split(pat='"') | nth(n=1) }}""", "10"]
-node = "24"
+node = "26"
 gh = "latest"
 zizmor = "1"
 
