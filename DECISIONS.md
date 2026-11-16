@@ -82,6 +82,14 @@ joined with the target OS's separator, not the host's.
   `TimeoutException`.
 - The test for it uses a local `HttpListener` whose image answers 800 ms late: on a `file://` page `load` comes too
   fast to tell waiting from not waiting.
+- **A navigation timeout says why.** `GotoAsync`, an action's navigation wait and `WaitForLoadState`/`WaitForUrl` append
+  `Page state when it gave up:` to their `TimeoutException`: the URL, `readyState`, the lifecycle events the document
+  reached, the requests still in flight (oldest first, five shown, with their age) and the last failed or 4xx/5xx ones,
+  and the page's last script error. A 30 s stall in CI otherwise says only that 30 s passed.
+- **That needs the `Network` domain on from the start**, so every page enables it when it is created and keeps URLs
+  and counts of requests (`PageActivity`), never headers or bodies. `NetworkRecording` stays the opt-in for a request
+  list or HAR. The page-state script is bounded to two seconds: a hung renderer is reported as not answering, and the
+  timeout is never delayed by its own diagnosis.
 
 ## Accessibility tree
 

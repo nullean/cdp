@@ -45,6 +45,7 @@ public sealed class Page
 	internal int RecordingInteractions;
 
 	private readonly PageLog _log = new();
+	private readonly PageActivity _activity = new();
 
 	/// <summary>The page's console calls since it was created or last cleared, oldest first.</summary>
 	public IReadOnlyList<ConsoleMessage> ConsoleMessages => _log.Console;
@@ -356,9 +357,38 @@ public sealed class Page
 		while (!await done().ConfigureAwait(false))
 		{
 			if (started.Elapsed >= NavigationTimeout)
-				throw new TimeoutException($"Timed out after {NavigationTimeout.TotalSeconds:0}s waiting for {what}.");
+				throw new TimeoutException($"Timed out after {NavigationTimeout.TotalSeconds:0}s waiting for {what}." + await StateAsync().ConfigureAwait(false));
 			await Task.Delay(50, cancellationToken).ConfigureAwait(false);
 		}
+	}
+
+	/// <summary>
+	/// What the page looked like when a wait gave up, as lines to append to the timeout message: the URL, <c>readyState</c>, the
+	/// lifecycle events the document reached, the requests still in flight and the failed ones, and the page's last script error.
+	/// Best effort and bounded: a page that does not answer within two seconds is reported as such, never waited on.
+	/// </summary>
+	private async Task<string> StateAsync()
+	{
+		var lines = new List<string>();
+		try
+		{
+			using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+			var state = await EvaluateAsync("location.href + '\\n' + document.readyState", limit.Token).ConfigureAwait(false);
+			var parts = (state.GetString() ?? "").Split('\n');
+			lines.Add($"url: {parts[0]}");
+			lines.Add($"readyState: {(parts.Length > 1 ? parts[1] : "unknown")}");
+		}
+		catch (Exception e) when (e is OperationCanceledException or CdpException or CdpDisconnectedException or PageScriptException)
+		{
+			lines.Add("the page did not answer a script within 2s, so its URL and readyState are unknown");
+		}
+
+		var reached = _lifecycle.Keys.Order(StringComparer.Ordinal).ToList();
+		lines.Add($"lifecycle events of this document: {(reached.Count == 0 ? "none" : string.Join(", ", reached))}");
+		lines.AddRange(_activity.Describe());
+		if (_log.Errors is [.., var last])
+			lines.Add($"last script error: {last}");
+		return "\nPage state when it gave up:\n  " + string.Join("\n  ", lines);
 	}
 
 	/// <summary>Emulates <c>prefers-color-scheme</c>: <c>dark</c>, <c>light</c> or <c>no-preference</c>.</summary>
@@ -397,7 +427,10 @@ public sealed class Page
 			_lifecycle.TryAdd(name, 0);
 		});
 		_ = Connection.On(SessionId, _log.OnEvent);
+		_ = Connection.On(SessionId, _activity.OnEvent);
 		await SendAsync("Page.enable", null, cancellationToken).ConfigureAwait(false);
+		// Requests in flight and failed ones, so a timeout can say what the page was waiting on.
+		await SendAsync("Network.enable", null, cancellationToken).ConfigureAwait(false);
 		// Console calls and uncaught errors arrive as Runtime events.
 		await SendAsync("Runtime.enable", null, cancellationToken).ConfigureAwait(false);
 		await SendAsync("Page.setLifecycleEventsEnabled", w => w.WriteBoolean("enabled", true), cancellationToken).ConfigureAwait(false);
@@ -433,7 +466,7 @@ public sealed class Page
 		}
 		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
 		{
-			throw new TimeoutException($"Navigating to {url} did not finish loading within {NavigationTimeout.TotalSeconds:0} seconds.");
+			throw new TimeoutException($"Navigating to {url} did not finish loading within {NavigationTimeout.TotalSeconds:0} seconds." + await StateAsync().ConfigureAwait(false));
 		}
 	}
 
@@ -461,7 +494,7 @@ public sealed class Page
 		}
 		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
 		{
-			throw new TimeoutException($"A navigation the action started did not finish loading within {NavigationTimeout.TotalSeconds:0} seconds.");
+			throw new TimeoutException($"A navigation the action started did not finish loading within {NavigationTimeout.TotalSeconds:0} seconds." + await StateAsync().ConfigureAwait(false));
 		}
 	}
 

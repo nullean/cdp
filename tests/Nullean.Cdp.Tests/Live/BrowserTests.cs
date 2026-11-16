@@ -68,6 +68,47 @@ public class BrowserTests(ChromeFixture chrome)
 	}
 
 	[Test]
+	public async Task ANavigationTimeoutSaysWhatTheLoadWasWaitingOn()
+	{
+		_ = chrome.Browser; // skips without a Chrome
+		await using var server = new SlowServer(TimeSpan.FromSeconds(10));
+		await using var context = await chrome.Browser.NewContextAsync();
+		var page = await context.NewPageAsync();
+		page.NavigationTimeout = TimeSpan.FromMilliseconds(600);
+
+		var act = () => page.GotoAsync(server.Url);
+
+		var thrown = await act.Should().ThrowAsync<TimeoutException>();
+		thrown.Which.Message.Should().StartWith($"Navigating to {server.Url} did not finish loading within 1 seconds.\nPage state when it gave up:\n");
+		thrown
+			.Which
+			.Message
+			.Should()
+			.Contain($"url: {server.Url}")
+			.And
+			.Contain("readyState: interactive")
+			.And
+			.Contain("1 request still in flight\n    GET " + server.Url + "slow.png (");
+	}
+
+	[Test]
+	public async Task AWaitTimeoutNamesTheRequestsThatFailed()
+	{
+		_ = chrome.Browser; // skips without a Chrome
+		await using var server = new SlowServer(TimeSpan.Zero);
+		await using var context = await chrome.Browser.NewContextAsync();
+		var page = await context.NewPageAsync();
+		page.NavigationTimeout = TimeSpan.FromMilliseconds(300);
+		await page.GotoAsync(server.Url + "links");
+
+		var act = () => page.WaitForUrlAsync("**/never");
+
+		var thrown = await act.Should().ThrowAsync<TimeoutException>();
+		thrown.Which.Message.Should().StartWith("Timed out after 0s waiting for the URL to match '**/never'.\nPage state when it gave up:\n");
+		thrown.Which.Message.Should().Contain("readyState: complete").And.Contain("last failed requests: 404 " + server.Url + "missing.png");
+	}
+
+	[Test]
 	public async Task AFailedNavigationThrowsWithTheBrowsersError()
 	{
 		await using var context = await chrome.Browser.NewContextAsync();
