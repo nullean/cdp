@@ -98,8 +98,8 @@ public class BrowserTests(ChromeFixture chrome)
 		await using var server = new SlowServer(TimeSpan.Zero);
 		await using var context = await chrome.Browser.NewContextAsync();
 		var page = await context.NewPageAsync();
-		page.NavigationTimeout = TimeSpan.FromMilliseconds(300);
 		await page.GotoAsync(server.Url + "links");
+		page.NavigationTimeout = TimeSpan.FromMilliseconds(300);
 
 		var act = () => page.WaitForUrlAsync("**/never");
 
