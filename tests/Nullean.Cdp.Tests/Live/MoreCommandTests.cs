@@ -176,7 +176,7 @@ public class MoreCommandTests(ChromeFixture chrome)
 			.Awaiting(() => page.WaitForUrlAsync("**/never"))
 			.Should()
 			.ThrowAsync<TimeoutException>()
-			.WithMessage("Timed out after 0s waiting for the URL to match '**/never'.");
+			.WithMessage("Timed out after 0s waiting for the URL to match '**/never'.\nPage state when it gave up:*");
 		await FluentActions.Awaiting(() => page.WaitForLoadStateAsync("idle")).Should().ThrowAsync<ArgumentException>();
 	}
 
