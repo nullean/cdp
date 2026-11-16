@@ -357,7 +357,9 @@ public sealed class Page
 		while (!await done().ConfigureAwait(false))
 		{
 			if (started.Elapsed >= NavigationTimeout)
-				throw new TimeoutException($"Timed out after {NavigationTimeout.TotalSeconds:0}s waiting for {what}." + await StateAsync().ConfigureAwait(false));
+				throw new TimeoutException(
+					$"Timed out after {NavigationTimeout.TotalSeconds:0}s waiting for {what}." + await StateAsync().ConfigureAwait(false)
+				);
 			await Task.Delay(50, cancellationToken).ConfigureAwait(false);
 		}
 	}
@@ -466,7 +468,9 @@ public sealed class Page
 		}
 		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
 		{
-			throw new TimeoutException($"Navigating to {url} did not finish loading within {NavigationTimeout.TotalSeconds:0} seconds." + await StateAsync().ConfigureAwait(false));
+			throw new TimeoutException(
+				$"Navigating to {url} did not finish loading within {NavigationTimeout.TotalSeconds:0} seconds." + await StateAsync().ConfigureAwait(false)
+			);
 		}
 	}
 
@@ -494,7 +498,11 @@ public sealed class Page
 		}
 		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
 		{
-			throw new TimeoutException($"A navigation the action started did not finish loading within {NavigationTimeout.TotalSeconds:0} seconds." + await StateAsync().ConfigureAwait(false));
+			throw new TimeoutException(
+				$"A navigation the action started did not finish loading within {NavigationTimeout.TotalSeconds:0} seconds." + await StateAsync().ConfigureAwait(
+					false
+				)
+			);
 		}
 	}
 
