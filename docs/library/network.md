@@ -48,3 +48,31 @@ network har stop checkout.har
 In a journey the file goes into the artifacts folder (`--artifacts`), and secrets typed during the run are replaced by
 their `$env:` references. With the allow list on, each request waits for its verdict, which adds a little to
 `blocked`; record with the guard off when the timings themselves are the point.
+
+## Wait for a deploy
+
+`JourneyPreconditions.WaitAsync` waits until a page shows a value before anything runs against it: a response header of the page's document, or
+an element's text or attribute. A site whose deploy has not landed, or whose cache has not cleared, still shows the old value.
+
+```csharp
+var precondition = new JourneyPrecondition
+{
+    Path = "/docs",
+    Selector = "meta[name='docs:build']",
+    Attribute = "content",
+    Expected = "1.74.1",
+    Timeout = TimeSpan.FromSeconds(10),
+    Retries = 2,
+};
+
+PreconditionResult result = await JourneyPreconditions.WaitAsync(browser, precondition, new JourneyOptions { BaseUrl = new Uri("https://docs-demo.elastic.dev/") });
+if (!result.Passed)
+    Console.Error.WriteLine(result.Message);
+```
+
+Set `Header` instead of `Selector` to read a response header. `Match` is `Exact` by default; `Contains` and `Regex` are the others.
+The wait looks again every `Interval` (500 ms) until `Timeout` (10 s). A look that fails, because the page did not load or the
+connection dropped, counts against `Retries` (2), and the wait ends when they are used up. Each look is a new context, so nothing is cached, and
+the options' allow list, user agent, headers and read-only rule apply.
+
+`Page.Response` has the status and headers of the response that served the page's current document.

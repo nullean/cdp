@@ -106,9 +106,11 @@ public sealed class JourneyOptions
 		};
 	}
 
-	internal JourneyAllowList AllowList(Journey journey)
+	internal JourneyAllowList AllowList(Journey journey) => AllowList(journey.AllowedHosts);
+
+	internal JourneyAllowList AllowList(IEnumerable<string> journeyHosts)
 	{
-		var hosts = journey.AllowedHosts.Concat(AllowedHosts);
+		var hosts = journeyHosts.Concat(AllowedHosts);
 		if (BaseUrl is { Scheme: "http" or "https" } web)
 			hosts = hosts.Append(web.IdnHost);
 		// "file:///x/site/" and "file:///x/site/index.html" both give /x/site.
@@ -290,7 +292,7 @@ public static class JourneyRunner
 	}
 
 	// The run's viewport, user agent and headers, set before the first step so the journey starts as the harness wants.
-	private static async Task ApplyDefaultsAsync(Page page, JourneyOptions options, CancellationToken cancellationToken)
+	internal static async Task ApplyDefaultsAsync(Page page, JourneyOptions options, CancellationToken cancellationToken)
 	{
 		if (options.Viewport is { } viewport)
 			await page.SetViewportAsync(viewport.Width, viewport.Height, viewport.Scale, cancellationToken).ConfigureAwait(false);
