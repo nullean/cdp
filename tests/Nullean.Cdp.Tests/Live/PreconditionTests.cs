@@ -121,7 +121,8 @@ public class PreconditionTests(ChromeFixture chrome)
 	public async Task LooksThatFailAreRetriedAndGiveUpAfterTheRetries()
 	{
 		_ = chrome.Browser;
-		// Until it starts, the port refuses connections: every look fails at once, whatever the machine's speed.
+		// Until it starts, the port refuses connections: a look fails at once, whatever the machine's speed. How many looks failed before
+		// it came up depends on how fast the machine starts a context, so only the outcome is asserted for that server.
 		await using var comingUp = new VersionServer(_ => "1.2.0", startAfter: TimeSpan.FromMilliseconds(800));
 		await using var down = new VersionServer(_ => "1.2.0", startAfter: Timeout.InfiniteTimeSpan);
 		var precondition = new JourneyPrecondition
@@ -138,7 +139,6 @@ public class PreconditionTests(ChromeFixture chrome)
 		var gaveUp = await JourneyPreconditions.WaitAsync(chrome.Browser, precondition with { Retries = 2 }, Options(down));
 
 		recovered.Passed.Should().BeTrue(recovered.Message);
-		recovered.Attempts.Should().BeGreaterThan(1);
 		gaveUp.Passed.Should().BeFalse();
 		gaveUp.Message.Should().Contain("3 looks failed, the last with:").And.Contain("ERR_CONNECTION_REFUSED");
 		gaveUp.Attempts.Should().Be(3);
