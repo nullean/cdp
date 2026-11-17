@@ -10,21 +10,32 @@ namespace Nullean.Cdp;
 /// What the page is waiting on and what already went wrong, kept so a timeout can say why it timed out: the requests still in
 /// flight (oldest first), and the last failed or error-status ones. Holds URLs and counts only, never bodies or headers.
 /// </summary>
-internal sealed class PageActivity
+internal sealed class PageActivity(string frameId)
 {
 	private const int Shown = 5;
 	private const int Kept = 20;
 
 	private readonly ConcurrentDictionary<string, InFlight> _open = new(StringComparer.Ordinal);
 	private readonly ConcurrentQueue<string> _problems = new();
+	private volatile PageResponse? _document;
 
 	private readonly record struct InFlight(string Method, string Url, long Started);
+
+	/// <summary>The latest response for a document in the page's main frame, or <c>null</c> before one arrived.</summary>
+	public PageResponse? Document => _document;
 
 	public void OnEvent(CdpEvent e)
 	{
 		var p = e.Params;
 		if (p.StringOrNull("requestId") is not { } id)
 			return;
+		if (
+			e.Method == "Network.responseReceived" && p.StringOrNull("type") == "Document" && p.StringOrNull("frameId") == frameId && p.TryGetProperty(
+				"response",
+				out var main
+			)
+		)
+			_document = PageResponse.From(main);
 		switch (e.Method)
 		{
 			// A redirect reuses the id: the new hop replaces the old one.

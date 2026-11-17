@@ -586,6 +586,24 @@ published by hand by the owner.
   write to an allowed host fails the step. A page that writes on its own (telemetry) needs `WritableUrls`.
 - **`BlockedRequest.RefusedWrite` is `null` for allow-list refusals**, so existing `BlockedRequest` equality is
   unchanged.
+## Preconditions
+
+- **A run can wait for a deploy before it starts.** `JourneyPreconditions.WaitAsync` opens a page until a response header or an
+  element's text or attribute shows a value (exact, contains or regex). A deploy that has not landed, or whose cache has not
+  cleared, still shows the old value; failing there says so once, instead of failing every journey.
+- **Every look is a new context.** A context has no cache, so a stale copy cannot satisfy the wait, and the run's user agent,
+  headers, allow list and read-only rule apply to it like to a journey, which keeps a monitor identifiable.
+- **Header and element go through one browser path.** Chrome reports the main document's response (`Page.Response`: status and
+  headers) from the `Network` events every page already collects since the timeout diagnostics, so no second HTTP client and no
+  HTML parser is needed, and an element that script adds is seen as a visitor sees it.
+- **`Timeout`, `Interval` and `Retries` are separate.** A look that works and shows another value is not an error: the wait goes on
+  until `Timeout` (default 10 s, every 500 ms). A look that fails (the page did not load in time, the connection dropped) counts
+  against `Retries` (default 2) and the wait gives up when they run out, so a dead origin fails in seconds and not after the
+  whole timeout. A host outside the allow list is refused before any look.
+- **Not a journey step.** It is a run-level check the runner makes once, before any journey: `# @requires` and `wait` stay as they are.
+- **What it cannot see:** it shows the value of the page it opened. A value that does not change between two deploys, such as a
+  version shared by a content-only deploy, passes at once.
+
 ## Run defaults
 
 - **A harness sets the viewport, user agent and headers once per run.** A live site tells monitors from people by user

@@ -35,6 +35,7 @@ public sealed class Page
 		TargetId = targetId;
 		SessionId = sessionId;
 		ContextId = contextId;
+		_activity = new PageActivity(targetId);
 	}
 
 	internal Browser Browser { get; }
@@ -45,7 +46,13 @@ public sealed class Page
 	internal int RecordingInteractions;
 
 	private readonly PageLog _log = new();
-	private readonly PageActivity _activity = new();
+	private readonly PageActivity _activity;
+
+	/// <summary>
+	/// The response that served the main frame's current document, with its status and headers, or <c>null</c> before one
+	/// arrived (a <c>file://</c> or <c>about:blank</c> page has none). A redirect shows the final response.
+	/// </summary>
+	public PageResponse? Response => _activity.Document;
 
 	/// <summary>The page's console calls since it was created or last cleared, oldest first.</summary>
 	public IReadOnlyList<ConsoleMessage> ConsoleMessages => _log.Console;
