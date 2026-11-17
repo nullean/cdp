@@ -6,25 +6,30 @@ namespace Nullean.Cdp.Tests.Live;
 
 /// <summary>
 /// A local HTTP server whose page names a build in a header and in a meta tag, and whose build changes as requests come in: a
-/// deploy that lands a moment after the run starts. The first requests can hang, as a struggling origin does.
+/// deploy that lands a moment after the run starts. The server can start late, or never: until it does, the port refuses connections, as an origin that is still coming up does.
 /// </summary>
 internal sealed class VersionServer : IAsyncDisposable
 {
 	private readonly HttpListener _listener = new();
 	private readonly Task _serving;
 	private readonly Func<int, string> _build;
-	private readonly int _hangFirst;
 	private int _requests;
 
-	public VersionServer(Func<int, string> build, int hangFirst = 0)
+	public VersionServer(Func<int, string> build, TimeSpan? startAfter = null)
 	{
 		_build = build;
-		_hangFirst = hangFirst;
 		var port = FreePort();
 		Url = $"http://localhost:{port}/";
 		_listener.Prefixes.Add(Url);
-		_listener.Start();
-		_serving = Task.Run(ServeAsync);
+		_serving = Task.Run(async () =>
+		{
+			if (startAfter == Timeout.InfiniteTimeSpan)
+				return;
+			if (startAfter is { } wait)
+				await Task.Delay(wait);
+			_listener.Start();
+			await ServeAsync();
+		});
 	}
 
 	public string Url { get; }
@@ -61,8 +66,6 @@ internal sealed class VersionServer : IAsyncDisposable
 	{
 		try
 		{
-			if (number <= _hangFirst)
-				await Task.Delay(TimeSpan.FromSeconds(3));
 			var build = _build(number);
 			context.Response.ContentType = "text/html; charset=utf-8";
 			context.Response.AddHeader("x-build", build);
@@ -88,7 +91,8 @@ internal sealed class VersionServer : IAsyncDisposable
 
 	public async ValueTask DisposeAsync()
 	{
-		_listener.Stop();
+		if (_listener.IsListening)
+			_listener.Stop();
 		_listener.Close();
 		await _serving;
 	}

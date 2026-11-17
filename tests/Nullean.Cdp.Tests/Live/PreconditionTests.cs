@@ -121,25 +121,26 @@ public class PreconditionTests(ChromeFixture chrome)
 	public async Task LooksThatFailAreRetriedAndGiveUpAfterTheRetries()
 	{
 		_ = chrome.Browser;
-		await using var flaky = new VersionServer(_ => "1.2.0", hangFirst: 2);
-		await using var down = new VersionServer(_ => "1.2.0", hangFirst: 100);
+		// Until it starts, the port refuses connections: a look fails at once, whatever the machine's speed. How many looks failed before
+		// it came up depends on how fast the machine starts a context, so only the outcome is asserted for that server.
+		await using var comingUp = new VersionServer(_ => "1.2.0", startAfter: TimeSpan.FromMilliseconds(800));
+		await using var down = new VersionServer(_ => "1.2.0", startAfter: Timeout.InfiniteTimeSpan);
 		var precondition = new JourneyPrecondition
 		{
 			Path = "/",
 			Header = "x-build",
 			Expected = "1.2.0",
 			Timeout = TimeSpan.FromSeconds(30),
-			Interval = TimeSpan.FromMilliseconds(100),
-			Retries = 2
+			Interval = TimeSpan.FromMilliseconds(300),
+			Retries = 5,
 		};
 
-		var recovered = await JourneyPreconditions.WaitAsync(chrome.Browser, precondition, Options(flaky, TimeSpan.FromMilliseconds(400)));
-		var gaveUp = await JourneyPreconditions.WaitAsync(chrome.Browser, precondition, Options(down, TimeSpan.FromMilliseconds(400)));
+		var recovered = await JourneyPreconditions.WaitAsync(chrome.Browser, precondition, Options(comingUp));
+		var gaveUp = await JourneyPreconditions.WaitAsync(chrome.Browser, precondition with { Retries = 2 }, Options(down));
 
 		recovered.Passed.Should().BeTrue(recovered.Message);
-		recovered.Attempts.Should().Be(3);
 		gaveUp.Passed.Should().BeFalse();
-		gaveUp.Message.Should().Contain("3 looks failed, the last with:");
+		gaveUp.Message.Should().Contain("3 looks failed, the last with:").And.Contain("ERR_CONNECTION_REFUSED");
 		gaveUp.Attempts.Should().Be(3);
 	}
 
