@@ -33,7 +33,7 @@ jobs:
     permissions:
       actions: read # read main's ci.yml runs
     steps:
-      - uses: nullean/.github/actions/require-green-main@f9eb30d28e48b3f6b8ff1f4e7dae1d2b7b2d544b # v1.6.0
+      - uses: nullean/.github/actions/require-green-main@e21d5f59405aa7078e51825cd4c407191e28562f # v1.6.1
 
   journeys-js:
     if: github.event_name != 'release' # publish-npm builds and tests the package itself
@@ -50,7 +50,7 @@ jobs:
           persist-credentials: false
 
       # Node comes from mise.toml, as it does locally; this job needs nothing else from it.
-      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
         with:
           install_args: node
           cache: false # this workflow publishes what its jobs build; never restore a cache a PR could have written
@@ -102,7 +102,7 @@ jobs:
       - run: git fetch --prune --tags
         shell: bash
 
-      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
         with:
           cache: false # this workflow publishes what these jobs build; never restore a cache a PR could have written
         env:
@@ -170,7 +170,7 @@ jobs:
       - run: git fetch --prune --tags
         shell: bash
 
-      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
         with:
           cache: false # this workflow publishes what these jobs build; never restore a cache a PR could have written
         env:
@@ -213,7 +213,7 @@ jobs:
 
       - run: git fetch --prune --tags
 
-      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
         with:
           cache: false # this workflow publishes what these jobs build; never restore a cache a PR could have written
         env:
@@ -262,7 +262,7 @@ jobs:
       - run: git fetch --prune --tags
         shell: bash
 
-      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
         with:
           cache: false # this workflow publishes what these jobs build; never restore a cache a PR could have written
         env:
@@ -310,7 +310,7 @@ jobs:
 
     steps:
       # No checkout here, so no mise.toml: the action writes one with the SDK the push needs.
-      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # v5.2.9
         with:
           cache: false # a release never restores a cache PR builds could have written
           mise_toml: |
